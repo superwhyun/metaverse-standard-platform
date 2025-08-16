@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import { KeyboardGuide } from "@/components/keyboard-guide"
 import { MonthlyReports } from "@/components/monthly-reports"
 import { OrganizationReports } from "@/components/organization-reports"
 import { StandardSearch } from "@/components/standard-search"
+import { TechAnalysis } from "@/components/tech-analysis"
 
 // Configuration 기반 imports
 import { getTopLevelPages, getAllPageIds } from "@/config/navigation"
@@ -42,9 +43,7 @@ export default function HomePage() {
       const response = await fetch('/api/conferences');
       if (response.ok) {
         const result = await response.json();
-        if (result.success) {
-          setConferences(result.data || []);
-        }
+        setConferences(result.data || []);
       } else {
         console.error('Failed to load conferences');
         setConferences([]);
@@ -64,34 +63,32 @@ export default function HomePage() {
       const response = await fetch('/api/reports?limit=50&offset=0');
       if (response.ok) {
         const result = await response.json();
-        if (result.success) {
-          // Transform database data to frontend format
-          const dbReports = (result.data || []).map((report: any) => {
-            let tags = [];
-            try {
-              // Handle both string and already-parsed array cases
-              tags = typeof report.tags === 'string' ? JSON.parse(report.tags || '[]') : (report.tags || []);
-            } catch (e) {
-              console.warn('Failed to parse tags for report', report.id, e);
-              tags = [];
-            }
-            
-            return {
-              id: report.id,
-              title: report.title,
-              date: report.date,
-              summary: report.summary,
-              // content는 리스트에서 제외 - 필요할 때만 개별 로딩
-              category: report.category,
-              organization: report.organization,
-              tags: tags,
-              downloadUrl: report.download_url,
-              conferenceId: report.conference_id
-            };
-          });
+        // Transform database data to frontend format
+        const dbReports = (result.data || []).map((report: any) => {
+          let tags = [];
+          try {
+            // Handle both string and already-parsed array cases
+            tags = typeof report.tags === 'string' ? JSON.parse(report.tags || '[]') : (report.tags || []);
+          } catch (e) {
+            console.warn('Failed to parse tags for report', report.id, e);
+            tags = [];
+          }
           
-          setReports(dbReports);
-        }
+          return {
+            id: report.id,
+            title: report.title,
+            date: report.date,
+            summary: report.summary,
+            // content는 리스트에서 제외 - 필요할 때만 개별 로딩
+            category: report.category,
+            organization: report.organization,
+            tags: tags,
+            downloadUrl: report.download_url,
+            conferenceId: report.conference_id
+          };
+        });
+        
+        setReports(dbReports);
       } else {
         console.error('Failed to load reports');
         setReports([]);
@@ -108,29 +105,27 @@ export default function HomePage() {
       const response = await fetch(`/api/reports/${reportId}`);
       if (response.ok) {
         const result = await response.json();
-        if (result.success) {
-          const report = result.data;
-          let tags = [];
-          try {
-            tags = typeof report.tags === 'string' ? JSON.parse(report.tags || '[]') : (report.tags || []);
-          } catch (e) {
-            console.warn('Failed to parse tags for report', report.id, e);
-            tags = [];
-          }
-          
-          return {
-            id: report.id,
-            title: report.title,
-            date: report.date,
-            summary: report.summary,
-            content: report.content, // 상세 로딩 시에만 포함
-            category: report.category,
-            organization: report.organization,
-            tags: tags,
-            downloadUrl: report.download_url,
-            conferenceId: report.conference_id
-          };
+        const report = result.data;
+        let tags = [];
+        try {
+          tags = typeof report.tags === 'string' ? JSON.parse(report.tags || '[]') : (report.tags || []);
+        } catch (e) {
+          console.warn('Failed to parse tags for report', report.id, e);
+          tags = [];
         }
+        
+        return {
+          id: report.id,
+          title: report.title,
+          date: report.date,
+          summary: report.summary,
+          content: report.content, // 상세 로딩 시에만 포함
+          category: report.category,
+          organization: report.organization,
+          tags: tags,
+          downloadUrl: report.download_url,
+          conferenceId: report.conference_id
+        };
       }
       return null;
     } catch (error) {
@@ -525,6 +520,13 @@ export default function HomePage() {
         <div className={getPageClasses("organization-reports", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <OrganizationReports reports={reports} onReportClick={handleOrganizationReportSelect} />
+          </div>
+        </div>
+
+        {/* Tech analysis page */}
+        <div className={getPageClasses("tech-analysis", currentView)}>
+          <div className="container mx-auto px-4 py-6 pb-20">
+            <TechAnalysis />
           </div>
         </div>
 

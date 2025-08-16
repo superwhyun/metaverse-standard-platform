@@ -104,13 +104,15 @@ export const useKeyboardNavigation = ({
         case "2":
         case "3":
         case "4":
+        case "5":
           if (!event.ctrlKey && !event.metaKey) {
             event.preventDefault()
             const shortcuts = {
               "1": "admin",
               "2": "calendar", 
               "3": "reports",
-              "4": "standard-search"
+              "4": "tech-analysis",
+              "5": "standard-search"
             }
             targetPageId = shortcuts[event.key as keyof typeof shortcuts]
             console.log('Number key pressed:', event.key, '->', targetPageId)

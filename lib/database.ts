@@ -59,6 +59,18 @@ const createOrganizationsTable = `
   )
 `;
 
+// Create tech_analysis_reports table
+const createTechAnalysisReportsTable = `
+  CREATE TABLE IF NOT EXISTS tech_analysis_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT,
+    image_url TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`;
+
 // Create indexes for better performance
 const createIndexes = [
   'CREATE INDEX IF NOT EXISTS idx_conferences_start_date ON conferences(start_date)',
@@ -73,6 +85,7 @@ const createIndexes = [
 db.exec(createConferencesTable);
 db.exec(createReportsTable);
 db.exec(createOrganizationsTable);
+db.exec(createTechAnalysisReportsTable);
 createIndexes.forEach(index => db.exec(index));
 
 // Migration: Remove unnecessary columns from conferences table
@@ -152,6 +165,19 @@ try {
 } catch (error) {
   console.log('Migration check completed or table already up to date');
 }
+
+// Tech Analysis Report operations
+export const techAnalysisReportOperations = {
+  getAll: () => {
+    const stmt = db.prepare('SELECT * FROM tech_analysis_reports ORDER BY created_at DESC');
+    return stmt.all();
+  },
+  create: (report: { url: string; title: string; summary?: string; image_url?: string }) => {
+    const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url) VALUES (?, ?, ?, ?)');
+    const result = stmt.run(report.url, report.title, report.summary, report.image_url);
+    return { id: result.lastInsertRowid, ...report };
+  },
+};
 
 // Organization operations
 export const organizationOperations = {
