@@ -38,6 +38,9 @@ interface ReportViewerProps {
 export function ReportViewer({ report, onBack }: ReportViewerProps) {
   // 마크다운 내용을 번호와 함께 전처리하는 함수
   const processMarkdownWithNumbers = (content: string) => {
+    if (typeof content !== 'string') {
+      return ''; // Return an empty string if content is not a string
+    }
     const lines = content.split('\n')
     const counters = { h1: 0, h2: 0, h3: 0 }
     const koreanChars = ['가', '나', '다', '라', '마', '바', '사', '아', '자', '차', '카', '타', '파', '하']

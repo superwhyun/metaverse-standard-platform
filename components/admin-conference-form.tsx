@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import type React from "react"
 import { useState, useEffect } from "react"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "./ui/use-toast"
 
 interface ConferenceFormData {
   title: string
@@ -30,6 +31,11 @@ interface AdminConferenceFormProps {
   isEdit?: boolean
 }
 
+interface Organization {
+  id: number
+  name: string
+}
+
 export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = false }: AdminConferenceFormProps) {
   const [formData, setFormData] = useState<ConferenceFormData>(
     initialData || {
@@ -46,8 +52,27 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
   )
 
   const [errors, setErrors] = useState<Partial<ConferenceFormData>>({})
+  const [organizations, setOrganizations] = useState<Organization[]>([])
 
-  const organizations = ["ISO/IEC", "ITU-T", "IEEE", "W3C", "ETSI", "3GPP", "IETF", "기타"]
+  useEffect(() => {
+    const fetchOrganizations = async () => {
+      try {
+        const response = await fetch('/api/organizations')
+        if (!response.ok) {
+          throw new Error('Failed to fetch organizations')
+        }
+        const data = await response.json()
+        setOrganizations(data)
+      } catch (error) {
+        toast({
+          title: "오류",
+          description: "주최 기관 목록을 불러오는 데 실패했습니다.",
+          variant: "destructive",
+        })
+      }
+    }
+    fetchOrganizations()
+  }, [])
 
   const isMultiDay = formData.startDate && formData.endDate && formData.startDate !== formData.endDate
 
@@ -256,8 +281,8 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
                 </SelectTrigger>
                 <SelectContent>
                   {organizations.map((org) => (
-                    <SelectItem key={org} value={org}>
-                      {org}
+                    <SelectItem key={org.id} value={org.name}>
+                      {org.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

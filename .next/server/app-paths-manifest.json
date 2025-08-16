@@ -1,6 +1,8 @@
 {
+  "/api/conferences/route": "app/api/conferences/route.js",
+  "/api/organizations/route": "app/api/organizations/route.js",
   "/api/reports/route": "app/api/reports/route.js",
   "/api/reports/[id]/route": "app/api/reports/[id]/route.js",
-  "/api/conferences/route": "app/api/conferences/route.js",
+  "/api/conferences/[id]/route": "app/api/conferences/[id]/route.js",
   "/page": "app/page.js"
 }

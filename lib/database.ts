@@ -51,6 +51,14 @@ const createReportsTable = `
   )
 `;
 
+// Create organizations table
+const createOrganizationsTable = `
+  CREATE TABLE IF NOT EXISTS organizations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+  )
+`;
+
 // Create indexes for better performance
 const createIndexes = [
   'CREATE INDEX IF NOT EXISTS idx_conferences_start_date ON conferences(start_date)',
@@ -58,11 +66,13 @@ const createIndexes = [
   'CREATE INDEX IF NOT EXISTS idx_conferences_organization ON conferences(organization)',
   'CREATE INDEX IF NOT EXISTS idx_reports_category ON reports(category)',
   'CREATE INDEX IF NOT EXISTS idx_reports_organization ON reports(organization)',
+  'CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations(name)',
 ];
 
 // Initialize tables and indexes
 db.exec(createConferencesTable);
 db.exec(createReportsTable);
+db.exec(createOrganizationsTable);
 createIndexes.forEach(index => db.exec(index));
 
 // Migration: Remove unnecessary columns from conferences table
@@ -142,6 +152,29 @@ try {
 } catch (error) {
   console.log('Migration check completed or table already up to date');
 }
+
+// Organization operations
+export const organizationOperations = {
+  // Get all organizations
+  getAll: () => {
+    const stmt = db.prepare('SELECT * FROM organizations ORDER BY name ASC');
+    return stmt.all();
+  },
+
+  // Create new organization
+  create: (organization: { name: string }) => {
+    const stmt = db.prepare('INSERT INTO organizations (name) VALUES (?)');
+    const result = stmt.run(organization.name);
+    return { id: result.lastInsertRowid, ...organization };
+  },
+
+  // Delete organization
+  delete: (id: number) => {
+    const stmt = db.prepare('DELETE FROM organizations WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  }
+};
 
 // Conference operations
 export const conferenceOperations = {

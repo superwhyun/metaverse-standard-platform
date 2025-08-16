@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import type React from "react"
 import { useState, useEffect } from "react"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "./ui/use-toast"
 
 interface Conference {
   id: number
@@ -37,6 +38,11 @@ interface AdminReportFormProps {
   initialData?: ReportFormData
   isEdit?: boolean
   conferences?: Conference[]
+}
+
+interface Organization {
+  id: number;
+  name: string;
 }
 
 export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false, conferences = [] }: AdminReportFormProps) {
@@ -84,6 +90,27 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
 
   const [errors, setErrors] = useState<Partial<ReportFormData>>({})
   const [newTag, setNewTag] = useState("")
+  const [organizations, setOrganizations] = useState<Organization[]>([])
+
+  useEffect(() => {
+    const fetchOrganizations = async () => {
+      try {
+        const response = await fetch('/api/organizations');
+        if (!response.ok) {
+          throw new Error('Failed to fetch organizations');
+        }
+        const data = await response.json();
+        setOrganizations(data);
+      } catch (error) {
+        toast({
+          title: "오류",
+          description: "기관 목록을 불러오는 데 실패했습니다.",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchOrganizations();
+  }, []);
 
   const categories = [
     "상호운용성",
@@ -95,8 +122,6 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
     "프라이버시",
     "기타",
   ]
-
-  const organizations = ["ISO/IEC", "ITU-T", "IEEE", "W3C", "ETSI", "3GPP", "IETF", "기타"]
 
   // 오늘 기준으로 종료된 회의들 중 가장 가까운 10개 필터링
   const getRecentEndedConferences = () => {
@@ -312,8 +337,8 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
                 </SelectTrigger>
                 <SelectContent>
                   {organizations.map((org) => (
-                    <SelectItem key={org} value={org}>
-                      {org}
+                    <SelectItem key={org.id} value={org.name}>
+                      {org.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

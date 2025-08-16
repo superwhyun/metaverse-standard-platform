@@ -1,5 +1,10 @@
 {
   "pages": {
+    "/api/organizations/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/organizations/route.js"
+    ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -30,6 +35,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/reports/[id]/route.js"
+    ],
+    "/api/conferences/[id]/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/conferences/[id]/route.js"
     ]
   }
 }
