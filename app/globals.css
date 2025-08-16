@@ -161,6 +161,7 @@ html {
   min-height: calc(100vh - 200px);
 }
 
+/* Auto-generated page positioning CSS */
 .page-slide {
   position: absolute;
   top: 0;
@@ -170,100 +171,53 @@ html {
   padding: 2rem 1rem;
   transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
+  z-index: 1; /* 기본 z-index */
 }
 
-/* Calendar page (center) */
-.page-slide.calendar {
-  transform: translateX(0);
-}
-
-.page-slide.calendar.active {
-  transform: translateX(0);
+/* Active state for all pages - higher specificity to override page-specific positioning */
+.page-slide.active {
+  transform: translate(0, 0) !important;
   z-index: 2;
 }
 
-.page-slide.calendar.slide-left {
+/* 상대적 위치 기반 슬라이딩 클래스 */
+.page-slide.slide-from-left {
   transform: translateX(-100%);
 }
 
-.page-slide.calendar.slide-right {
+.page-slide.slide-from-right {
   transform: translateX(100%);
 }
 
-.page-slide.calendar.slide-up {
+.page-slide.slide-from-top {
   transform: translateY(-100%);
 }
 
-/* Reports page (right of calendar) */
-.page-slide.reports {
-  /* moved reports to right side for left arrow key access */
-  transform: translateX(100%);
-}
-
-.page-slide.reports.active {
-  transform: translateX(0);
-  z-index: 2;
-}
-
-.page-slide.reports.slide-right {
-  transform: translateX(100%);
-}
-
-/* Report detail page */
-.page-slide.report-detail {
-  transform: translateX(-200%);
-}
-
-.page-slide.report-detail.active {
-  transform: translateX(0);
-  z-index: 2;
-}
-
-/* Admin page (left of calendar) */
-.page-slide.admin {
-  /* moved admin to left side for right arrow key access */
-  transform: translateX(-100%);
-}
-
-.page-slide.admin.active {
-  transform: translateX(0);
-  z-index: 2;
-}
-
-.page-slide.admin.slide-left {
-  transform: translateX(-100%);
-}
-
-/* Monthly reports page (below calendar) */
-.page-slide.monthly-reports {
+.page-slide.slide-from-bottom {
   transform: translateY(100%);
 }
 
-.page-slide.monthly-reports.active {
-  transform: translateY(0);
-  z-index: 2;
+/* 대각선 이동 (X + Y 조합) */
+.page-slide.slide-from-left.slide-from-top {
+  transform: translate(-100%, -100%);
 }
 
-.page-slide.monthly-reports.slide-down {
-  transform: translateY(100%);
+.page-slide.slide-from-right.slide-from-top {
+  transform: translate(100%, -100%);
 }
 
-.page-slide.monthly-reports.slide-up {
-  transform: translateY(-100%);
+.page-slide.slide-from-left.slide-from-bottom {
+  transform: translate(-100%, 100%);
 }
 
-/* Standard search page (below monthly reports) */
-.page-slide.standard-search {
-  transform: translateY(200%);
+.page-slide.slide-from-right.slide-from-bottom {
+  transform: translate(100%, 100%);
 }
 
-.page-slide.standard-search.active {
-  transform: translateY(0);
-  z-index: 2;
-}
-
-.page-slide.standard-search.slide-down {
-  transform: translateY(100%);
+/* 숨겨진 페이지 */
+.page-slide.hidden {
+  transform: translate(-200%, -200%);
+  opacity: 0;
 }
 
 /* Enhanced smooth scrolling for better performance */

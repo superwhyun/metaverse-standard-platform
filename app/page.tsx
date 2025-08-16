@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { Calendar, FileText, Settings } from "lucide-react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { CalendarComponent } from "@/components/calendar-component"
 import { ReportList } from "@/components/report-list"
@@ -11,21 +10,18 @@ import { AdminConferenceForm } from "@/components/admin-conference-form"
 import { AdminReportForm } from "@/components/admin-report-form"
 import { KeyboardGuide } from "@/components/keyboard-guide"
 import { MonthlyReports } from "@/components/monthly-reports"
+import { OrganizationReports } from "@/components/organization-reports"
 import { StandardSearch } from "@/components/standard-search"
 
+// Configuration 기반 imports
+import { getTopLevelPages, getAllPageIds } from "@/config/navigation"
+import { useKeyboardNavigation, usePageTransition } from "@/hooks/useNavigation"
+import { getPageClasses } from "@/utils/navigationUtils"
 
 
-type ViewType =
-  | "calendar"
-  | "reports"
-  | "report-detail"
-  | "admin"
-  | "admin-add-conference"
-  | "admin-edit-conference"
-  | "admin-add-report"
-  | "admin-edit-report"
-  | "monthly-reports"
-  | "standard-search"
+
+// Configuration에서 자동으로 ViewType 생성
+type ViewType = string
 
 export default function HomePage() {
   const [currentView, setCurrentView] = useState<ViewType>("calendar")
@@ -37,6 +33,8 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [adminReportViewer, setAdminReportViewer] = useState<any>(null) // 관리자에서 보는 보고서
   const [monthlyReportViewer, setMonthlyReportViewer] = useState<any>(null) // 월별 동향에서 보는 보고서
+  const [organizationReportViewer, setOrganizationReportViewer] = useState<any>(null) // 기구별 동향에서 보는 보고서
+  const [calendarReportViewer, setCalendarReportViewer] = useState<any>(null) // 캘린더에서 보는 보고서
 
   // Load conferences from database
   const loadConferences = async () => {
@@ -108,177 +106,30 @@ export default function HomePage() {
     loadReports();
   }, []);
 
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      // Don't handle keyboard shortcuts when user is typing in input fields
-      if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement ||
-        event.target instanceof HTMLSelectElement
-      ) {
-        // Handle form-specific shortcuts
-        if (event.ctrlKey || event.metaKey) {
-          switch (event.key) {
-            case "s":
-              event.preventDefault()
-              // Trigger form save if in admin forms
-              if (currentView.includes("admin-add") || currentView.includes("admin-edit")) {
-                const submitButton = document.querySelector('button[type="submit"]') as HTMLButtonElement
-                if (submitButton) submitButton.click()
-              }
-              break
-            case "Enter":
-              event.preventDefault()
-              const submitButton = document.querySelector('button[type="submit"]') as HTMLButtonElement
-              if (submitButton) submitButton.click()
-              break
-          }
-        }
-        return
+  // Configuration 기반 키보드 네비게이션 사용
+  const { navigateToPage } = useKeyboardNavigation({
+    currentView,
+    setCurrentView,
+    setIsTransitioning,
+    isTransitioning,
+    onViewChange: (newView) => {
+      // 뷰 변경 시 추가 로직
+      if (newView === "admin" || newView === "reports") {
+        setSelectedConference(null)
+        setSelectedReport(null)
       }
-
-      // Ignore key inputs during transition
-      if (isTransitioning) return
-
-      switch (event.key) {
-        case "ArrowLeft":
-          event.preventDefault()
-          if (currentView === "calendar") {
-            setIsTransitioning(true)
-            setCurrentView("admin")
-            setTimeout(() => setIsTransitioning(false), 600)
-          } else if (currentView === "report-detail") {
-            setIsTransitioning(true)
-            setCurrentView("reports")
-            setSelectedReport(null)
-            setTimeout(() => setIsTransitioning(false), 600)
-          } else if (currentView === "reports") {
-            setIsTransitioning(true)
-            setCurrentView("calendar")
-            setTimeout(() => setIsTransitioning(false), 600)
-          }
-          break
-        case "ArrowRight":
-          event.preventDefault()
-          if (currentView === "calendar") {
-            setIsTransitioning(true)
-            setCurrentView("reports")
-            setTimeout(() => setIsTransitioning(false), 600)
-          } else if (currentView.startsWith("admin")) {
-            setIsTransitioning(true)
-            setCurrentView("calendar")
-            setSelectedConference(null)
-            setSelectedReport(null)
-            setTimeout(() => setIsTransitioning(false), 600)
-          }
-          break
-        case "ArrowDown":
-          event.preventDefault()
-          if (currentView === "calendar") {
-            setIsTransitioning(true)
-            setCurrentView("monthly-reports")
-            setTimeout(() => setIsTransitioning(false), 600)
-          } else if (currentView === "monthly-reports") {
-            setIsTransitioning(true)
-            setCurrentView("standard-search")
-            setTimeout(() => setIsTransitioning(false), 600)
-          }
-          break
-        case "ArrowUp":
-          event.preventDefault()
-          if (currentView === "monthly-reports") {
-            setIsTransitioning(true)
-            setCurrentView("calendar")
-            setTimeout(() => setIsTransitioning(false), 600)
-          } else if (currentView === "standard-search") {
-            setIsTransitioning(true)
-            setCurrentView("monthly-reports")
-            setTimeout(() => setIsTransitioning(false), 600)
-          }
-          break
-        case "Escape":
-          event.preventDefault()
-          // Handle escape key for going back
-          if (currentView === "report-detail") {
-            setIsTransitioning(true)
-            setCurrentView("reports")
-            setSelectedReport(null)
-            setTimeout(() => setIsTransitioning(false), 600)
-          } else if (currentView.startsWith("admin-")) {
-            if (currentView === "admin") {
-              setIsTransitioning(true)
-              setCurrentView("calendar")
-              setTimeout(() => setIsTransitioning(false), 600)
-            } else {
-              setCurrentView("admin")
-              setSelectedConference(null)
-              setSelectedReport(null)
-            }
-          } else if (currentView === "reports") {
-            setIsTransitioning(true)
-            setCurrentView("calendar")
-            setTimeout(() => setIsTransitioning(false), 600)
-          } else if (currentView === "admin") {
-            setIsTransitioning(true)
-            setCurrentView("calendar")
-            setTimeout(() => setIsTransitioning(false), 600)
-          } else if (currentView === "monthly-reports") {
-            setIsTransitioning(true)
-            setCurrentView("calendar")
-            setTimeout(() => setIsTransitioning(false), 600)
-          } else if (currentView === "standard-search") {
-            setIsTransitioning(true)
-            setCurrentView("calendar")
-            setTimeout(() => setIsTransitioning(false), 600)
-          }
-          break
-        case "1":
-          if (!event.ctrlKey && !event.metaKey) {
-            event.preventDefault()
-            setIsTransitioning(true)
-            setCurrentView("admin")
-            setTimeout(() => setIsTransitioning(false), 600)
-          }
-          break
-        case "2":
-          if (!event.ctrlKey && !event.metaKey) {
-            event.preventDefault()
-            setIsTransitioning(true)
-            setCurrentView("calendar")
-            setTimeout(() => setIsTransitioning(false), 600)
-          }
-          break
-        case "3":
-          if (!event.ctrlKey && !event.metaKey) {
-            event.preventDefault()
-            setIsTransitioning(true)
-            setCurrentView("reports")
-            setTimeout(() => setIsTransitioning(false), 600)
-          }
-          break
-      }
-    },
-    [currentView, isTransitioning],
-  )
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [handleKeyDown])
-
-  useEffect(() => {
-    // Don't scroll for overlay views like report-detail
-    if (currentView !== "report-detail") {
-      // Scroll to top and focus main content when view changes
-      window.scrollTo({ top: 0, behavior: "smooth" })
-
-      // Set focus to main content for screen readers
-      const mainElement = document.querySelector("main")
-      if (mainElement) {
-        mainElement.focus()
+      if (newView === "report-detail") {
+        // report-detail로 갈 때는 selectedReport이 있어야 함
       }
     }
-  }, [currentView])
+  })
+
+  // Configuration 기반 페이지 전환 효과 사용
+  const { scrollToTop } = usePageTransition()
+  
+  useEffect(() => {
+    scrollToTop(currentView)
+  }, [currentView, scrollToTop])
 
   const handleReportClick = (reportId: number) => {
     const report = reports.find((r) => r.id === reportId)
@@ -295,6 +146,14 @@ export default function HomePage() {
 
   const handleMonthlyReportSelect = (report: any) => {
     setMonthlyReportViewer(report)
+  }
+
+  const handleOrganizationReportSelect = (report: any) => {
+    setOrganizationReportViewer(report)
+  }
+
+  const handleCalendarReportSelect = (report: any) => {
+    setCalendarReportViewer(report)
   }
 
 
@@ -520,51 +379,6 @@ export default function HomePage() {
     }
   }
 
-  const getPageClasses = (pageType: string) => {
-    const baseClass = `page-slide ${pageType}`
-
-    // Check for admin pages (including all admin sub-views)
-    if (pageType === "admin" && currentView.startsWith("admin")) {
-      return `${baseClass} active`
-    }
-
-    // Keep reports page active when viewing report details (overlay)
-    if (pageType === "reports" && currentView === "report-detail") {
-      return `${baseClass} active`
-    }
-
-    if (currentView === pageType) {
-      return `${baseClass} active`
-    }
-
-    // Determine sliding direction
-    if (pageType === "calendar") {
-      if (currentView === "reports" || currentView === "report-detail") return `${baseClass} slide-left`
-      if (currentView.startsWith("admin")) return `${baseClass} slide-right`
-      if (currentView === "monthly-reports") return `${baseClass} slide-up`
-      if (currentView === "standard-search") return `${baseClass} slide-up`
-    }
-
-    if (pageType === "reports") {
-      if (currentView === "calendar") return `${baseClass} slide-right`
-    }
-
-    if (pageType === "admin" || pageType.startsWith("admin")) {
-      if (currentView === "calendar") return `${baseClass} slide-left`
-    }
-
-    if (pageType === "monthly-reports") {
-      if (currentView === "calendar") return `${baseClass} slide-down`
-      if (currentView === "standard-search") return `${baseClass} slide-up`
-    }
-
-    if (pageType === "standard-search") {
-      if (currentView === "monthly-reports") return `${baseClass} slide-down`
-      if (currentView === "calendar") return `${baseClass} slide-down`
-    }
-
-    return baseClass
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -576,55 +390,30 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Navigation */}
+      {/* Configuration 기반 자동 생성 네비게이션 */}
       <nav className="border-b border-border bg-muted/30 relative z-10" role="navigation" aria-label="주요 네비게이션">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center gap-6">
-            <Button
-              variant={currentView.startsWith("admin") ? "default" : "ghost"}
-              size="sm"
-              onClick={() => {
-                setIsTransitioning(true)
-                setCurrentView("admin")
-                setTimeout(() => setIsTransitioning(false), 600)
-              }}
-              className="flex items-center gap-2"
-              aria-label="관리자 페이지로 이동 (단축키: 1)"
-              accessKey="1"
-            >
-              <Settings className="w-4 h-4" />
-              관리자
-            </Button>
-            <Button
-              variant={currentView === "calendar" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => {
-                setIsTransitioning(true)
-                setCurrentView("calendar")
-                setTimeout(() => setIsTransitioning(false), 600)
-              }}
-              className="flex items-center gap-2"
-              aria-label="회의 일정 페이지로 이동 (단축키: 2)"
-              accessKey="2"
-            >
-              <Calendar className="w-4 h-4" />
-              회의 일정
-            </Button>
-            <Button
-              variant={currentView === "reports" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => {
-                setIsTransitioning(true)
-                setCurrentView("reports")
-                setTimeout(() => setIsTransitioning(false), 600)
-              }}
-              className="flex items-center gap-2"
-              aria-label="동향 보고서 페이지로 이동 (단축키: 3)"
-              accessKey="3"
-            >
-              <FileText className="w-4 h-4" />
-              동향 보고서
-            </Button>
+            {getTopLevelPages().map((page) => {
+              const Icon = page.icon
+              const shortcut = page.shortcuts?.[0]
+              const isActive = page.id === "admin" ? currentView.startsWith("admin") : currentView === page.id
+              
+              return (
+                <Button
+                  key={page.id}
+                  variant={isActive ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => navigateToPage(page.id)}
+                  className="flex items-center gap-2"
+                  aria-label={shortcut ? `${page.title} 페이지로 이동 (단축키: ${shortcut.key})` : `${page.title} 페이지로 이동`}
+                  accessKey={shortcut?.key}
+                >
+                  {Icon && <Icon className="w-4 h-4" />}
+                  {page.title}
+                </Button>
+              )
+            })}
           </div>
         </div>
       </nav>
@@ -632,14 +421,14 @@ export default function HomePage() {
       {/* Sliding page container */}
       <div className="page-container">
         {/* Calendar page */}
-        <div className={getPageClasses("calendar")}>
+        <div className={getPageClasses("calendar", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">
-            <CalendarComponent conferences={conferences} onReportClick={handleReportClick} />
+            <CalendarComponent conferences={conferences} reports={reports} onViewReport={handleCalendarReportSelect} />
           </div>
         </div>
 
         {/* Report list page */}
-        <div className={getPageClasses("reports")}>
+        <div className={getPageClasses("reports", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <ReportList reports={reports} onReportClick={handleReportSelect} />
           </div>
@@ -647,15 +436,13 @@ export default function HomePage() {
 
         {/* Report detail page */}
         {selectedReport && (
-          <div className={getPageClasses("report-detail")}>
+          <div className={getPageClasses("report-detail", currentView)}>
             <div className="container mx-auto px-4 py-6 pb-20">
               <ReportViewer
                 report={selectedReport}
                 onBack={() => {
-                  setIsTransitioning(true)
-                  setCurrentView("reports")
+                  navigateToPage("reports")
                   setSelectedReport(null)
-                  setTimeout(() => setIsTransitioning(false), 600)
                 }}
               />
             </div>
@@ -663,19 +450,26 @@ export default function HomePage() {
         )}
 
         {/* Admin page */}
-        <div className={getPageClasses("admin")}>
+        <div className={getPageClasses("admin", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">{renderAdmin()}</div>
         </div>
 
         {/* Monthly reports page */}
-        <div className={getPageClasses("monthly-reports")}>
+        <div className={getPageClasses("monthly-reports", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <MonthlyReports reports={reports} onReportClick={handleMonthlyReportSelect} />
           </div>
         </div>
 
+        {/* Organization reports page */}
+        <div className={getPageClasses("organization-reports", currentView)}>
+          <div className="container mx-auto px-4 py-6 pb-20">
+            <OrganizationReports reports={reports} onReportClick={handleOrganizationReportSelect} />
+          </div>
+        </div>
+
         {/* Standard search page */}
-        <div className={getPageClasses("standard-search")}>
+        <div className={getPageClasses("standard-search", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <StandardSearch />
           </div>
@@ -706,6 +500,22 @@ export default function HomePage() {
         <ReportViewer
           report={monthlyReportViewer}
           onBack={() => setMonthlyReportViewer(null)}
+        />
+      )}
+
+      {/* 기구별 동향에서 보고서 뷰어 모달 */}
+      {organizationReportViewer && (
+        <ReportViewer
+          report={organizationReportViewer}
+          onBack={() => setOrganizationReportViewer(null)}
+        />
+      )}
+
+      {/* 캘린더에서 보고서 뷰어 모달 */}
+      {calendarReportViewer && (
+        <ReportViewer
+          report={calendarReportViewer}
+          onBack={() => setCalendarReportViewer(null)}
         />
       )}
     </div>
