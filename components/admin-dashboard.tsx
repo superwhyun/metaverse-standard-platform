@@ -135,7 +135,11 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">이번 달 회의</p>
-                <p className="text-2xl font-bold">{conferences.filter((c) => c.date.startsWith("2024-12")).length}</p>
+                <p className="text-2xl font-bold">{conferences.filter((c) => {
+                  const today = new Date();
+                  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+                  return c.date.startsWith(currentMonth);
+                }).length}</p>
               </div>
               <Calendar className="w-8 h-8 text-secondary" />
             </div>

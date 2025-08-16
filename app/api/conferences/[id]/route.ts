@@ -31,9 +31,8 @@ export async function GET(
       time: conference.is_multi_day ? '종일' : `${conference.start_time || '09:00'}-${conference.end_time || '17:00'}`,
       startTime: conference.start_time,
       endTime: conference.end_time,
-      hasReport: Boolean(conference.has_report),
-      reportId: conference.report_id,
-      reportTitle: conference.report_title,
+      hasReport: conference.reports && conference.reports.length > 0,
+      reports: conference.reports || [],
       createdAt: conference.created_at,
       updatedAt: conference.updated_at
     };
@@ -76,7 +75,6 @@ export async function PUT(
     if (body.organization) updateData.organization = body.organization;
     if (body.location) updateData.location = body.location;
     if (body.description !== undefined) updateData.description = body.description;
-    if (body.hasReport !== undefined) updateData.has_report = body.hasReport;
     
     if (body.startDate && body.endDate) {
       const startDate = new Date(body.startDate);
@@ -124,8 +122,8 @@ export async function PUT(
         time: updatedConference.is_multi_day ? '종일' : `${updatedConference.start_time || '09:00'}-${updatedConference.end_time || '17:00'}`,
         startTime: updatedConference.start_time,
         endTime: updatedConference.end_time,
-        hasReport: Boolean(updatedConference.has_report),
-        reportId: updatedConference.report_id
+        hasReport: updatedConference.reports && updatedConference.reports.length > 0,
+        reports: updatedConference.reports || []
       }
     });
 

@@ -1,10 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportOperations, conferenceOperations } from '@/lib/database'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const reports = reportOperations.getAll()
-    return NextResponse.json({ success: true, data: reports })
+    const { searchParams } = new URL(request.url)
+    const includeContent = searchParams.get('includeContent') === 'true'
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined
+    const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined
+    
+    if (includeContent) {
+      // 상세 보기용 - 전체 내용 포함
+      const reports = reportOperations.getAll()
+      return NextResponse.json({ success: true, data: reports })
+    } else {
+      // 리스트용 - content 제외하고 요약 정보만
+      const reports = reportOperations.getAll().map(report => ({
+        id: report.id,
+        title: report.title,
+        date: report.date,
+        summary: report.summary,
+        category: report.category,
+        organization: report.organization,
+        tags: report.tags,
+        download_url: report.download_url,
+        conference_id: report.conference_id
+        // content 제외!
+      }))
+      
+      // 페이지네이션 적용
+      let paginatedReports = reports
+      if (limit) {
+        const start = offset || 0
+        paginatedReports = reports.slice(start, start + limit)
+      }
+      
+      return NextResponse.json({ 
+        success: true, 
+        data: paginatedReports,
+        total: reports.length,
+        hasMore: limit ? (offset || 0) + limit < reports.length : false
+      })
+    }
   } catch (error) {
     console.error('Failed to get reports:', error)
     return NextResponse.json(

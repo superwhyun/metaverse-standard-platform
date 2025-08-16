@@ -23,10 +23,11 @@ interface Conference {
 
 interface CalendarComponentProps {
   conferences: Conference[]
-  onReportClick: (reportId: number) => void
+  reports?: any[]
+  onViewReport: (report: any) => void
 }
 
-export function CalendarComponent({ conferences, onReportClick }: CalendarComponentProps) {
+export function CalendarComponent({ conferences, reports = [], onViewReport }: CalendarComponentProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
 
   const year = currentDate.getFullYear()
@@ -148,7 +149,11 @@ export function CalendarComponent({ conferences, onReportClick }: CalendarCompon
                       onClick={() => {
                         if (conference.reports && conference.reports.length > 0) {
                           // 첫 번째 보고서를 클릭 (나중에 선택 메뉴로 확장 가능)
-                          onReportClick(conference.reports[0].id)
+                          const firstReportId = conference.reports[0].id
+                          const fullReport = reports.find(report => report.id === firstReportId)
+                          if (fullReport) {
+                            onViewReport(fullReport)
+                          }
                         }
                       }}
                     >

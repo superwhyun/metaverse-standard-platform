@@ -139,7 +139,7 @@ export function MonthlyReports({ reports, onReportClick }: MonthlyReportsProps) 
         </div>
 
         <div className="text-center mt-8 text-sm text-muted-foreground">
-          <p>아래 화살표 키를 눌러 표준 검색 페이지로 이동하세요</p>
+          <p>아래 화살표 키를 눌러 표준화 기구별 동향으로 이동하세요</p>
         </div>
       </div>
     </div>

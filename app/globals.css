@@ -157,8 +157,9 @@ html {
 /* Added sliding page transition styles */
 .page-container {
   position: relative;
-  overflow: hidden;
+  overflow: hidden; /* 페이지 전환 시 다른 페이지 숨김 */
   min-height: calc(100vh - 200px);
+  max-height: calc(100vh - 200px); /* 뷰포트 높이 기준 최대 높이 설정 */
 }
 
 /* Auto-generated page positioning CSS */
@@ -167,11 +168,13 @@ html {
   top: 0;
   left: 0;
   width: 100%;
-  min-height: 100%;
+  height: calc(100vh - 200px); /* 컨테이너와 동일한 고정 높이 */
   padding: 2rem 1rem;
   transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
   z-index: 1; /* 기본 z-index */
+  overflow-y: auto; /* 긴 콘텐츠에 대한 세로 스크롤 허용 */
+  overflow-x: hidden; /* 가로 스크롤 방지 */
 }
 
 /* Active state for all pages - higher specificity to override page-specific positioning */

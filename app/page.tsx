@@ -57,10 +57,11 @@ export default function HomePage() {
     }
   };
 
-  // Load reports from database
+  // Load reports from database - 최적화된 버전 (content 제외)
   const loadReports = async () => {
     try {
-      const response = await fetch('/api/reports');
+      // 리스트용 API - content 제외하고 빠른 로딩
+      const response = await fetch('/api/reports?limit=50&offset=0');
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
@@ -80,7 +81,7 @@ export default function HomePage() {
               title: report.title,
               date: report.date,
               summary: report.summary,
-              content: report.content,
+              // content는 리스트에서 제외 - 필요할 때만 개별 로딩
               category: report.category,
               organization: report.organization,
               tags: tags,
@@ -98,6 +99,43 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error loading reports:', error);
       setReports([]);
+    }
+  };
+
+  // 개별 보고서 상세 내용 로딩 (content 포함)
+  const loadReportDetail = async (reportId: number) => {
+    try {
+      const response = await fetch(`/api/reports/${reportId}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          const report = result.data;
+          let tags = [];
+          try {
+            tags = typeof report.tags === 'string' ? JSON.parse(report.tags || '[]') : (report.tags || []);
+          } catch (e) {
+            console.warn('Failed to parse tags for report', report.id, e);
+            tags = [];
+          }
+          
+          return {
+            id: report.id,
+            title: report.title,
+            date: report.date,
+            summary: report.summary,
+            content: report.content, // 상세 로딩 시에만 포함
+            category: report.category,
+            organization: report.organization,
+            tags: tags,
+            downloadUrl: report.download_url,
+            conferenceId: report.conference_id
+          };
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error loading report detail:', error);
+      return null;
     }
   };
 
@@ -131,17 +169,39 @@ export default function HomePage() {
     scrollToTop(currentView)
   }, [currentView, scrollToTop])
 
-  const handleReportClick = (reportId: number) => {
-    const report = reports.find((r) => r.id === reportId)
-    if (report) {
-      setSelectedReport(report)
-      setCurrentView("report-detail")
+  const handleReportClick = async (reportId: number) => {
+    // 먼저 리스트에서 기본 정보 가져오기
+    const basicReport = reports.find((r) => r.id === reportId)
+    if (basicReport) {
+      // 상세 내용 로딩
+      const detailReport = await loadReportDetail(reportId)
+      if (detailReport) {
+        setSelectedReport(detailReport)
+        setCurrentView("report-detail")
+      } else {
+        // 상세 로딩 실패 시 기본 정보로라도 표시
+        setSelectedReport(basicReport)
+        setCurrentView("report-detail")
+      }
     }
   }
 
-  const handleReportSelect = (report: any) => {
-    setSelectedReport(report)
-    setCurrentView("report-detail")
+  const handleReportSelect = async (report: any) => {
+    // 이미 content가 있는지 확인
+    if (report.content) {
+      setSelectedReport(report)
+      setCurrentView("report-detail")
+    } else {
+      // content가 없으면 상세 로딩
+      const detailReport = await loadReportDetail(report.id)
+      if (detailReport) {
+        setSelectedReport(detailReport)
+        setCurrentView("report-detail")
+      } else {
+        setSelectedReport(report)
+        setCurrentView("report-detail")
+      }
+    }
   }
 
   const handleMonthlyReportSelect = (report: any) => {
