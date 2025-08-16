@@ -3,19 +3,21 @@
 import { useState } from "react"
 import { ChevronLeft, ChevronRight, FileText, Clock, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface Conference {
   id: number
   date: string
+  startDate: string
+  endDate: string
   title: string
   time: string
   location: string
   organization: string
   hasReport: boolean
   reportId?: number
+  isMultiDay?: boolean
 }
 
 interface CalendarComponentProps {
@@ -39,9 +41,60 @@ export function CalendarComponent({ conferences, onReportClick }: CalendarCompon
 
   const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"]
 
+  // Organization color mapping
+  const organizationColors = {
+    "ISO/IEC": "bg-blue-500 text-white hover:bg-blue-600",
+    "ITU-T": "bg-green-500 text-white hover:bg-green-600", 
+    "IEEE": "bg-purple-500 text-white hover:bg-purple-600",
+    "W3C": "bg-orange-500 text-white hover:bg-orange-600",
+    "ETSI": "bg-red-500 text-white hover:bg-red-600",
+    "3GPP": "bg-teal-500 text-white hover:bg-teal-600",
+    "IETF": "bg-indigo-500 text-white hover:bg-indigo-600",
+    "기타": "bg-gray-500 text-white hover:bg-gray-600"
+  }
+
+  const getOrganizationColor = (organization: string) => {
+    return organizationColors[organization as keyof typeof organizationColors] || organizationColors["기타"]
+  }
+
   const getConferencesForDate = (day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-    return conferences.filter((conf) => conf.date === dateStr)
+    return conferences.filter((conf) => {
+      // For backward compatibility, check both date and startDate/endDate
+      if (conf.date === dateStr) {
+        return true;
+      }
+      
+      // Check if date falls within conference date range
+      if (conf.startDate && conf.endDate) {
+        const currentDate = new Date(dateStr);
+        const startDate = new Date(conf.startDate);
+        const endDate = new Date(conf.endDate);
+        
+        return currentDate >= startDate && currentDate <= endDate;
+      }
+      
+      return false;
+    });
+  }
+
+  // Helper function to determine conference display style for multi-day events
+  const getConferenceDisplayInfo = (conf: Conference, day: number) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    
+    if (!conf.startDate || !conf.endDate) {
+      return { isStart: true, isEnd: true, isContinuation: false };
+    }
+    
+    const currentDate = new Date(dateStr);
+    const startDate = new Date(conf.startDate);
+    const endDate = new Date(conf.endDate);
+    
+    const isStart = currentDate.toDateString() === startDate.toDateString();
+    const isEnd = currentDate.toDateString() === endDate.toDateString();
+    const isContinuation = !isStart && !isEnd;
+    
+    return { isStart, isEnd, isContinuation };
   }
 
   const navigateMonth = (direction: "prev" | "next") => {
@@ -69,61 +122,77 @@ export function CalendarComponent({ conferences, onReportClick }: CalendarCompon
         </div>
 
         <div className="space-y-1">
-          {dayConferences.map((conference) => (
-            <TooltipProvider key={conference.id}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Card
-                    className={`cursor-pointer transition-all duration-200 hover:scale-105 ${
-                      conference.hasReport
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                    }`}
-                    onClick={() => {
-                      if (conference.hasReport && conference.reportId) {
-                        onReportClick(conference.reportId)
-                      }
-                    }}
-                  >
-                    <CardContent className="p-2">
-                      <div className="text-xs font-medium truncate">{conference.title}</div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Clock className="w-3 h-3" />
-                        <span className="text-xs">{conference.time}</span>
-                        {conference.hasReport && <FileText className="w-3 h-3 ml-auto" />}
+          {dayConferences.map((conference) => {
+            const displayInfo = getConferenceDisplayInfo(conference, day);
+            const isMultiDay = conference.startDate && conference.endDate && conference.startDate !== conference.endDate;
+            
+            return (
+              <TooltipProvider key={`${conference.id}-${day}`}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      className={`cursor-pointer transition-all duration-200 hover:scale-105 relative h-4 flex items-center px-1 border ${
+                        getOrganizationColor(conference.organization)
+                      } ${
+                        isMultiDay ? (
+                          displayInfo.isContinuation 
+                            ? "rounded-none border-l-0 border-r-0" 
+                            : displayInfo.isStart 
+                              ? "rounded-r-none border-r-0" 
+                              : displayInfo.isEnd 
+                                ? "rounded-l-none border-l-0"
+                                : ""
+                        ) : "rounded"
+                      }`}
+                      onClick={() => {
+                        if (conference.hasReport && conference.reportId) {
+                          onReportClick(conference.reportId)
+                        }
+                      }}
+                    >
+                      <div className="text-xs font-medium truncate leading-none flex-1">
+                        {conference.title}
                       </div>
-                    </CardContent>
-                  </Card>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs">
-                  <div className="space-y-2">
-                    <div className="font-semibold">{conference.title}</div>
-                    <div className="text-sm space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3 h-3" />
-                        <span>{conference.time}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3 h-3" />
-                        <span>{conference.location}</span>
-                      </div>
-                      <div className="text-muted-foreground">주최: {conference.organization}</div>
-                      {conference.hasReport && (
-                        <div className="flex items-center gap-2 text-primary">
-                          <FileText className="w-3 h-3" />
-                          <span>보고서 있음 (클릭하여 보기)</span>
-                        </div>
-                      )}
+                      {conference.hasReport && <FileText className="w-2 h-2 ml-1 flex-shrink-0" />}
                     </div>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ))}
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <div className="space-y-2">
+                      <div className="font-semibold">{conference.title}</div>
+                      <div className="text-sm space-y-1">
+                        {isMultiDay ? (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3" />
+                            <span>{conference.startDate} ~ {conference.endDate}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3" />
+                            <span>{conference.time}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-3 h-3" />
+                          <span>{conference.location}</span>
+                        </div>
+                        <div className="text-muted-foreground">주최: {conference.organization}</div>
+                        {conference.hasReport && (
+                          <div className="flex items-center gap-2 text-primary">
+                            <FileText className="w-3 h-3" />
+                            <span>보고서 있음 (클릭하여 보기)</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          })}
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   const days = []
 
@@ -163,27 +232,25 @@ export function CalendarComponent({ conferences, onReportClick }: CalendarCompon
       </div>
 
       {/* Calendar Grid */}
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 border-b border-border">
-            {["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"].map((day, index) => (
-              <div
-                key={day}
-                className={`p-4 text-center font-semibold bg-muted/50 border-r border-border last:border-r-0 ${
-                  index === 0 ? "text-red-600" : index === 6 ? "text-blue-600" : ""
-                }`}
-              >
-                <div className="hidden sm:block">{day}</div>
-                <div className="sm:hidden">{day.charAt(0)}</div>
-              </div>
-            ))}
-          </div>
+      <div className="overflow-hidden border rounded-lg">
+        {/* Day Headers */}
+        <div className="grid grid-cols-7 border-b border-border">
+          {["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"].map((day, index) => (
+            <div
+              key={day}
+              className={`p-4 text-center font-semibold bg-muted/50 border-r border-border last:border-r-0 ${
+                index === 0 ? "text-red-600" : index === 6 ? "text-blue-600" : ""
+              }`}
+            >
+              <div className="hidden sm:block">{day}</div>
+              <div className="sm:hidden">{day.charAt(0)}</div>
+            </div>
+          ))}
+        </div>
 
-          {/* Calendar Days */}
-          <div className="grid grid-cols-7">{days}</div>
-        </CardContent>
-      </Card>
+        {/* Calendar Days */}
+        <div className="grid grid-cols-7">{days}</div>
+      </div>
 
       {/* Legend */}
       <div className="mt-6 flex flex-wrap items-center gap-6 text-sm">

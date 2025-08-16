@@ -149,19 +149,20 @@ export function AdminDashboard({
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>제목</TableHead>
-                  <TableHead>날짜</TableHead>
-                  <TableHead>시간</TableHead>
-                  <TableHead>장소</TableHead>
-                  <TableHead>기관</TableHead>
-                  <TableHead>보고서</TableHead>
-                  <TableHead>작업</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="max-h-[400px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>제목</TableHead>
+                    <TableHead>날짜</TableHead>
+                    <TableHead>시간</TableHead>
+                    <TableHead>장소</TableHead>
+                    <TableHead>기관</TableHead>
+                    <TableHead>보고서</TableHead>
+                    <TableHead>작업</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                 {conferences.map((conference) => (
                   <TableRow key={conference.id}>
                     <TableCell className="font-medium">{conference.title}</TableCell>
@@ -209,7 +210,8 @@ export function AdminDashboard({
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -225,18 +227,19 @@ export function AdminDashboard({
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>제목</TableHead>
-                  <TableHead>날짜</TableHead>
-                  <TableHead>카테고리</TableHead>
-                  <TableHead>기관</TableHead>
-                  <TableHead>태그</TableHead>
-                  <TableHead>작업</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="max-h-[400px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>제목</TableHead>
+                    <TableHead>날짜</TableHead>
+                    <TableHead>카테고리</TableHead>
+                    <TableHead>기관</TableHead>
+                    <TableHead>태그</TableHead>
+                    <TableHead>작업</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                 {reports.map((report) => (
                   <TableRow key={report.id}>
                     <TableCell className="font-medium max-w-xs truncate">{report.title}</TableCell>
@@ -249,14 +252,14 @@ export function AdminDashboard({
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {report.tags.slice(0, 2).map((tag) => (
+                        {(Array.isArray(report.tags) ? report.tags : []).slice(0, 2).map((tag) => (
                           <Badge key={tag} variant="outline" className="text-xs">
                             {tag}
                           </Badge>
                         ))}
-                        {report.tags.length > 2 && (
+                        {(Array.isArray(report.tags) ? report.tags : []).length > 2 && (
                           <Badge variant="outline" className="text-xs">
-                            +{report.tags.length - 2}
+                            +{(Array.isArray(report.tags) ? report.tags : []).length - 2}
                           </Badge>
                         )}
                       </div>
@@ -293,7 +296,8 @@ export function AdminDashboard({
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}

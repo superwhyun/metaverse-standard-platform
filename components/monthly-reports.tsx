@@ -116,14 +116,14 @@ export function MonthlyReports({ reports, onReportClick }: MonthlyReportsProps) 
                             <div className="flex items-center gap-1">
                               <Tag className="w-3 h-3 text-muted-foreground" />
                               <div className="flex gap-1">
-                                {report.tags.slice(0, 2).map((tag) => (
+                                {(Array.isArray(report.tags) ? report.tags : []).slice(0, 2).map((tag) => (
                                   <Badge key={tag} variant="outline" className="text-xs">
                                     {tag}
                                   </Badge>
                                 ))}
-                                {report.tags.length > 2 && (
+                                {(Array.isArray(report.tags) ? report.tags : []).length > 2 && (
                                   <Badge variant="outline" className="text-xs">
-                                    +{report.tags.length - 2}
+                                    +{(Array.isArray(report.tags) ? report.tags : []).length - 2}
                                   </Badge>
                                 )}
                               </div>

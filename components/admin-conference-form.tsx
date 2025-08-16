@@ -13,8 +13,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 interface ConferenceFormData {
   title: string
-  date: string
-  time: string
+  startDate: string
+  endDate: string
+  startTime: string
+  endTime: string
   location: string
   organization: string
   hasReport: boolean
@@ -32,8 +34,10 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
   const [formData, setFormData] = useState<ConferenceFormData>(
     initialData || {
       title: "",
-      date: "",
-      time: "",
+      startDate: "",
+      endDate: "",
+      startTime: "",
+      endTime: "",
       location: "",
       organization: "",
       hasReport: false,
@@ -45,14 +49,53 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
 
   const organizations = ["ISO/IEC", "ITU-T", "IEEE", "W3C", "ETSI", "3GPP", "IETF", "기타"]
 
+  const isMultiDay = formData.startDate && formData.endDate && formData.startDate !== formData.endDate
+
   const validateForm = () => {
     const newErrors: Partial<ConferenceFormData> = {}
 
     if (!formData.title.trim()) newErrors.title = "회의 제목을 입력해주세요"
-    if (!formData.date) newErrors.date = "날짜를 선택해주세요"
-    if (!formData.time.trim()) newErrors.time = "시간을 입력해주세요"
+    if (!formData.startDate) newErrors.startDate = "시작 날짜를 선택해주세요"
+    if (!formData.endDate) newErrors.endDate = "종료 날짜를 선택해주세요"
     if (!formData.location.trim()) newErrors.location = "장소를 입력해주세요"
     if (!formData.organization) newErrors.organization = "주최 기관을 선택해주세요"
+
+    // Validate dates
+    if (formData.startDate && formData.endDate) {
+      const startDate = new Date(formData.startDate)
+      const endDate = new Date(formData.endDate)
+      if (endDate < startDate) {
+        newErrors.endDate = "종료 날짜는 시작 날짜보다 늦어야 합니다"
+      }
+    }
+
+    // Validate times for single-day conferences
+    if (!isMultiDay) {
+      if (!formData.startTime.trim()) newErrors.startTime = "시작 시간을 입력해주세요"
+      if (!formData.endTime.trim()) newErrors.endTime = "종료 시간을 입력해주세요"
+      
+      // Validate time format and logic
+      if (formData.startTime && formData.endTime) {
+        const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
+        if (!timeRegex.test(formData.startTime)) {
+          newErrors.startTime = "올바른 시간 형식을 입력해주세요 (HH:MM)"
+        }
+        if (!timeRegex.test(formData.endTime)) {
+          newErrors.endTime = "올바른 시간 형식을 입력해주세요 (HH:MM)"
+        }
+        
+        if (timeRegex.test(formData.startTime) && timeRegex.test(formData.endTime)) {
+          const [startHour, startMin] = formData.startTime.split(':').map(Number)
+          const [endHour, endMin] = formData.endTime.split(':').map(Number)
+          const startMinutes = startHour * 60 + startMin
+          const endMinutes = endHour * 60 + endMin
+          
+          if (endMinutes <= startMinutes) {
+            newErrors.endTime = "종료 시간은 시작 시간보다 늦어야 합니다"
+          }
+        }
+      }
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -126,29 +169,69 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
             {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="date">날짜 *</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => handleInputChange("date", e.target.value)}
-                className={errors.date ? "border-destructive" : ""}
-              />
-              {errors.date && <p className="text-sm text-destructive">{errors.date}</p>}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">시작 날짜 *</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => handleInputChange("startDate", e.target.value)}
+                  className={errors.startDate ? "border-destructive" : ""}
+                />
+                {errors.startDate && <p className="text-sm text-destructive">{errors.startDate}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="endDate">종료 날짜 *</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => handleInputChange("endDate", e.target.value)}
+                  className={errors.endDate ? "border-destructive" : ""}
+                />
+                {errors.endDate && <p className="text-sm text-destructive">{errors.endDate}</p>}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="time">시간 *</Label>
-              <Input
-                id="time"
-                value={formData.time}
-                onChange={(e) => handleInputChange("time", e.target.value)}
-                placeholder="예: 09:00-17:00"
-                className={errors.time ? "border-destructive" : ""}
-              />
-              {errors.time && <p className="text-sm text-destructive">{errors.time}</p>}
+            {isMultiDay && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>여러 날 회의:</strong> 선택한 기간동안 종일 회의로 설정됩니다.
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">시작 시간 {!isMultiDay && "*"}</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) => handleInputChange("startTime", e.target.value)}
+                  className={errors.startTime ? "border-destructive" : ""}
+                  disabled={isMultiDay}
+                  placeholder={isMultiDay ? "종일 회의" : ""}
+                />
+                {errors.startTime && <p className="text-sm text-destructive">{errors.startTime}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="endTime">종료 시간 {!isMultiDay && "*"}</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) => handleInputChange("endTime", e.target.value)}
+                  className={errors.endTime ? "border-destructive" : ""}
+                  disabled={isMultiDay}
+                  placeholder={isMultiDay ? "종일 회의" : ""}
+                />
+                {errors.endTime && <p className="text-sm text-destructive">{errors.endTime}</p>}
+              </div>
             </div>
           </div>
 
@@ -166,7 +249,7 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="organization">주최 기관 *</Label>
+              <Label>주최 기관 *</Label>
               <Select value={formData.organization} onValueChange={(value) => handleInputChange("organization", value)}>
                 <SelectTrigger className={errors.organization ? "border-destructive" : ""}>
                   <SelectValue placeholder="기관 선택" />

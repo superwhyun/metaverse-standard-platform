@@ -34,10 +34,11 @@ export function ReportList({ reports, onReportClick }: ReportListProps) {
   const organizations = Array.from(new Set(reports.map((r) => r.organization)))
 
   const filteredReports = reports.filter((report) => {
+    const tags = Array.isArray(report.tags) ? report.tags : []
     const matchesSearch =
       report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
 
     const matchesCategory = selectedCategory === "all" || report.category === selectedCategory
     const matchesOrganization = selectedOrganization === "all" || report.organization === selectedOrganization
@@ -126,7 +127,7 @@ export function ReportList({ reports, onReportClick }: ReportListProps) {
               <p className="text-sm text-muted-foreground mb-4 line-clamp-3">{report.summary}</p>
 
               <div className="flex flex-wrap gap-1 mb-4">
-                {report.tags.map((tag) => (
+                {(Array.isArray(report.tags) ? report.tags : []).map((tag) => (
                   <Badge key={tag} variant="outline" className="text-xs">
                     <Tag className="w-3 h-3 mr-1" />
                     {tag}
