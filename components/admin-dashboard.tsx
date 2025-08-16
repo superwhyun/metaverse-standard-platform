@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,7 @@ interface Conference {
   location: string
   organization: string
   hasReport: boolean
+  reports?: { id: number; title: string }[]
 }
 
 interface Report {
@@ -47,6 +49,8 @@ interface AdminDashboardProps {
   onEditReport: (report: Report) => void
   onDeleteReport: (id: number) => void
   onViewReport: (report: Report) => void
+  onViewConferenceReport: (conferenceId: number) => void
+  onViewSpecificReport: (reportId: number) => void
 }
 
 export function AdminDashboard({
@@ -59,6 +63,8 @@ export function AdminDashboard({
   onEditReport,
   onDeleteReport,
   onViewReport,
+  onViewConferenceReport,
+  onViewSpecificReport,
 }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<"conferences" | "reports">("conferences")
 
@@ -105,7 +111,7 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">보고서 있는 회의</p>
-                <p className="text-2xl font-bold">{conferences.filter((c) => c.hasReport).length}</p>
+                <p className="text-2xl font-bold">{conferences.filter((c) => c.reports && c.reports.length > 0).length}</p>
               </div>
               <FileText className="w-8 h-8 text-secondary" />
             </div>
@@ -173,14 +179,32 @@ export function AdminDashboard({
                       <Badge variant="outline">{conference.organization}</Badge>
                     </TableCell>
                     <TableCell>
-                      {conference.hasReport ? (
-                        <Badge variant="default">있음</Badge>
+                      {conference.reports && conference.reports.length > 0 ? (
+                        <Badge variant="default">{conference.reports.length}개</Badge>
                       ) : (
                         <Badge variant="secondary">없음</Badge>
                       )}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        {conference.reports && conference.reports.map((report) => (
+                          <TooltipProvider key={report.id}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => onViewSpecificReport(report.id)}
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{report.title}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ))}
                         <Button variant="ghost" size="sm" onClick={() => onEditConference(conference)}>
                           <Edit className="w-4 h-4" />
                         </Button>

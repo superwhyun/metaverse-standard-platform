@@ -35,6 +35,8 @@ export default function HomePage() {
   const [reports, setReports] = useState([])
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [adminReportViewer, setAdminReportViewer] = useState<any>(null) // 관리자에서 보는 보고서
+  const [monthlyReportViewer, setMonthlyReportViewer] = useState<any>(null) // 월별 동향에서 보는 보고서
 
   // Load conferences from database
   const loadConferences = async () => {
@@ -291,6 +293,10 @@ export default function HomePage() {
     setCurrentView("report-detail")
   }
 
+  const handleMonthlyReportSelect = (report: any) => {
+    setMonthlyReportViewer(report)
+  }
+
 
   const handleSaveConference = async (data: any) => {
     try {
@@ -350,8 +356,9 @@ export default function HomePage() {
 
         if (response.ok) {
           const result = await response.json();
-          // Reload reports to get fresh data from database
+          // Reload both reports and conferences to get fresh data from database
           await loadReports();
+          await loadConferences(); // 회의의 보고서 정보 업데이트
         } else {
           console.error('Failed to update report');
         }
@@ -367,8 +374,9 @@ export default function HomePage() {
 
         if (response.ok) {
           const result = await response.json();
-          // Reload reports to get fresh data from database
+          // Reload both reports and conferences to get fresh data from database
           await loadReports();
+          await loadConferences(); // 회의의 보고서 정보 업데이트
         } else {
           console.error('Failed to create report');
         }
@@ -404,8 +412,9 @@ export default function HomePage() {
       });
 
       if (response.ok) {
-        // Reload reports to get fresh data from database
+        // Reload both reports and conferences to get fresh data from database
         await loadReports();
+        await loadConferences(); // 회의의 보고서 정보 업데이트
       } else {
         console.error('Failed to delete report');
       }
@@ -489,8 +498,21 @@ export default function HomePage() {
               }}
               onDeleteReport={handleDeleteReport}
               onViewReport={(report) => {
-                setSelectedReport(report)
-                setCurrentView("report-detail")
+                setAdminReportViewer(report)
+              }}
+              onViewConferenceReport={(conferenceId) => {
+                // 해당 회의와 연관된 보고서 찾기
+                const conferenceReport = reports.find(report => report.conferenceId === conferenceId)
+                if (conferenceReport) {
+                  setAdminReportViewer(conferenceReport)
+                }
+              }}
+              onViewSpecificReport={(reportId) => {
+                // 특정 보고서 ID로 보고서 찾기
+                const report = reports.find(r => r.id === reportId)
+                if (report) {
+                  setAdminReportViewer(report)
+                }
               }}
             />
           </div>
@@ -648,7 +670,7 @@ export default function HomePage() {
         {/* Monthly reports page */}
         <div className={getPageClasses("monthly-reports")}>
           <div className="container mx-auto px-4 py-6 pb-20">
-            <MonthlyReports reports={reports} onReportClick={handleReportSelect} />
+            <MonthlyReports reports={reports} onReportClick={handleMonthlyReportSelect} />
           </div>
         </div>
 
@@ -670,6 +692,22 @@ export default function HomePage() {
       </footer>
 
       <KeyboardGuide />
+
+      {/* 관리자 대시보드에서 보고서 뷰어 모달 */}
+      {adminReportViewer && (
+        <ReportViewer
+          report={adminReportViewer}
+          onBack={() => setAdminReportViewer(null)}
+        />
+      )}
+
+      {/* 월별 동향에서 보고서 뷰어 모달 */}
+      {monthlyReportViewer && (
+        <ReportViewer
+          report={monthlyReportViewer}
+          onBack={() => setMonthlyReportViewer(null)}
+        />
+      )}
     </div>
   )
 }

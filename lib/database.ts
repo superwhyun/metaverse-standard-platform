@@ -27,11 +27,8 @@ const createConferencesTable = `
     is_multi_day INTEGER DEFAULT 0,
     start_time TEXT,
     end_time TEXT,
-    has_report INTEGER DEFAULT 0,
-    report_id INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (report_id) REFERENCES reports (id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `;
 
@@ -68,6 +65,64 @@ db.exec(createConferencesTable);
 db.exec(createReportsTable);
 createIndexes.forEach(index => db.exec(index));
 
+// Migration: Remove unnecessary columns from conferences table
+try {
+  // Clean up any existing temporary tables first
+  try {
+    db.exec('DROP TABLE IF EXISTS conferences_new');
+  } catch (e) {
+    // Ignore if table doesn't exist
+  }
+  
+  // Check if columns exist
+  const conferenceTableInfo = db.prepare("PRAGMA table_info(conferences)").all();
+  const hasReportColumn = conferenceTableInfo.some((col: any) => col.name === 'has_report');
+  const reportIdColumn = conferenceTableInfo.some((col: any) => col.name === 'report_id');
+  
+  if (hasReportColumn || reportIdColumn) {
+    console.log('Migrating conferences table to remove has_report and report_id columns...');
+    
+    // Disable foreign key constraints temporarily
+    db.exec('PRAGMA foreign_keys = OFF');
+    
+    // Create new table without the columns
+    db.exec(`
+      CREATE TABLE conferences_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        organization TEXT NOT NULL,
+        location TEXT,
+        description TEXT,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        is_multi_day INTEGER DEFAULT 0,
+        start_time TEXT,
+        end_time TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Copy data
+    db.exec(`
+      INSERT INTO conferences_new (id, title, organization, location, description, start_date, end_date, is_multi_day, start_time, end_time, created_at, updated_at)
+      SELECT id, title, organization, location, description, start_date, end_date, is_multi_day, start_time, end_time, created_at, updated_at
+      FROM conferences
+    `);
+    
+    // Replace table
+    db.exec('DROP TABLE conferences');
+    db.exec('ALTER TABLE conferences_new RENAME TO conferences');
+    
+    // Re-enable foreign key constraints
+    db.exec('PRAGMA foreign_keys = ON');
+    
+    console.log('Migration completed: has_report and report_id columns removed');
+  }
+} catch (error) {
+  console.log('Migration skipped or already completed:', error);
+}
+
 // Migrate existing reports table to add missing columns
 try {
   // Check if date column exists
@@ -93,25 +148,61 @@ export const conferenceOperations = {
   // Get all conferences
   getAll: () => {
     const stmt = db.prepare(`
-      SELECT c.*, r.title as report_title 
-      FROM conferences c 
-      LEFT JOIN reports r ON c.report_id = r.id 
-      ORDER BY c.start_date DESC
+      SELECT * FROM conferences 
+      ORDER BY start_date DESC
     `);
-    return stmt.all();
+    const conferences = stmt.all();
+    
+    // 각 회의에 연관된 보고서들을 추가
+    const reportStmt = db.prepare(`
+      SELECT id, title FROM reports WHERE conference_id = ?
+    `);
+    
+    return conferences.map(conference => {
+      const reports = reportStmt.all(conference.id);
+      return {
+        ...conference,
+        // snake_case to camelCase conversion
+        startDate: conference.start_date,
+        endDate: conference.end_date,
+        isMultiDay: Boolean(conference.is_multi_day),
+        hasReport: reports.length > 0,
+        startTime: conference.start_time,
+        endTime: conference.end_time,
+        reports: reports
+      };
+    });
   },
 
   // Get conferences by date range (for calendar)
   getByDateRange: (startDate: string, endDate: string) => {
     const stmt = db.prepare(`
-      SELECT c.*, r.title as report_title 
-      FROM conferences c 
-      LEFT JOIN reports r ON c.report_id = r.id 
-      WHERE (c.start_date <= ? AND c.end_date >= ?) 
-         OR (c.start_date >= ? AND c.start_date <= ?)
-      ORDER BY c.start_date ASC
+      SELECT * FROM conferences 
+      WHERE (start_date <= ? AND end_date >= ?) 
+         OR (start_date >= ? AND start_date <= ?)
+      ORDER BY start_date ASC
     `);
-    return stmt.all(endDate, startDate, startDate, endDate);
+    const conferences = stmt.all(endDate, startDate, startDate, endDate);
+    
+    // 각 회의에 연관된 보고서들을 추가
+    const reportStmt = db.prepare(`
+      SELECT id, title FROM reports WHERE conference_id = ?
+    `);
+    
+    return conferences.map(conference => {
+      const reports = reportStmt.all(conference.id);
+      return {
+        ...conference,
+        // snake_case to camelCase conversion
+        startDate: conference.start_date,
+        endDate: conference.end_date,
+        isMultiDay: Boolean(conference.is_multi_day),
+        hasReport: reports.length > 0,
+        startTime: conference.start_time,
+        endTime: conference.end_time,
+        reports: reports
+      };
+    });
   },
 
   // Get conferences by month (for calendar display)
@@ -120,25 +211,62 @@ export const conferenceOperations = {
     const monthEnd = `${year}-${String(month).padStart(2, '0')}-31`;
     
     const stmt = db.prepare(`
-      SELECT c.*, r.title as report_title 
-      FROM conferences c 
-      LEFT JOIN reports r ON c.report_id = r.id 
-      WHERE (c.start_date <= ? AND c.end_date >= ?) 
-         OR (c.start_date >= ? AND c.start_date <= ?)
-      ORDER BY c.start_date ASC
+      SELECT * FROM conferences 
+      WHERE (start_date <= ? AND end_date >= ?) 
+         OR (start_date >= ? AND start_date <= ?)
+      ORDER BY start_date ASC
     `);
-    return stmt.all(monthEnd, monthStart, monthStart, monthEnd);
+    const conferences = stmt.all(monthEnd, monthStart, monthStart, monthEnd);
+    
+    // 각 회의에 연관된 보고서들을 추가
+    const reportStmt = db.prepare(`
+      SELECT id, title FROM reports WHERE conference_id = ?
+    `);
+    
+    return conferences.map(conference => {
+      const reports = reportStmt.all(conference.id);
+      return {
+        ...conference,
+        // snake_case to camelCase conversion
+        startDate: conference.start_date,
+        endDate: conference.end_date,
+        isMultiDay: Boolean(conference.is_multi_day),
+        hasReport: reports.length > 0,
+        startTime: conference.start_time,
+        endTime: conference.end_time,
+        reports: reports
+      };
+    });
   },
 
   // Get single conference
   getById: (id: number) => {
     const stmt = db.prepare(`
-      SELECT c.*, r.title as report_title 
-      FROM conferences c 
-      LEFT JOIN reports r ON c.report_id = r.id 
-      WHERE c.id = ?
+      SELECT * FROM conferences WHERE id = ?
     `);
-    return stmt.get(id);
+    const conference = stmt.get(id);
+    
+    if (conference) {
+      // 연관된 보고서들을 추가
+      const reportStmt = db.prepare(`
+        SELECT id, title FROM reports WHERE conference_id = ?
+      `);
+      const reports = reportStmt.all(conference.id);
+      
+      // snake_case to camelCase conversion
+      return {
+        ...conference,
+        startDate: conference.start_date,
+        endDate: conference.end_date,
+        isMultiDay: Boolean(conference.is_multi_day),
+        hasReport: reports.length > 0,
+        startTime: conference.start_time,
+        endTime: conference.end_time,
+        reports: reports
+      };
+    }
+    
+    return conference;
   },
 
   // Create new conference
@@ -152,15 +280,13 @@ export const conferenceOperations = {
     is_multi_day: boolean;
     start_time?: string;
     end_time?: string;
-    has_report: boolean;
-    report_id?: number;
   }) => {
     const stmt = db.prepare(`
       INSERT INTO conferences (
         title, organization, location, description, 
         start_date, end_date, is_multi_day, start_time, end_time,
-        has_report, report_id, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
     
     const result = stmt.run(
@@ -172,9 +298,7 @@ export const conferenceOperations = {
       conference.end_date,
       conference.is_multi_day ? 1 : 0,
       conference.start_time || null,
-      conference.end_time || null,
-      conference.has_report ? 1 : 0,
-      conference.report_id || null
+      conference.end_time || null
     );
     
     return { id: result.lastInsertRowid, ...conference };
@@ -191,14 +315,12 @@ export const conferenceOperations = {
     is_multi_day: boolean;
     start_time: string;
     end_time: string;
-    has_report: boolean;
-    report_id: number;
   }>) => {
     const fields = Object.keys(conference).filter(key => conference[key as keyof typeof conference] !== undefined);
     const setClause = fields.map(field => `${field} = ?`).join(', ');
     const values = fields.map(field => {
       const value = conference[field as keyof typeof conference];
-      if (field === 'is_multi_day' || field === 'has_report') {
+      if (field === 'is_multi_day') {
         return value ? 1 : 0;
       }
       return value;

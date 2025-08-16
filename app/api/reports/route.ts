@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { reportOperations } from '@/lib/database'
+import { reportOperations, conferenceOperations } from '@/lib/database'
 
 export async function GET() {
   try {
@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     }
     
     const result = reportOperations.create(reportData)
+    
     return NextResponse.json({ success: true, data: result })
   } catch (error) {
     console.error('Failed to create report:', error)

@@ -18,6 +18,7 @@ interface Conference {
   hasReport: boolean
   reportId?: number
   isMultiDay?: boolean
+  reports?: { id: number; title: string }[]
 }
 
 interface CalendarComponentProps {
@@ -122,12 +123,12 @@ export function CalendarComponent({ conferences, onReportClick }: CalendarCompon
         </div>
 
         <div className="space-y-1">
-          {dayConferences.map((conference) => {
+          {dayConferences.map((conference, index) => {
             const displayInfo = getConferenceDisplayInfo(conference, day);
             const isMultiDay = conference.startDate && conference.endDate && conference.startDate !== conference.endDate;
             
             return (
-              <TooltipProvider key={`${conference.id}-${day}`}>
+              <TooltipProvider key={`${conference.id}-${day}-${index}`}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
@@ -145,15 +146,16 @@ export function CalendarComponent({ conferences, onReportClick }: CalendarCompon
                         ) : "rounded"
                       }`}
                       onClick={() => {
-                        if (conference.hasReport && conference.reportId) {
-                          onReportClick(conference.reportId)
+                        if (conference.reports && conference.reports.length > 0) {
+                          // 첫 번째 보고서를 클릭 (나중에 선택 메뉴로 확장 가능)
+                          onReportClick(conference.reports[0].id)
                         }
                       }}
                     >
                       <div className="text-xs font-medium truncate leading-none flex-1">
                         {conference.title}
                       </div>
-                      {conference.hasReport && <FileText className="w-2 h-2 ml-1 flex-shrink-0" />}
+                      {conference.reports && conference.reports.length > 0 && <FileText className="w-2 h-2 ml-1 flex-shrink-0" />}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs">
@@ -176,10 +178,19 @@ export function CalendarComponent({ conferences, onReportClick }: CalendarCompon
                           <span>{conference.location}</span>
                         </div>
                         <div className="text-muted-foreground">주최: {conference.organization}</div>
-                        {conference.hasReport && (
-                          <div className="flex items-center gap-2 text-primary">
-                            <FileText className="w-3 h-3" />
-                            <span>보고서 있음 (클릭하여 보기)</span>
+                        {conference.reports && conference.reports.length > 0 && (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-primary">
+                              <FileText className="w-3 h-3" />
+                              <span>보고서 {conference.reports.length}개 (클릭하여 보기)</span>
+                            </div>
+                            <div className="text-xs space-y-1">
+                              {conference.reports.map((report, index) => (
+                                <div key={report.id} className="text-muted-foreground">
+                                  {index + 1}. {report.title}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>

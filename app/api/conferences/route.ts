@@ -29,16 +29,15 @@ export async function GET(request: NextRequest) {
       organization: conf.organization,
       location: conf.location,
       description: conf.description,
-      date: conf.start_date,
-      startDate: conf.start_date,
-      endDate: conf.end_date,
-      isMultiDay: Boolean(conf.is_multi_day),
-      time: conf.is_multi_day ? '종일' : `${conf.start_time || '09:00'}-${conf.end_time || '17:00'}`,
-      startTime: conf.start_time,
-      endTime: conf.end_time,
-      hasReport: Boolean(conf.has_report),
-      reportId: conf.report_id,
-      reportTitle: conf.report_title,
+      date: conf.startDate || conf.start_date,
+      startDate: conf.startDate || conf.start_date,
+      endDate: conf.endDate || conf.end_date,
+      isMultiDay: conf.isMultiDay || Boolean(conf.is_multi_day),
+      time: (conf.isMultiDay || conf.is_multi_day) ? '종일' : `${conf.startTime || conf.start_time || '09:00'}-${conf.endTime || conf.end_time || '17:00'}`,
+      startTime: conf.startTime || conf.start_time,
+      endTime: conf.endTime || conf.end_time,
+      hasReport: conf.hasReport || Boolean(conf.reports && conf.reports.length > 0),
+      reports: conf.reports || [],
       createdAt: conf.created_at,
       updatedAt: conf.updated_at
     }));
@@ -86,9 +85,7 @@ export async function POST(request: NextRequest) {
       end_date: body.endDate,
       is_multi_day: isMultiDay,
       start_time: isMultiDay ? null : body.startTime,
-      end_time: isMultiDay ? null : body.endTime,
-      has_report: Boolean(body.hasReport),
-      report_id: body.reportId || null
+      end_time: isMultiDay ? null : body.endTime
     };
 
     const newConference = conferenceOperations.create(conferenceData);
@@ -108,8 +105,8 @@ export async function POST(request: NextRequest) {
         time: newConference.is_multi_day ? '종일' : `${newConference.start_time || '09:00'}-${newConference.end_time || '17:00'}`,
         startTime: newConference.start_time,
         endTime: newConference.end_time,
-        hasReport: newConference.has_report,
-        reportId: newConference.report_id
+        hasReport: false,
+        reports: []
       }
     }, { status: 201 });
 

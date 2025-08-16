@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
@@ -35,6 +36,32 @@ interface ReportViewerProps {
 }
 
 export function ReportViewer({ report, onBack }: ReportViewerProps) {
+  // 마크다운 내용을 번호와 함께 전처리하는 함수
+  const processMarkdownWithNumbers = (content: string) => {
+    const lines = content.split('\n')
+    const counters = { h1: 0, h2: 0, h3: 0 }
+    const koreanChars = ['가', '나', '다', '라', '마', '바', '사', '아', '자', '차', '카', '타', '파', '하']
+    
+    return lines.map(line => {
+      if (line.startsWith('# ')) {
+        counters.h1++
+        counters.h2 = 0
+        counters.h3 = 0
+        return line.replace('# ', `# ${counters.h1}. `)
+      } else if (line.startsWith('## ')) {
+        counters.h2++
+        counters.h3 = 0
+        const koreanChar = koreanChars[counters.h2 - 1] || counters.h2
+        return line.replace('## ', `## ${koreanChar}. `)
+      } else if (line.startsWith('### ')) {
+        counters.h3++
+        return line.replace('### ', `### ${counters.h3}) `)
+      }
+      return line
+    }).join('\n')
+  }
+
+  const processedContent = processMarkdownWithNumbers(report.content)
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-y-auto">
@@ -103,18 +130,58 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  h1: ({children}) => <h1 className="text-2xl font-bold mb-4 text-gray-900">{children}</h1>,
-                  h2: ({children}) => <h2 className="text-xl font-semibold mb-3 text-gray-900">{children}</h2>,
-                  h3: ({children}) => <h3 className="text-lg font-semibold mb-2 text-gray-900">{children}</h3>,
-                  p: ({children}) => <p className="mb-4 leading-relaxed">{children}</p>,
-                  ul: ({children}) => <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>,
-                  ol: ({children}) => <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>,
-                  strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                  em: ({children}) => <em className="italic">{children}</em>,
-                  code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm">{children}</code>,
+                  h1: ({children}) => (
+                    <h1 className="text-2xl font-bold mb-4 mt-8 text-gray-900 border-b border-gray-200 pb-2">
+                      {children}
+                    </h1>
+                  ),
+                  h2: ({children}) => (
+                    <h2 className="text-xl font-semibold mb-3 mt-6 ml-4 text-gray-900">
+                      {children}
+                    </h2>
+                  ),
+                  h3: ({children}) => (
+                    <h3 className="text-lg font-semibold mb-2 mt-4 ml-8 text-gray-900">
+                      {children}
+                    </h3>
+                  ),
+                  p: ({children}) => <p className="mb-4 leading-relaxed text-gray-700 whitespace-pre-wrap">{children}</p>,
+                  ul: ({children}) => <ul className="list-disc ml-12 mb-4 space-y-2 text-gray-700">{children}</ul>,
+                  ol: ({children}) => <ol className="list-decimal ml-12 mb-4 space-y-2 text-gray-700">{children}</ol>,
+                  li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                  blockquote: ({children}) => (
+                    <blockquote className="border-l-4 border-blue-200 pl-4 my-4 italic text-gray-600 bg-blue-50 py-2">
+                      {children}
+                    </blockquote>
+                  ),
+                  strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                  em: ({children}) => <em className="italic text-gray-600">{children}</em>,
+                  code: ({children}) => <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-gray-800">{children}</code>,
+                  pre: ({children}) => (
+                    <pre className="bg-gray-100 p-4 rounded-lg overflow-x-auto my-4 border border-gray-200">
+                      {children}
+                    </pre>
+                  ),
+                  table: ({children}) => (
+                    <div className="overflow-x-auto my-4">
+                      <table className="min-w-full border-collapse border border-gray-300">
+                        {children}
+                      </table>
+                    </div>
+                  ),
+                  th: ({children}) => (
+                    <th className="border border-gray-300 px-4 py-2 bg-gray-100 font-semibold text-left">
+                      {children}
+                    </th>
+                  ),
+                  td: ({children}) => (
+                    <td className="border border-gray-300 px-4 py-2">
+                      {children}
+                    </td>
+                  ),
                 }}
               >
-                {report.content}
+                {processedContent}
               </ReactMarkdown>
             </div>
           </CardContent>
