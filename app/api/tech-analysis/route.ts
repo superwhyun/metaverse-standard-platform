@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { techAnalysisReportOperations } from '@/lib/database';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { categorizeContent } from '@/lib/openai-categorizer';
 
 // GET tech analysis reports with pagination and search
