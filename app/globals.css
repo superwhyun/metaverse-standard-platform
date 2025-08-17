@@ -122,6 +122,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* 스와이프 제스처로 인한 뒤로가기/앞으로가기 방지 */
+    overscroll-behavior-x: none;
+  }
+  
+  /* 전체 페이지에서 수평 스와이프 방지 */
+  html, body {
+    overscroll-behavior-x: none;
   }
 }
 

@@ -185,6 +185,19 @@ try {
     console.log('Category migration skipped or failed:', error);
 }
 
+// Migration: Add category_id column to tech_analysis_reports table
+try {
+    const techTableInfo = db.prepare("PRAGMA table_info(tech_analysis_reports)").all();
+    const hasCategoryId = techTableInfo.some((col: any) => col.name === 'category_id');
+    
+    if (!hasCategoryId) {
+        db.exec("ALTER TABLE tech_analysis_reports ADD COLUMN category_id INTEGER REFERENCES categories(id)");
+        console.log('Added category_id column to tech_analysis_reports table');
+    }
+} catch (error) {
+    console.log('Tech analysis reports category migration skipped or failed:', error);
+}
+
 
 // --- DATABASE OPERATIONS ---
 
@@ -212,14 +225,48 @@ export const techAnalysisReportOperations = {
     const stmt = db.prepare('SELECT * FROM tech_analysis_reports ORDER BY created_at DESC');
     return stmt.all();
   },
+  getPaginated: (limit: number, offset: number, search?: string, categoryId?: string) => {
+    let query = 'SELECT t.*, c.name as category_name FROM tech_analysis_reports t LEFT JOIN categories c ON t.category_id = c.id';
+    let params: any[] = [];
+    let conditions: string[] = [];
+    
+    if (search && search.trim()) {
+      conditions.push('(t.title LIKE ? OR t.summary LIKE ?)');
+      const searchPattern = `%${search.trim()}%`;
+      params.push(searchPattern, searchPattern);
+    }
+    
+    if (categoryId && categoryId !== 'all') {
+      conditions.push('t.category_id = ?');
+      params.push(parseInt(categoryId));
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    query += ' ORDER BY t.created_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+    
+    const stmt = db.prepare(query);
+    return stmt.all(...params);
+  },
   getById: (id: number) => {
     const stmt = db.prepare('SELECT * FROM tech_analysis_reports WHERE id = ?');
     return stmt.get(id);
   },
-  create: (report: { url: string; title: string; summary?: string; image_url?: string }) => {
-    const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url) VALUES (?, ?, ?, ?)');
-    const result = stmt.run(report.url, report.title, report.summary, report.image_url);
+  create: (report: { url: string; title: string; summary?: string; image_url?: string; category_id?: number }) => {
+    const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url, category_id) VALUES (?, ?, ?, ?, ?)');
+    const result = stmt.run(report.url, report.title, report.summary, report.image_url, report.category_id);
     return { id: result.lastInsertRowid, ...report };
+  },
+  update: (id: number, report: { title: string; summary: string; url?: string; image_url?: string; category_id?: number }) => {
+    const stmt = db.prepare('UPDATE tech_analysis_reports SET title = ?, summary = ?, url = ?, image_url = ?, category_id = ? WHERE id = ?');
+    const result = stmt.run(report.title, report.summary, report.url, report.image_url, report.category_id, id);
+    if (result.changes === 0) {
+      throw new Error('Report not found or no changes made');
+    }
+    return { id, ...report };
   },
   delete: (id: number) => {
     const stmt = db.prepare('DELETE FROM tech_analysis_reports WHERE id = ?');
