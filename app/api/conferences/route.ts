@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { conferenceOperations } from '@/lib/database';
+import { createDatabaseAdapter } from '@/lib/database-adapter';
+import { createConferenceOperations } from '@/lib/database-operations';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest, { env }: { env: any }) {
   try {
+    const db = createDatabaseAdapter(env);
+    const conferenceOperations = createConferenceOperations(db);
     const { searchParams } = new URL(request.url);
     const year = searchParams.get('year');
     const month = searchParams.get('month');
@@ -12,17 +17,13 @@ export async function GET(request: NextRequest) {
     let conferences;
 
     if (year && month) {
-      // Get conferences for specific month
-      conferences = conferenceOperations.getByMonth(parseInt(year), parseInt(month));
+      conferences = await conferenceOperations.getByMonth(parseInt(year), parseInt(month));
     } else if (startDate && endDate) {
-      // Get conferences for date range
-      conferences = conferenceOperations.getByDateRange(startDate, endDate);
+      conferences = await conferenceOperations.getByDateRange(startDate, endDate);
     } else {
-      // Get all conferences
-      conferences = conferenceOperations.getAll();
+      conferences = await conferenceOperations.getAll();
     }
 
-    // Transform database format to frontend format
     const transformedConferences = conferences.map((conf: any) => ({
       id: conf.id,
       title: conf.title,
@@ -55,11 +56,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest, { env }: { env: any }) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user?.role !== 'admin') {
+      return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
+    }
+
+    const db = createDatabaseAdapter(env);
+    const conferenceOperations = createConferenceOperations(db);
     const body = await request.json();
     
-    // Validate required fields
     const requiredFields = ['title', 'organization', 'startDate', 'endDate'];
     for (const field of requiredFields) {
       if (!body[field]) {
@@ -70,12 +77,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Determine if conference is multi-day
     const startDate = new Date(body.startDate);
     const endDate = new Date(body.endDate);
     const isMultiDay = startDate.toDateString() !== endDate.toDateString();
 
-    // Prepare conference data
     const conferenceData = {
       title: body.title,
       organization: body.organization,
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
       end_time: isMultiDay ? null : body.endTime
     };
 
-    const newConference = conferenceOperations.create(conferenceData);
+    const newConference = await conferenceOperations.create(conferenceData);
 
     return NextResponse.json({
       success: true,

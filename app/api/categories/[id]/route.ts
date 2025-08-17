@@ -1,19 +1,20 @@
-import { NextResponse } from 'next/server';
-import { categoryOperations } from '@/lib/database';
+import { NextRequest, NextResponse } from 'next/server';
+import { createDatabaseAdapter } from '@/lib/database-adapter';
+import { createCategoryOperations } from '@/lib/database-operations';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    // Check authentication
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const urlParts = request.url.split('/');
-    const idString = urlParts[urlParts.length - 1];
-    const id = parseInt(idString, 10);
+    const db = createDatabaseAdapter(env);
+    const categoryOperations = createCategoryOperations(db);
+    const id = parseInt(params.id, 10);
+
     if (isNaN(id)) {
       return NextResponse.json({ message: 'Invalid ID format' }, { status: 400 });
     }
@@ -24,14 +25,12 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: '카테고리 이름이 필요합니다.' }, { status: 400 });
     }
 
-    // Check if category exists
-    const existingCategory = categoryOperations.getById(id);
+    const existingCategory = await categoryOperations.getById(id);
     if (!existingCategory) {
       return NextResponse.json({ message: '해당 카테고리를 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    // Update the category
-    const updatedCategory = categoryOperations.update(id, {
+    const updatedCategory = await categoryOperations.update(id, {
       name: name.trim(),
       description: description?.trim() || null
     });
@@ -39,25 +38,29 @@ export async function PUT(request: Request) {
     return NextResponse.json(updatedCategory);
   } catch (error) {
     console.error(`Failed to update category:`, error);
-    
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
       return NextResponse.json({ message: '이미 존재하는 카테고리 이름입니다.' }, { status: 409 });
     }
-    
     return NextResponse.json({ message: 'Failed to update category' }, { status: 500 });
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    const urlParts = request.url.split('/');
-    const idString = urlParts[urlParts.length - 1];
-    const id = parseInt(idString, 10);
+    const session = await getServerSession(authOptions);
+    if (!session || session.user?.role !== 'admin') {
+      return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
+    }
+
+    const db = createDatabaseAdapter(env);
+    const categoryOperations = createCategoryOperations(db);
+    const id = parseInt(params.id, 10);
+
     if (isNaN(id)) {
       return NextResponse.json({ message: 'Invalid ID format' }, { status: 400 });
     }
 
-    const success = categoryOperations.delete(id);
+    const success = await categoryOperations.delete(id);
 
     if (success) {
       return NextResponse.json({ message: 'Category deleted successfully' }, { status: 200 });

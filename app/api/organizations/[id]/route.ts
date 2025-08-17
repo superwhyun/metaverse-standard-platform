@@ -1,16 +1,25 @@
-import { NextResponse } from 'next/server';
-import { organizationOperations } from '@/lib/database';
+import { NextRequest, NextResponse } from 'next/server';
+import { createDatabaseAdapter } from '@/lib/database-adapter';
+import { createOrganizationOperations } from '@/lib/database-operations';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    const urlParts = request.url.split('/');
-    const idString = urlParts[urlParts.length - 1];
-    const id = parseInt(idString, 10);
+    const session = await getServerSession(authOptions);
+    if (!session || session.user?.role !== 'admin') {
+      return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
+    }
+
+    const db = createDatabaseAdapter(env);
+    const organizationOperations = createOrganizationOperations(db);
+    const id = parseInt(params.id, 10);
+
     if (isNaN(id)) {
       return NextResponse.json({ message: 'Invalid ID format' }, { status: 400 });
     }
 
-    const success = organizationOperations.delete(id);
+    const success = await organizationOperations.delete(id);
 
     if (success) {
       return NextResponse.json({ message: 'Organization deleted successfully' }, { status: 200 });

@@ -1,10 +1,13 @@
-import { NextResponse } from 'next/server';
-import { categoryOperations } from '@/lib/database';
+import { NextRequest, NextResponse } from 'next/server';
+import { createDatabaseAdapter } from '@/lib/database-adapter';
+import { createCategoryOperations } from '@/lib/database-operations';
 
 // GET all categories
-export async function GET() {
+export async function GET(request: NextRequest, { env }: { env: any }) {
   try {
-    const categories = categoryOperations.getAll();
+    const db = createDatabaseAdapter(env);
+    const categoryOperations = createCategoryOperations(db);
+    const categories = await categoryOperations.getAll();
     return NextResponse.json(categories);
   } catch (error) {
     console.error('Failed to fetch categories:', error);
@@ -13,14 +16,16 @@ export async function GET() {
 }
 
 // POST a new category
-export async function POST(request: Request) {
+export async function POST(request: NextRequest, { env }: { env: any }) {
   try {
+    const db = createDatabaseAdapter(env);
+    const categoryOperations = createCategoryOperations(db);
     const { name, description } = await request.json();
     if (!name) {
       return NextResponse.json({ message: 'Category name is required' }, { status: 400 });
     }
 
-    const newCategory = categoryOperations.create({ name, description });
+    const newCategory = await categoryOperations.create({ name, description });
     return NextResponse.json(newCategory, { status: 201 });
   } catch (error) {
     console.error('Failed to create category:', error);

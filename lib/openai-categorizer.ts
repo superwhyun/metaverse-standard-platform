@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
-import { categoryOperations } from './database';
+import { createDatabaseAdapter } from './database-adapter';
+import { createCategoryOperations } from './database-operations';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -11,32 +12,22 @@ interface Category {
   description?: string;
 }
 
-export async function categorizeContent(title: string, summary: string): Promise<string | null> {
+export async function categorizeContent(title: string, summary: string, env: any): Promise<string | null> {
   try {
-    // Get all available categories from database
-    const categories = categoryOperations.getAll() as Category[];
+    const db = createDatabaseAdapter(env);
+    const categoryOperations = createCategoryOperations(db);
+    const categories = await categoryOperations.getAll() as Category[];
     
     if (categories.length === 0) {
       console.log('No categories available for classification');
       return null;
     }
 
-    // Prepare category list for AI prompt
     const categoryList = categories.map(cat => 
       `${cat.name}${cat.description ? ` - ${cat.description}` : ''}`
     ).join('\n');
 
-    const prompt = `다음 기술 기사의 제목과 요약을 분석하여 가장 적합한 카테고리를 선택해주세요.
-
-제목: ${title}
-요약: ${summary}
-
-사용 가능한 카테고리:
-${categoryList}
-
-응답은 반드시 카테고리 이름만 반환해주세요. 만약 어떤 카테고리에도 해당하지 않는다면 'null'을 반환해주세요.
-
-예시: 아바타`;
+    const prompt = `다음 기술 기사의 제목과 요약을 분석하여 가장 적합한 카테고리를 선택해주세요.\n\n제목: ${title}\n요약: ${summary}\n\n사용 가능한 카테고리:\n${categoryList}\n\n응답은 반드시 카테고리 이름만 반환해주세요. 만약 어떤 카테고리에도 해당하지 않는다면 'null'을 반환해주세요.\n\n예시: 아바타`;
 
     console.log('Sending prompt to OpenAI:', prompt.length, 'characters');
     
@@ -60,7 +51,6 @@ ${categoryList}
       return null;
     }
 
-    // Validate that the returned category name exists
     if (!categories.some(cat => cat.name === response)) {
       console.error(`Invalid category name returned: ${response}`);
       return null;

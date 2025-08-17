@@ -1,66 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { reportOperations, conferenceOperations } from '@/lib/database'
+import { NextRequest, NextResponse } from 'next/server';
+import { createDatabaseAdapter } from '@/lib/database-adapter';
+import { createReportOperations } from '@/lib/database-operations';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    const { id: paramId } = await context.params
-    const id = parseInt(paramId)
+    const db = createDatabaseAdapter(env);
+    const reportOperations = createReportOperations(db);
+    const id = parseInt(params.id, 10);
     
     if (isNaN(id)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid report ID' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'Invalid report ID' }, { status: 400 });
     }
     
-    const report = reportOperations.getById(id)
+    const report = await reportOperations.getById(id);
     if (!report) {
-      return NextResponse.json(
-        { success: false, error: 'Report not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'Report not found' }, { status: 404 });
     }
     
-    return NextResponse.json({ success: true, data: report })
+    return NextResponse.json({ success: true, data: report });
   } catch (error) {
-    console.error('Failed to get report:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to get report' },
-      { status: 500 }
-    )
+    console.error('Failed to get report:', error);
+    return NextResponse.json({ success: false, error: 'Failed to get report' }, { status: 500 });
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    const { id: paramId } = await context.params
-    const id = parseInt(paramId)
+    const session = await getServerSession(authOptions);
+    if (!session || session.user?.role !== 'admin') {
+      return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
+    }
+
+    const db = createDatabaseAdapter(env);
+    const reportOperations = createReportOperations(db);
+    const id = parseInt(params.id, 10);
     
     if (isNaN(id)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid report ID' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'Invalid report ID' }, { status: 400 });
     }
     
-    const data = await request.json()
+    const data = await request.json();
     
-    // 기존 보고서 정보 조회 (회의 ID 변경 확인용)
-    const existingReport = reportOperations.getById(id)
+    const existingReport = await reportOperations.getById(id);
     if (!existingReport) {
-      return NextResponse.json(
-        { success: false, error: 'Report not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'Report not found' }, { status: 404 });
     }
     
-    // Map frontend camelCase to database snake_case
     const reportData = {
       title: data.title,
       date: data.date,
@@ -71,68 +58,48 @@ export async function PUT(
       tags: JSON.stringify(data.tags || []),
       download_url: data.downloadUrl || null,
       conference_id: data.conferenceId || null
-    }
+    };
     
-    const result = reportOperations.update(id, reportData)
+    const result = await reportOperations.update(id, reportData);
     if (!result) {
-      return NextResponse.json(
-        { success: false, error: 'Report not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'Report not found' }, { status: 404 });
     }
     
-    // 회의 연결 변경 시 특별한 처리 불필요 (reports 배열로 자동 계산됨)
-    
-    return NextResponse.json({ success: true, data: result })
+    return NextResponse.json({ success: true, data: result });
   } catch (error) {
-    console.error('Failed to update report:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to update report' },
-      { status: 500 }
-    )
+    console.error('Failed to update report:', error);
+    return NextResponse.json({ success: false, error: 'Failed to update report' }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    const { id: paramId } = await context.params
-    const id = parseInt(paramId)
+    const session = await getServerSession(authOptions);
+    if (!session || session.user?.role !== 'admin') {
+      return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
+    }
+
+    const db = createDatabaseAdapter(env);
+    const reportOperations = createReportOperations(db);
+    const id = parseInt(params.id, 10);
     
     if (isNaN(id)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid report ID' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'Invalid report ID' }, { status: 400 });
     }
     
-    // 삭제하기 전에 보고서 정보 조회 (회의 ID 확인용)
-    const reportToDelete = reportOperations.getById(id)
+    const reportToDelete = await reportOperations.getById(id);
     if (!reportToDelete) {
-      return NextResponse.json(
-        { success: false, error: 'Report not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'Report not found' }, { status: 404 });
     }
     
-    const success = reportOperations.delete(id)
+    const success = await reportOperations.delete(id);
     if (!success) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete report' },
-        { status: 500 }
-      )
+      return NextResponse.json({ success: false, error: 'Failed to delete report' }, { status: 500 });
     }
     
-    // 보고서 삭제 완료 (연관된 회의의 has_report 상태는 자동으로 reports 배열로 계산됨)
-    
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete report:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to delete report' },
-      { status: 500 }
-    )
+    console.error('Failed to delete report:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete report' }, { status: 500 });
   }
 }

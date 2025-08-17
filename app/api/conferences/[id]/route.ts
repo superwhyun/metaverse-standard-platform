@@ -1,23 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { conferenceOperations } from '@/lib/database';
+import { createDatabaseAdapter } from '@/lib/database-adapter';
+import { createConferenceOperations } from '@/lib/database-operations';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    const { id: paramId } = await params;
-    const id = parseInt(paramId);
-    const conference = conferenceOperations.getById(id);
+    const db = createDatabaseAdapter(env);
+    const conferenceOperations = createConferenceOperations(db);
+    const id = parseInt(params.id, 10);
+    const conference = await conferenceOperations.getById(id);
 
     if (!conference) {
-      return NextResponse.json({
-        success: false,
-        error: 'Conference not found'
-      }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Conference not found' }, { status: 404 });
     }
 
-    // Transform database format to frontend format
     const transformedConference = {
       id: conference.id,
       title: conference.title,
@@ -37,40 +34,31 @@ export async function GET(
       updatedAt: conference.updated_at
     };
 
-    return NextResponse.json({
-      success: true,
-      data: transformedConference
-    });
+    return NextResponse.json({ success: true, data: transformedConference });
   } catch (error) {
     console.error('Error fetching conference:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch conference'
-    }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to fetch conference' }, { status: 500 });
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    const { id: paramId } = await params;
-    const id = parseInt(paramId);
-    const body = await request.json();
-
-    // Check if conference exists
-    const existingConference = conferenceOperations.getById(id);
-    if (!existingConference) {
-      return NextResponse.json({
-        success: false,
-        error: 'Conference not found'
-      }, { status: 404 });
+    const session = await getServerSession(authOptions);
+    if (!session || session.user?.role !== 'admin') {
+      return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    // Transform frontend field names to database field names
+    const db = createDatabaseAdapter(env);
+    const conferenceOperations = createConferenceOperations(db);
+    const id = parseInt(params.id, 10);
+    const body = await request.json();
+
+    const existingConference = await conferenceOperations.getById(id);
+    if (!existingConference) {
+      return NextResponse.json({ success: false, error: 'Conference not found' }, { status: 404 });
+    }
+
     const updateData: any = {};
-    
     if (body.title) updateData.title = body.title;
     if (body.organization) updateData.organization = body.organization;
     if (body.location) updateData.location = body.location;
@@ -85,7 +73,6 @@ export async function PUT(
       updateData.start_date = body.startDate;
       updateData.end_date = body.endDate;
       
-      // Set time fields for single-day conferences, clear for multi-day
       if (isMultiDay) {
         updateData.start_time = null;
         updateData.end_time = null;
@@ -95,74 +82,41 @@ export async function PUT(
       }
     }
 
-    const success = conferenceOperations.update(id, updateData);
+    const success = await conferenceOperations.update(id, updateData);
 
     if (!success) {
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to update conference'
-      }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Failed to update conference' }, { status: 500 });
     }
 
-    // Fetch updated conference
-    const updatedConference = conferenceOperations.getById(id);
+    const updatedConference = await conferenceOperations.getById(id);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: updatedConference.id,
-        title: updatedConference.title,
-        organization: updatedConference.organization,
-        location: updatedConference.location,
-        description: updatedConference.description,
-        date: updatedConference.start_date,
-        startDate: updatedConference.start_date,
-        endDate: updatedConference.end_date,
-        isMultiDay: Boolean(updatedConference.is_multi_day),
-        time: updatedConference.is_multi_day ? '종일' : `${updatedConference.start_time || '09:00'}-${updatedConference.end_time || '17:00'}`,
-        startTime: updatedConference.start_time,
-        endTime: updatedConference.end_time,
-        hasReport: updatedConference.reports && updatedConference.reports.length > 0,
-        reports: updatedConference.reports || []
-      }
-    });
-
+    return NextResponse.json({ success: true, data: updatedConference });
   } catch (error) {
     console.error('Error updating conference:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to update conference'
-    }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to update conference' }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    const { id: paramId } = await params;
-    const id = parseInt(paramId);
-    
-    const success = conferenceOperations.delete(id);
-
-    if (!success) {
-      return NextResponse.json({
-        success: false,
-        error: 'Conference not found or failed to delete'
-      }, { status: 404 });
+    const session = await getServerSession(authOptions);
+    if (!session || session.user?.role !== 'admin') {
+      return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Conference deleted successfully'
-    });
+    const db = createDatabaseAdapter(env);
+    const conferenceOperations = createConferenceOperations(db);
+    const id = parseInt(params.id, 10);
+    
+    const success = await conferenceOperations.delete(id);
 
+    if (!success) {
+      return NextResponse.json({ success: false, error: 'Conference not found or failed to delete' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Conference deleted successfully' });
   } catch (error) {
     console.error('Error deleting conference:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to delete conference'
-    }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to delete conference' }, { status: 500 });
   }
 }
