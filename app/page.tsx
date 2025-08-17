@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from "react"
+import { useSession, signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { CalendarComponent } from "@/components/calendar-component"
 import { ReportList } from "@/components/report-list"
@@ -11,6 +13,7 @@ import { AdminReportForm } from "@/components/admin-report-form"
 import { KeyboardGuide } from "@/components/keyboard-guide"
 import { MonthlyReports } from "@/components/monthly-reports"
 import { OrganizationReports } from "@/components/organization-reports"
+import { CategoryReports } from "@/components/category-reports"
 import { StandardSearch } from "@/components/standard-search"
 import { TechAnalysis } from "@/components/tech-analysis"
 
@@ -25,6 +28,8 @@ import { getPageClasses } from "@/utils/navigationUtils"
 type ViewType = string
 
 export default function HomePage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [currentView, setCurrentView] = useState<ViewType>("calendar")
   const [selectedReport, setSelectedReport] = useState<any>(null)
   const [selectedConference, setSelectedConference] = useState<any>(null)
@@ -35,7 +40,13 @@ export default function HomePage() {
   const [adminReportViewer, setAdminReportViewer] = useState<any>(null) // 관리자에서 보는 보고서
   const [monthlyReportViewer, setMonthlyReportViewer] = useState<any>(null) // 월별 동향에서 보는 보고서
   const [organizationReportViewer, setOrganizationReportViewer] = useState<any>(null) // 기구별 동향에서 보는 보고서
+  const [categoryReportViewer, setCategoryReportViewer] = useState<any>(null) // 분야별 동향에서 보는 보고서
   const [calendarReportViewer, setCalendarReportViewer] = useState<any>(null) // 캘린더에서 보는 보고서
+  
+  // 더보기 기능을 위한 state
+  const [currentOffset, setCurrentOffset] = useState(0)
+  const [hasMoreReports, setHasMoreReports] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   // Load conferences from database
   const loadConferences = async () => {
@@ -57,10 +68,13 @@ export default function HomePage() {
   };
 
   // Load reports from database - 최적화된 버전 (content 제외)
-  const loadReports = async () => {
+  const loadReports = async (reset = true) => {
     try {
+      const offset = reset ? 0 : currentOffset;
+      const limit = 50;
+      
       // 리스트용 API - content 제외하고 빠른 로딩
-      const response = await fetch('/api/reports?limit=50&offset=0');
+      const response = await fetch(`/api/reports?limit=${limit}&offset=${offset}`);
       if (response.ok) {
         const result = await response.json();
         // Transform database data to frontend format
@@ -88,14 +102,23 @@ export default function HomePage() {
           };
         });
         
-        setReports(dbReports);
+        if (reset) {
+          setReports(dbReports);
+          setCurrentOffset(limit);
+        } else {
+          setReports(prev => [...prev, ...dbReports]);
+          setCurrentOffset(prev => prev + limit);
+        }
+        
+        // 더 가져올 데이터가 있는지 확인 (요청한 limit보다 적게 왔으면 끝)
+        setHasMoreReports(dbReports.length === limit);
       } else {
         console.error('Failed to load reports');
-        setReports([]);
+        if (reset) setReports([]);
       }
     } catch (error) {
       console.error('Error loading reports:', error);
-      setReports([]);
+      if (reset) setReports([]);
     }
   };
 
@@ -207,8 +230,24 @@ export default function HomePage() {
     setOrganizationReportViewer(report)
   }
 
+  const handleCategoryReportSelect = (report: any) => {
+    setCategoryReportViewer(report)
+  }
+
   const handleCalendarReportSelect = (report: any) => {
     setCalendarReportViewer(report)
+  }
+
+  // 더보기 버튼 핸들러 - DB에서 추가 보고서 로딩
+  const handleLoadMoreReports = async () => {
+    if (isLoadingMore || !hasMoreReports) return
+    
+    setIsLoadingMore(true)
+    try {
+      await loadReports(false) // reset=false로 추가 로딩
+    } finally {
+      setIsLoadingMore(false)
+    }
   }
 
 
@@ -338,6 +377,49 @@ export default function HomePage() {
   }
 
   const renderAdmin = () => {
+    // 인증 확인
+    if (status === "loading") {
+      return (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p>인증 확인 중...</p>
+          </div>
+        </div>
+      )
+    }
+
+    if (!session) {
+      return (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H10m2-5V9m0 0V7m0 2h2m-2 0H10" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold mb-2">관리자 인증 필요</h3>
+            <p className="text-muted-foreground mb-6">
+              관리자 페이지에 접근하려면 로그인이 필요합니다.
+            </p>
+            <Button 
+              onClick={() => router.push('/admin/login')}
+              className="mr-2"
+            >
+              로그인하기
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setCurrentView('calendar')}
+            >
+              홈으로 돌아가기
+            </Button>
+          </div>
+        </div>
+      )
+    }
+
+    // 로그인된 상태에서만 관리자 기능 렌더링
     switch (currentView) {
       case "admin-add-conference":
         return (
@@ -411,22 +493,44 @@ export default function HomePage() {
                 setCurrentView("admin-edit-report")
               }}
               onDeleteReport={handleDeleteReport}
-              onViewReport={(report) => {
-                setAdminReportViewer(report)
+              onViewReport={async (report) => {
+                // content를 포함한 상세 데이터 로딩
+                const detailReport = await loadReportDetail(report.id)
+                if (detailReport) {
+                  setAdminReportViewer(detailReport)
+                } else {
+                  setAdminReportViewer(report)
+                }
               }}
-              onViewConferenceReport={(conferenceId) => {
+              onViewConferenceReport={async (conferenceId) => {
                 // 해당 회의와 연관된 보고서 찾기
                 const conferenceReport = reports.find(report => report.conferenceId === conferenceId)
                 if (conferenceReport) {
-                  setAdminReportViewer(conferenceReport)
+                  // content를 포함한 상세 데이터 로딩
+                  const detailReport = await loadReportDetail(conferenceReport.id)
+                  if (detailReport) {
+                    setAdminReportViewer(detailReport)
+                  } else {
+                    setAdminReportViewer(conferenceReport)
+                  }
                 }
               }}
-              onViewSpecificReport={(reportId) => {
-                // 특정 보고서 ID로 보고서 찾기
-                const report = reports.find(r => r.id === reportId)
-                if (report) {
-                  setAdminReportViewer(report)
+              onViewSpecificReport={async (reportId) => {
+                // content를 포함한 상세 데이터 로딩
+                const detailReport = await loadReportDetail(reportId)
+                if (detailReport) {
+                  setAdminReportViewer(detailReport)
+                } else {
+                  // 실패 시 기본 데이터라도 표시
+                  const report = reports.find(r => r.id === reportId)
+                  if (report) {
+                    setAdminReportViewer(report)
+                  }
                 }
+              }}
+              session={session}
+              onLogout={async () => {
+                await signOut({ callbackUrl: '/' })
               }}
             />
           </div>
@@ -485,7 +589,13 @@ export default function HomePage() {
         {/* Report list page */}
         <div className={getPageClasses("reports", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">
-            <ReportList reports={reports} onReportClick={handleReportSelect} />
+            <ReportList 
+              reports={reports} 
+              onReportClick={handleReportSelect}
+              onLoadMore={handleLoadMoreReports}
+              hasMore={hasMoreReports}
+              isLoadingMore={isLoadingMore}
+            />
           </div>
         </div>
 
@@ -523,10 +633,17 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Category reports page */}
+        <div className={getPageClasses("category-reports", currentView)}>
+          <div className="container mx-auto px-4 py-6 pb-20">
+            <CategoryReports reports={reports} onReportClick={handleCategoryReportSelect} />
+          </div>
+        </div>
+
         {/* Tech analysis page */}
         <div className={getPageClasses("tech-analysis", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">
-            <TechAnalysis />
+            <TechAnalysis session={session} />
           </div>
         </div>
 
@@ -570,6 +687,14 @@ export default function HomePage() {
         <ReportViewer
           report={organizationReportViewer}
           onBack={() => setOrganizationReportViewer(null)}
+        />
+      )}
+
+      {/* 분야별 동향에서 보고서 뷰어 모달 */}
+      {categoryReportViewer && (
+        <ReportViewer
+          report={categoryReportViewer}
+          onBack={() => setCategoryReportViewer(null)}
         />
       )}
 

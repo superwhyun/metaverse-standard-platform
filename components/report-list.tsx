@@ -23,9 +23,12 @@ interface Report {
 interface ReportListProps {
   reports: Report[]
   onReportClick: (report: Report) => void
+  onLoadMore?: () => void
+  hasMore?: boolean
+  isLoadingMore?: boolean
 }
 
-export function ReportList({ reports, onReportClick }: ReportListProps) {
+export function ReportList({ reports, onReportClick, onLoadMore, hasMore = false, isLoadingMore = false }: ReportListProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [selectedOrganization, setSelectedOrganization] = useState<string>("all")
@@ -48,7 +51,7 @@ export function ReportList({ reports, onReportClick }: ReportListProps) {
 
   return (
     <div className="w-full max-w-6xl mx-auto">
-      <div className="mb-8">
+      <div className="mb-8 text-center">
         <h2 className="text-3xl font-bold font-serif text-primary mb-2">표준화 동향 보고서</h2>
         <p className="text-muted-foreground">최신 메타버스 국제표준화 동향을 확인하세요</p>
       </div>
@@ -163,6 +166,30 @@ export function ReportList({ reports, onReportClick }: ReportListProps) {
             }}
           >
             필터 초기화
+          </Button>
+        </div>
+      )}
+
+      {/* Load More Button - Debug: 항상 표시 */}
+      {filteredReports.length > 0 && onLoadMore && (
+        <div className="text-center mt-8">
+          <Button
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            variant="outline"
+            size="lg"
+            className="px-8"
+          >
+            {isLoadingMore ? (
+              <>
+                <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mr-2"></div>
+                로딩 중...
+              </>
+            ) : hasMore ? (
+              "더보기"
+            ) : (
+              "더 이상 없음"
+            )}
           </Button>
         </div>
       )}

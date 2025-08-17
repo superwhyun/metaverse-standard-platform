@@ -70,11 +70,11 @@ export const navigationConfig: PageConfig[] = [
   {
     id: "tech-analysis",
     component: "TechAnalysis",
-    title: "기술분석 보고서",
+    title: "새 기술소식",
     icon: Lightbulb,
     position: { x: 200, y: 0 },
     navigation: { left: "reports", right: "standard-search" },
-    shortcuts: [{ key: "4", description: "기술분석 보고서 페이지로 이동" }],
+    shortcuts: [{ key: "4", description: "새 기술소식 페이지로 이동" }],
     isTopLevel: true
   },
   {
@@ -102,7 +102,16 @@ export const navigationConfig: PageConfig[] = [
     title: "표준화기구별 동향",
     position: { x: 100, y: 200 },
     parent: "reports",
-    navigation: { up: "monthly-reports" },
+    navigation: { up: "monthly-reports", down: "category-reports" },
+    isSubPage: true
+  },
+  {
+    id: "category-reports",
+    component: "CategoryReports", 
+    title: "분야별 표준화 동향",
+    position: { x: 100, y: 300 },
+    parent: "reports",
+    navigation: { up: "organization-reports" },
     isSubPage: true
   },
   // 관리자 서브페이지들

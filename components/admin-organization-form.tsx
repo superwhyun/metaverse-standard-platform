@@ -8,6 +8,17 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/components/ui/use-toast'
 import { List, Plus, Trash2 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface Organization {
   id: number
@@ -79,6 +90,31 @@ export function AdminOrganizationForm() {
     setIsLoading(false)
   }
 
+  const handleDeleteOrganization = async (id: number) => {
+    try {
+      const response = await fetch(`/api/organizations/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete organization');
+      }
+
+      toast({
+        title: '성공',
+        description: '표준화 기구를 삭제했습니다.',
+      });
+      await fetchOrganizations(); // Refresh the list
+    } catch (err: any) {
+      toast({
+        title: '오류',
+        description: err.message || '기구 삭제에 실패했습니다.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
@@ -107,7 +143,7 @@ export function AdminOrganizationForm() {
                 추가
               </Button>
             </div>
-            {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
         </form>
 
@@ -119,9 +155,29 @@ export function AdminOrganizationForm() {
           ) : (
             <ul className="space-y-2">
               {organizations.map((org) => (
-                <li key={org.id} className="flex items-center justify-between p-2 border rounded-md">
+                <li key={org.id} className="flex items-center justify-between p-2 border rounded-md bg-card">
                   <span>{org.name}</span>
-                  {/* Delete functionality can be added here */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>정말 삭제하시겠습니까?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          이 작업은 되돌릴 수 없습니다. '{org.name}' 기구를 영구적으로 삭제합니다.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteOrganization(org.id)}>
+                          삭제
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </li>
               ))}
             </ul>

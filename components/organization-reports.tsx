@@ -52,15 +52,14 @@ export function OrganizationReports({ reports, onReportClick }: OrganizationRepo
   }
 
   return (
-    <div className="py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold font-serif text-primary mb-4">표준화 기구별 동향 보고서</h2>
-          <p className="text-muted-foreground">메타버스 관련 표준화 기구별로 분류된 동향 보고서를 확인하세요</p>
-        </div>
+    <div className="w-full max-w-6xl mx-auto">
+      <div className="mb-8 text-center">
+        <h2 className="text-3xl font-bold font-serif text-primary mb-2">표준화 기구별 동향 보고서</h2>
+        <p className="text-muted-foreground">메타버스 관련 표준화 기구별로 분류된 동향 보고서를 확인하세요</p>
+      </div>
 
-        <div className="space-y-4">
-          {sortedOrganizations.map(([orgName, orgData]) => (
+      <div className="space-y-4">
+        {sortedOrganizations.map(([orgName, orgData]) => (
             <Card key={orgName} className="overflow-hidden">
               <CardHeader
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -135,11 +134,10 @@ export function OrganizationReports({ reports, onReportClick }: OrganizationRepo
               )}
             </Card>
           ))}
-        </div>
+      </div>
 
-        <div className="text-center mt-8 text-sm text-muted-foreground">
-          <p>위 화살표 키를 눌러 월별 동향으로 이동하세요</p>
-        </div>
+      <div className="text-center mt-8 text-sm text-muted-foreground">
+        <p>위 화살표 키를 눌러 월별 동향으로 이동하세요</p>
       </div>
     </div>
   )

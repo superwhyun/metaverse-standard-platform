@@ -45,6 +45,11 @@ interface Organization {
   name: string;
 }
 
+interface Category {
+    id: number;
+    name: string;
+}
+
 export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false, conferences = [] }: AdminReportFormProps) {
   const [formData, setFormData] = useState<ReportFormData>(() => {
     if (initialData) {
@@ -91,6 +96,7 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
   const [errors, setErrors] = useState<Partial<ReportFormData>>({})
   const [newTag, setNewTag] = useState("")
   const [organizations, setOrganizations] = useState<Organization[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -109,19 +115,26 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
         });
       }
     };
-    fetchOrganizations();
-  }, []);
+    const fetchCategories = async () => {
+        try {
+          const response = await fetch('/api/categories');
+          if (!response.ok) {
+            throw new Error('Failed to fetch categories');
+          }
+          const data = await response.json();
+          setCategories(data);
+        } catch (error) {
+          toast({
+            title: "오류",
+            description: "카테고리 목록을 불러오는 데 실패했습니다.",
+            variant: "destructive",
+          });
+        }
+      };
 
-  const categories = [
-    "상호운용성",
-    "품질 평가",
-    "웹 표준",
-    "시스템 아키텍처",
-    "엣지 컴퓨팅",
-    "보안",
-    "프라이버시",
-    "기타",
-  ]
+    fetchOrganizations();
+    fetchCategories();
+  }, []);
 
   // 오늘 기준으로 종료된 회의들 중 가장 가까운 10개 필터링
   const getRecentEndedConferences = () => {
@@ -320,8 +333,8 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { techAnalysisReportOperations } from '@/lib/database';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 // GET all tech analysis reports
 export async function GET() {
@@ -55,5 +57,43 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Failed to create tech analysis report:', error);
     return NextResponse.json({ message: (error as Error).message || 'Failed to create tech analysis report' }, { status: 500 });
+  }
+}
+
+// DELETE a tech analysis report (admin only)
+export async function DELETE(request: NextRequest) {
+  try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
+    }
+
+    // Get ID from query parameters
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ message: 'ID가 필요합니다.' }, { status: 400 });
+    }
+
+    const reportId = parseInt(id);
+    if (isNaN(reportId)) {
+      return NextResponse.json({ message: '유효하지 않은 ID입니다.' }, { status: 400 });
+    }
+
+    // Check if report exists
+    const existingReport = techAnalysisReportOperations.getById(reportId);
+    if (!existingReport) {
+      return NextResponse.json({ message: '해당 기술 소식을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    // Delete the report
+    techAnalysisReportOperations.delete(reportId);
+    
+    return NextResponse.json({ message: '기술 소식이 성공적으로 삭제되었습니다.' });
+  } catch (error) {
+    console.error('Failed to delete tech analysis report:', error);
+    return NextResponse.json({ message: '기술 소식 삭제에 실패했습니다.' }, { status: 500 });
   }
 }

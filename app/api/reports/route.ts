@@ -27,11 +27,16 @@ export async function GET(request: NextRequest) {
         // content 제외!
       }))
       
+      // 날짜순으로 정렬 (최신이 먼저)
+      const sortedReports = reports.sort((a, b) => {
+        return new Date(b.date).getTime() - new Date(a.date).getTime()
+      })
+      
       // 페이지네이션 적용
-      let paginatedReports = reports
+      let paginatedReports = sortedReports
       if (limit) {
         const start = offset || 0
-        paginatedReports = reports.slice(start, start + limit)
+        paginatedReports = sortedReports.slice(start, start + limit)
       }
       
       return NextResponse.json({ 

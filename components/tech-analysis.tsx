@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/components/ui/use-toast'
-import { Link, PlusCircle, ImageOff } from 'lucide-react'
+import { Link, PlusCircle, ImageOff, Trash2 } from 'lucide-react'
 
 interface TechReport {
   id: number
@@ -18,7 +18,11 @@ interface TechReport {
   created_at: string
 }
 
-export function TechAnalysis() {
+interface TechAnalysisProps {
+  session?: any
+}
+
+export function TechAnalysis({ session }: TechAnalysisProps) {
   const [reports, setReports] = useState<TechReport[]>([])
   const [newUrl, setNewUrl] = useState('')
   const [error, setError] = useState('')
@@ -96,6 +100,42 @@ export function TechAnalysis() {
     }
   }
 
+  const handleDelete = async (id: number) => {
+    if (!session) {
+      toast({
+        title: '권한 없음',
+        description: '관리자만 삭제할 수 있습니다.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!confirm('이 기술 소식을 삭제하시겠습니까?')) return
+
+    try {
+      const response = await fetch(`/api/tech-analysis?id=${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to delete report')
+      }
+
+      toast({
+        title: '성공',
+        description: '기술 소식을 삭제했습니다.',
+      })
+      await fetchReports() // Refresh the list
+    } catch (err: any) {
+      toast({
+        title: '오류',
+        description: err.message || '삭제에 실패했습니다.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   return (
     <div className="space-y-8">
       <Card>
@@ -133,29 +173,45 @@ export function TechAnalysis() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {reports.map((report) => (
-              <Card key={report.id} className="flex flex-col overflow-hidden h-full">
-                <a href={report.url} target="_blank" rel="noopener noreferrer" className="block">
-                    <div className="aspect-video bg-muted flex items-center justify-center">
+              <Card key={report.id} className="flex flex-col overflow-hidden">
+                <a href={report.url} target="_blank" rel="noopener noreferrer" className="block bg-muted">
+                    <div className="w-full h-32 flex items-center justify-center">
                     {report.image_url ? (
                         <img src={report.image_url} alt={report.title} className="w-full h-full object-cover" />
                     ) : (
-                        <ImageOff className="w-10 h-10 text-muted-foreground" />
+                        <ImageOff className="w-8 h-8 text-muted-foreground" />
                     )}
                     </div>
                 </a>
-                <CardHeader className="p-4 flex-grow">
-                  <CardTitle className="text-base font-semibold leading-snug tracking-tight">
-                    <a href={report.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        {report.title}
-                    </a>
-                  </CardTitle>
+                <CardHeader className="p-3 flex-grow">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-sm font-semibold leading-snug tracking-tight line-clamp-2 flex-1">
+                      <a href={report.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          {report.title}
+                      </a>
+                    </CardTitle>
+                    {session && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleDelete(report.id)
+                        }}
+                        title="삭제"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
                   {report.summary && (
-                    <CardDescription className="text-xs mt-2 line-clamp-3">
+                    <CardDescription className="text-xs mt-1 line-clamp-3">
                         {report.summary}
                     </CardDescription>
                   )}
                 </CardHeader>
-                <CardFooter className="p-4 pt-0 mt-auto">
+                <CardFooter className="p-3 pt-0 mt-auto">
                   <p className="text-xs text-muted-foreground">
                     {new Date(report.created_at).toLocaleDateString()}
                   </p>

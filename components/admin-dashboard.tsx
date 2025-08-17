@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from "react"
-import { Calendar, FileText, Plus, Edit, Trash2, Eye, List } from "lucide-react"
+import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminOrganizationForm } from '@/components/admin-organization-form'
+import { AdminCategoryForm } from '@/components/admin-category-form'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +54,8 @@ interface AdminDashboardProps {
   onViewReport: (report: Report) => void
   onViewConferenceReport: (conferenceId: number) => void
   onViewSpecificReport: (reportId: number) => void
+  session?: any
+  onLogout?: () => void
 }
 
 export function AdminDashboard({
@@ -67,11 +70,35 @@ export function AdminDashboard({
   onViewReport,
   onViewConferenceReport,
   onViewSpecificReport,
+  session,
+  onLogout,
 }: AdminDashboardProps) {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
+      {/* Header with User Info */}
+      <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold font-serif text-primary">관리자 대시보드</h2>
+        {session && (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="w-4 h-4" />
+              <span>{session.user.name || '관리자'}</span>
+            </div>
+            {onLogout && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={onLogout}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                로그아웃
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -129,7 +156,7 @@ export function AdminDashboard({
       </div>
 
       <Tabs defaultValue="conferences" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="conferences" className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
             회의 관리
@@ -141,6 +168,10 @@ export function AdminDashboard({
           <TabsTrigger value="organizations" className="flex items-center gap-2">
             <List className="w-4 h-4" />
             표준화 기구 관리
+          </TabsTrigger>
+          <TabsTrigger value="categories" className="flex items-center gap-2">
+            <FolderKanban className="w-4 h-4" />
+            카테고리 관리
           </TabsTrigger>
         </TabsList>
         <TabsContent value="conferences">
@@ -325,6 +356,9 @@ export function AdminDashboard({
         </TabsContent>
         <TabsContent value="organizations">
             <AdminOrganizationForm />
+        </TabsContent>
+        <TabsContent value="categories">
+            <AdminCategoryForm />
         </TabsContent>
       </Tabs>
     </div>

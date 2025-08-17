@@ -59,6 +59,15 @@ const createOrganizationsTable = `
   )
 `;
 
+// Create categories table
+const createCategoriesTable = `
+  CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT
+  )
+`;
+
 // Create tech_analysis_reports table
 const createTechAnalysisReportsTable = `
   CREATE TABLE IF NOT EXISTS tech_analysis_reports (
@@ -79,36 +88,29 @@ const createIndexes = [
   'CREATE INDEX IF NOT EXISTS idx_reports_category ON reports(category)',
   'CREATE INDEX IF NOT EXISTS idx_reports_organization ON reports(organization)',
   'CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations(name)',
+  'CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)',
 ];
 
 // Initialize tables and indexes
 db.exec(createConferencesTable);
 db.exec(createReportsTable);
 db.exec(createOrganizationsTable);
+db.exec(createCategoriesTable);
 db.exec(createTechAnalysisReportsTable);
 createIndexes.forEach(index => db.exec(index));
 
+// --- MIGRATIONS ---
+
 // Migration: Remove unnecessary columns from conferences table
 try {
-  // Clean up any existing temporary tables first
-  try {
-    db.exec('DROP TABLE IF EXISTS conferences_new');
-  } catch (e) {
-    // Ignore if table doesn't exist
-  }
-  
-  // Check if columns exist
   const conferenceTableInfo = db.prepare("PRAGMA table_info(conferences)").all();
   const hasReportColumn = conferenceTableInfo.some((col: any) => col.name === 'has_report');
   const reportIdColumn = conferenceTableInfo.some((col: any) => col.name === 'report_id');
   
   if (hasReportColumn || reportIdColumn) {
     console.log('Migrating conferences table to remove has_report and report_id columns...');
-    
-    // Disable foreign key constraints temporarily
     db.exec('PRAGMA foreign_keys = OFF');
-    
-    // Create new table without the columns
+    db.exec('BEGIN TRANSACTION');
     db.exec(`
       CREATE TABLE conferences_new (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,46 +127,84 @@ try {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
-    // Copy data
     db.exec(`
       INSERT INTO conferences_new (id, title, organization, location, description, start_date, end_date, is_multi_day, start_time, end_time, created_at, updated_at)
       SELECT id, title, organization, location, description, start_date, end_date, is_multi_day, start_time, end_time, created_at, updated_at
       FROM conferences
     `);
-    
-    // Replace table
     db.exec('DROP TABLE conferences');
     db.exec('ALTER TABLE conferences_new RENAME TO conferences');
-    
-    // Re-enable foreign key constraints
+    db.exec('COMMIT');
     db.exec('PRAGMA foreign_keys = ON');
-    
     console.log('Migration completed: has_report and report_id columns removed');
   }
 } catch (error) {
-  console.log('Migration skipped or already completed:', error);
+  console.log('Conference migration skipped or failed:', error);
 }
 
-// Migrate existing reports table to add missing columns
+// Migration: Add missing columns to reports table
 try {
-  // Check if date column exists
-  const tableInfo = db.prepare("PRAGMA table_info(reports)").all();
-  const hasDate = tableInfo.some((col: any) => col.name === 'date');
-  const hasConferenceId = tableInfo.some((col: any) => col.name === 'conference_id');
+  const reportTableInfo = db.prepare("PRAGMA table_info(reports)").all();
+  const hasDate = reportTableInfo.some((col: any) => col.name === 'date');
+  const hasConferenceId = reportTableInfo.some((col: any) => col.name === 'conference_id');
   
   if (!hasDate) {
     db.exec('ALTER TABLE reports ADD COLUMN date TEXT');
-    console.log('Added date column to reports table');
   }
-  
   if (!hasConferenceId) {
     db.exec('ALTER TABLE reports ADD COLUMN conference_id INTEGER REFERENCES conferences(id)');
-    console.log('Added conference_id column to reports table');
   }
 } catch (error) {
-  console.log('Migration check completed or table already up to date');
+  console.log('Report migration skipped or failed:', error);
 }
+
+// Migration: Add missing columns to tech_analysis_reports table
+try {
+  const techTableInfo = db.prepare("PRAGMA table_info(tech_analysis_reports)").all();
+  const hasTitle = techTableInfo.some((col: any) => col.name === 'title');
+  const hasImageUrl = techTableInfo.some((col: any) => col.name === 'image_url');
+
+  if (!hasTitle) {
+    db.exec("ALTER TABLE tech_analysis_reports ADD COLUMN title TEXT NOT NULL DEFAULT ''");
+  }
+  if (!hasImageUrl) {
+    db.exec("ALTER TABLE tech_analysis_reports ADD COLUMN image_url TEXT");
+  }
+} catch (error) {
+    console.log('Tech analysis report migration skipped or failed:', error);
+}
+
+// Migration: Add description column to categories table
+try {
+    const categoryTableInfo = db.prepare("PRAGMA table_info(categories)").all();
+    const hasDescription = categoryTableInfo.some((col: any) => col.name === 'description');
+    if (!hasDescription) {
+        db.exec("ALTER TABLE categories ADD COLUMN description TEXT");
+    }
+} catch (error) {
+    console.log('Category migration skipped or failed:', error);
+}
+
+
+// --- DATABASE OPERATIONS ---
+
+// Category operations
+export const categoryOperations = {
+  getAll: () => {
+    const stmt = db.prepare('SELECT * FROM categories ORDER BY name ASC');
+    return stmt.all();
+  },
+  create: (category: { name: string; description?: string }) => {
+    const stmt = db.prepare('INSERT INTO categories (name, description) VALUES (?, ?)');
+    const result = stmt.run(category.name, category.description);
+    return { id: result.lastInsertRowid, ...category };
+  },
+  delete: (id: number) => {
+    const stmt = db.prepare('DELETE FROM categories WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  }
+};
 
 // Tech Analysis Report operations
 export const techAnalysisReportOperations = {
@@ -172,29 +212,33 @@ export const techAnalysisReportOperations = {
     const stmt = db.prepare('SELECT * FROM tech_analysis_reports ORDER BY created_at DESC');
     return stmt.all();
   },
+  getById: (id: number) => {
+    const stmt = db.prepare('SELECT * FROM tech_analysis_reports WHERE id = ?');
+    return stmt.get(id);
+  },
   create: (report: { url: string; title: string; summary?: string; image_url?: string }) => {
     const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url) VALUES (?, ?, ?, ?)');
     const result = stmt.run(report.url, report.title, report.summary, report.image_url);
     return { id: result.lastInsertRowid, ...report };
   },
+  delete: (id: number) => {
+    const stmt = db.prepare('DELETE FROM tech_analysis_reports WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  },
 };
 
 // Organization operations
 export const organizationOperations = {
-  // Get all organizations
   getAll: () => {
     const stmt = db.prepare('SELECT * FROM organizations ORDER BY name ASC');
     return stmt.all();
   },
-
-  // Create new organization
   create: (organization: { name: string }) => {
     const stmt = db.prepare('INSERT INTO organizations (name) VALUES (?)');
     const result = stmt.run(organization.name);
     return { id: result.lastInsertRowid, ...organization };
   },
-
-  // Delete organization
   delete: (id: number) => {
     const stmt = db.prepare('DELETE FROM organizations WHERE id = ?');
     const result = stmt.run(id);
@@ -204,24 +248,19 @@ export const organizationOperations = {
 
 // Conference operations
 export const conferenceOperations = {
-  // Get all conferences
   getAll: () => {
     const stmt = db.prepare(`
       SELECT * FROM conferences 
       ORDER BY start_date DESC
     `);
     const conferences = stmt.all();
-    
-    // 각 회의에 연관된 보고서들을 추가
     const reportStmt = db.prepare(`
       SELECT id, title FROM reports WHERE conference_id = ?
     `);
-    
     return conferences.map(conference => {
       const reports = reportStmt.all(conference.id);
       return {
         ...conference,
-        // snake_case to camelCase conversion
         startDate: conference.start_date,
         endDate: conference.end_date,
         isMultiDay: Boolean(conference.is_multi_day),
@@ -232,8 +271,6 @@ export const conferenceOperations = {
       };
     });
   },
-
-  // Get conferences by date range (for calendar)
   getByDateRange: (startDate: string, endDate: string) => {
     const stmt = db.prepare(`
       SELECT * FROM conferences 
@@ -242,17 +279,13 @@ export const conferenceOperations = {
       ORDER BY start_date ASC
     `);
     const conferences = stmt.all(endDate, startDate, startDate, endDate);
-    
-    // 각 회의에 연관된 보고서들을 추가
     const reportStmt = db.prepare(`
       SELECT id, title FROM reports WHERE conference_id = ?
     `);
-    
     return conferences.map(conference => {
       const reports = reportStmt.all(conference.id);
       return {
         ...conference,
-        // snake_case to camelCase conversion
         startDate: conference.start_date,
         endDate: conference.end_date,
         isMultiDay: Boolean(conference.is_multi_day),
@@ -263,12 +296,9 @@ export const conferenceOperations = {
       };
     });
   },
-
-  // Get conferences by month (for calendar display)
   getByMonth: (year: number, month: number) => {
     const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
     const monthEnd = `${year}-${String(month).padStart(2, '0')}-31`;
-    
     const stmt = db.prepare(`
       SELECT * FROM conferences 
       WHERE (start_date <= ? AND end_date >= ?) 
@@ -276,17 +306,13 @@ export const conferenceOperations = {
       ORDER BY start_date ASC
     `);
     const conferences = stmt.all(monthEnd, monthStart, monthStart, monthEnd);
-    
-    // 각 회의에 연관된 보고서들을 추가
     const reportStmt = db.prepare(`
       SELECT id, title FROM reports WHERE conference_id = ?
     `);
-    
     return conferences.map(conference => {
       const reports = reportStmt.all(conference.id);
       return {
         ...conference,
-        // snake_case to camelCase conversion
         startDate: conference.start_date,
         endDate: conference.end_date,
         isMultiDay: Boolean(conference.is_multi_day),
@@ -297,22 +323,16 @@ export const conferenceOperations = {
       };
     });
   },
-
-  // Get single conference
   getById: (id: number) => {
     const stmt = db.prepare(`
       SELECT * FROM conferences WHERE id = ?
     `);
     const conference = stmt.get(id);
-    
     if (conference) {
-      // 연관된 보고서들을 추가
       const reportStmt = db.prepare(`
         SELECT id, title FROM reports WHERE conference_id = ?
       `);
       const reports = reportStmt.all(conference.id);
-      
-      // snake_case to camelCase conversion
       return {
         ...conference,
         startDate: conference.start_date,
@@ -324,11 +344,8 @@ export const conferenceOperations = {
         reports: reports
       };
     }
-    
     return conference;
   },
-
-  // Create new conference
   create: (conference: {
     title: string;
     organization: string;
@@ -347,7 +364,6 @@ export const conferenceOperations = {
         updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
-    
     const result = stmt.run(
       conference.title,
       conference.organization,
@@ -359,11 +375,8 @@ export const conferenceOperations = {
       conference.start_time || null,
       conference.end_time || null
     );
-    
     return { id: result.lastInsertRowid, ...conference };
   },
-
-  // Update conference
   update: (id: number, conference: Partial<{
     title: string;
     organization: string;
@@ -384,18 +397,14 @@ export const conferenceOperations = {
       }
       return value;
     });
-    
     const stmt = db.prepare(`
       UPDATE conferences 
       SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `);
-    
     const result = stmt.run(...values, id);
     return result.changes > 0;
   },
-
-  // Delete conference
   delete: (id: number) => {
     const stmt = db.prepare('DELETE FROM conferences WHERE id = ?');
     const result = stmt.run(id);
@@ -405,19 +414,14 @@ export const conferenceOperations = {
 
 // Report operations
 export const reportOperations = {
-  // Get all reports
   getAll: () => {
     const stmt = db.prepare('SELECT * FROM reports ORDER BY created_at DESC');
     return stmt.all();
   },
-
-  // Get single report
   getById: (id: number) => {
     const stmt = db.prepare('SELECT * FROM reports WHERE id = ?');
     return stmt.get(id);
   },
-
-  // Create new report
   create: (report: {
     title: string;
     date?: string;
@@ -435,7 +439,6 @@ export const reportOperations = {
         download_url, conference_id, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
-    
     const result = stmt.run(
       report.title,
       report.date || null,
@@ -447,11 +450,8 @@ export const reportOperations = {
       report.download_url || null,
       report.conference_id || null
     );
-    
     return { id: result.lastInsertRowid, ...report };
   },
-
-  // Update report
   update: (id: number, report: Partial<{
     title: string;
     date: string;
@@ -466,21 +466,17 @@ export const reportOperations = {
     const fields = Object.keys(report).filter(key => report[key as keyof typeof report] !== undefined);
     const setClause = fields.map(field => `${field} = ?`).join(', ');
     const values = fields.map(field => report[field as keyof typeof report]);
-    
     const stmt = db.prepare(`
       UPDATE reports 
       SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `);
-    
     const result = stmt.run(...values, id);
     if (result.changes > 0) {
       return reportOperations.getById(id);
     }
     return null;
   },
-
-  // Delete report
   delete: (id: number) => {
     const stmt = db.prepare('DELETE FROM reports WHERE id = ?');
     const result = stmt.run(id);
