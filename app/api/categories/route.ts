@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'edge';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createCategoryOperations } from '@/lib/database-operations';
 
