@@ -8,6 +8,8 @@ let db: Database.Database;
 
 try {
   db = new Database(DB_PATH);
+  // Disable foreign key constraints for this connection to allow category deletion
+  db.pragma('foreign_keys = OFF');
   console.log('Database connection established');
 } catch (error) {
   console.error('Database connection failed:', error);
@@ -198,6 +200,35 @@ try {
     console.log('Tech analysis reports category migration skipped or failed:', error);
 }
 
+// Migration: Change from category_id to category_name (loose coupling)
+try {
+    const techTableInfo = db.prepare("PRAGMA table_info(tech_analysis_reports)").all();
+    const hasCategoryName = techTableInfo.some((col: any) => col.name === 'category_name');
+    const hasCategoryId = techTableInfo.some((col: any) => col.name === 'category_id');
+    
+    if (!hasCategoryName && hasCategoryId) {
+        console.log('Migrating from category_id to category_name...');
+        
+        // Add category_name column
+        db.exec("ALTER TABLE tech_analysis_reports ADD COLUMN category_name TEXT");
+        
+        // Copy category names from categories table
+        db.exec(`
+            UPDATE tech_analysis_reports 
+            SET category_name = (
+                SELECT c.name 
+                FROM categories c 
+                WHERE c.id = tech_analysis_reports.category_id
+            )
+            WHERE category_id IS NOT NULL
+        `);
+        
+        console.log('Migration completed: category_name column added and populated');
+    }
+} catch (error) {
+    console.log('Category name migration skipped or failed:', error);
+}
+
 
 // --- DATABASE OPERATIONS ---
 
@@ -207,10 +238,22 @@ export const categoryOperations = {
     const stmt = db.prepare('SELECT * FROM categories ORDER BY name ASC');
     return stmt.all();
   },
+  getById: (id: number) => {
+    const stmt = db.prepare('SELECT * FROM categories WHERE id = ?');
+    return stmt.get(id);
+  },
   create: (category: { name: string; description?: string }) => {
     const stmt = db.prepare('INSERT INTO categories (name, description) VALUES (?, ?)');
     const result = stmt.run(category.name, category.description);
     return { id: result.lastInsertRowid, ...category };
+  },
+  update: (id: number, category: { name: string; description?: string }) => {
+    const stmt = db.prepare('UPDATE categories SET name = ?, description = ? WHERE id = ?');
+    const result = stmt.run(category.name, category.description, id);
+    if (result.changes === 0) {
+      throw new Error('Category not found or no changes made');
+    }
+    return { id, ...category };
   },
   delete: (id: number) => {
     const stmt = db.prepare('DELETE FROM categories WHERE id = ?');
@@ -225,27 +268,27 @@ export const techAnalysisReportOperations = {
     const stmt = db.prepare('SELECT * FROM tech_analysis_reports ORDER BY created_at DESC');
     return stmt.all();
   },
-  getPaginated: (limit: number, offset: number, search?: string, categoryId?: string) => {
-    let query = 'SELECT t.*, c.name as category_name FROM tech_analysis_reports t LEFT JOIN categories c ON t.category_id = c.id';
+  getPaginated: (limit: number, offset: number, search?: string, categoryName?: string) => {
+    let query = 'SELECT * FROM tech_analysis_reports';
     let params: any[] = [];
     let conditions: string[] = [];
     
     if (search && search.trim()) {
-      conditions.push('(t.title LIKE ? OR t.summary LIKE ?)');
+      conditions.push('(title LIKE ? OR summary LIKE ?)');
       const searchPattern = `%${search.trim()}%`;
       params.push(searchPattern, searchPattern);
     }
     
-    if (categoryId && categoryId !== 'all') {
-      conditions.push('t.category_id = ?');
-      params.push(parseInt(categoryId));
+    if (categoryName && categoryName !== 'all') {
+      conditions.push('category_name = ?');
+      params.push(categoryName);
     }
     
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
     
-    query += ' ORDER BY t.created_at DESC LIMIT ? OFFSET ?';
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
     
     const stmt = db.prepare(query);
@@ -255,14 +298,14 @@ export const techAnalysisReportOperations = {
     const stmt = db.prepare('SELECT * FROM tech_analysis_reports WHERE id = ?');
     return stmt.get(id);
   },
-  create: (report: { url: string; title: string; summary?: string; image_url?: string; category_id?: number }) => {
-    const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url, category_id) VALUES (?, ?, ?, ?, ?)');
-    const result = stmt.run(report.url, report.title, report.summary, report.image_url, report.category_id);
+  create: (report: { url: string; title: string; summary?: string; image_url?: string; category_name?: string }) => {
+    const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url, category_name) VALUES (?, ?, ?, ?, ?)');
+    const result = stmt.run(report.url, report.title, report.summary, report.image_url, report.category_name);
     return { id: result.lastInsertRowid, ...report };
   },
-  update: (id: number, report: { title: string; summary: string; url?: string; image_url?: string; category_id?: number }) => {
-    const stmt = db.prepare('UPDATE tech_analysis_reports SET title = ?, summary = ?, url = ?, image_url = ?, category_id = ? WHERE id = ?');
-    const result = stmt.run(report.title, report.summary, report.url, report.image_url, report.category_id, id);
+  update: (id: number, report: { title: string; summary: string; url?: string; image_url?: string; category_name?: string }) => {
+    const stmt = db.prepare('UPDATE tech_analysis_reports SET title = ?, summary = ?, url = ?, image_url = ?, category_name = ? WHERE id = ?');
+    const result = stmt.run(report.title, report.summary, report.url, report.image_url, report.category_name, id);
     if (result.changes === 0) {
       throw new Error('Report not found or no changes made');
     }

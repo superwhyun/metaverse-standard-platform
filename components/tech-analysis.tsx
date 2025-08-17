@@ -20,7 +20,6 @@ interface TechReport {
   summary?: string
   image_url?: string
   created_at: string
-  category_id?: number
   category_name?: string
 }
 
@@ -43,7 +42,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
   // 검색 관련 상태
   const [searchTerm, setSearchTerm] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const [selectedCategoryId, setSelectedCategoryId] = useState('')
+  const [selectedCategoryName, setSelectedCategoryName] = useState('')
   
   // 편집 관련 상태
   const [editingReport, setEditingReport] = useState<TechReport | null>(null)
@@ -52,7 +51,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
     summary: '',
     url: '',
     image_url: '',
-    category_id: ''
+    category_name: ''
   })
   
   // 카테고리 목록
@@ -62,7 +61,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
   // 삭제 확인 상태
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null)
 
-  const fetchReports = async (reset = true, search = '', categoryId = '') => {
+  const fetchReports = async (reset = true, search = '', categoryName = '') => {
     if (reset) {
       setIsLoading(true)
       setReports([])
@@ -82,8 +81,8 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         params.append('search', search.trim())
       }
       
-      if (categoryId && categoryId !== 'all') {
-        params.append('category', categoryId)
+      if (categoryName && categoryName !== 'all') {
+        params.append('category', categoryName)
       }
       
       const response = await fetch(`/api/tech-analysis?${params}`)
@@ -140,18 +139,18 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
   const handleSearch = async (searchValue?: string) => {
     const currentSearch = searchValue !== undefined ? searchValue : searchTerm
     setIsSearching(true)
-    await fetchReports(true, currentSearch, selectedCategoryId)
+    await fetchReports(true, currentSearch, selectedCategoryName)
     setIsSearching(false)
   }
 
-  const handleCategoryChange = async (categoryId: string) => {
-    setSelectedCategoryId(categoryId)
-    await fetchReports(true, searchTerm, categoryId)
+  const handleCategoryChange = async (categoryName: string) => {
+    setSelectedCategoryName(categoryName)
+    await fetchReports(true, searchTerm, categoryName)
   }
 
   const handleLoadMore = () => {
     if (!hasMore || isLoadingMore) return
-    fetchReports(false, searchTerm, selectedCategoryId)
+    fetchReports(false, searchTerm, selectedCategoryName)
   }
 
   // 무한 스크롤 구현
@@ -168,7 +167,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [hasMore, isLoadingMore, searchTerm, selectedCategoryId, offset])
+  }, [hasMore, isLoadingMore, searchTerm, selectedCategoryName, offset])
 
   const validateForm = () => {
     if (!newUrl.trim()) {
@@ -207,7 +206,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         title: '성공',
         description: '새로운 기술 소식을 추가했습니다.',
       })
-      await fetchReports(true, searchTerm, selectedCategoryId) // Refresh the list
+      await fetchReports(true, searchTerm, selectedCategoryName) // Refresh the list
     } catch (err: any) {
       toast({
         title: '오류',
@@ -248,7 +247,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         title: '성공',
         description: '기술 소식을 삭제했습니다.',
       })
-      await fetchReports(true, searchTerm, selectedCategoryId) // Refresh the list
+      await fetchReports(true, searchTerm, selectedCategoryName) // Refresh the list
     } catch (err: any) {
       toast({
         title: '오류',
@@ -276,7 +275,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
       summary: report.summary || '',
       url: report.url,
       image_url: report.image_url || '',
-      category_id: report.category_id?.toString() || 'none'
+      category_name: report.category_name || 'none'
     })
   }
 
@@ -295,7 +294,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
           summary: editFormData.summary,
           url: editFormData.url,
           image_url: editFormData.image_url,
-          category_id: editFormData.category_id && editFormData.category_id !== 'none' ? parseInt(editFormData.category_id) : null
+          category_name: editFormData.category_name && editFormData.category_name !== 'none' ? editFormData.category_name : null
         }),
       })
 
@@ -310,7 +309,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
       })
 
       setEditingReport(null)
-      fetchReports(true, searchTerm, selectedCategoryId)
+      fetchReports(true, searchTerm, selectedCategoryName)
     } catch (err) {
       toast({
         title: '오류',
@@ -387,7 +386,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
             {/* 카테고리 필터 */}
             <div className="min-w-[200px]">
               <Select 
-                value={selectedCategoryId} 
+                value={selectedCategoryName} 
                 onValueChange={handleCategoryChange}
               >
                 <SelectTrigger>
@@ -396,7 +395,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                 <SelectContent>
                   <SelectItem value="all">전체 카테고리</SelectItem>
                   {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
+                    <SelectItem key={category.id} value={category.name}>
                       {category.name}
                     </SelectItem>
                   ))}
@@ -405,12 +404,11 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
             </div>
           </div>
           
-          {(searchTerm || (selectedCategoryId && selectedCategoryId !== 'all')) && (
+          {(searchTerm || (selectedCategoryName && selectedCategoryName !== 'all')) && (
             <p className="text-sm text-muted-foreground">
               {searchTerm && `"${searchTerm}" 검색 결과`}
-              {searchTerm && selectedCategoryId && selectedCategoryId !== 'all' && ' · '}
-              {selectedCategoryId && selectedCategoryId !== 'all' && 
-                `${categories.find(c => c.id.toString() === selectedCategoryId)?.name} 카테고리`}
+              {searchTerm && selectedCategoryName && selectedCategoryName !== 'all' && ' · '}
+              {selectedCategoryName && selectedCategoryName !== 'all' && `${selectedCategoryName} 카테고리`}
               {' '}
               {reports.length}개
             </p>
@@ -425,14 +423,15 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {reports.map((report) => (
-              <Card key={report.id} className="flex flex-col overflow-hidden relative">
+              <div key={report.id} className="relative">
                 {report.category_name && (
-                  <div className="absolute top-0 left-0 z-10">
-                    <span className="inline-block px-2 py-1 text-xs bg-primary text-primary-foreground rounded-full shadow-lg">
+                  <div className="absolute top-5 -left-1 z-10">
+                    <span className="inline-block px-3 py-1 text-xs bg-primary text-primary-foreground rounded-md shadow-md transform -rotate-12 origin-bottom-left border-2 border-white/20">
                       {report.category_name}
                     </span>
                   </div>
                 )}
+                <Card className="flex flex-col overflow-hidden relative">
                 <a href={report.url} target="_blank" rel="noopener noreferrer" className="block bg-muted">
                     <div className="w-full h-32 flex items-center justify-center">
                     {report.image_url ? (
@@ -489,7 +488,8 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                     {new Date(report.created_at).toLocaleDateString()}
                   </p>
                 </CardFooter>
-              </Card>
+                </Card>
+              </div>
             ))}
           </div>
         )}
@@ -578,8 +578,8 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
             <div>
               <Label htmlFor="edit-category">카테고리 (선택사항)</Label>
               <Select 
-                value={editFormData.category_id} 
-                onValueChange={(value) => setEditFormData(prev => ({ ...prev, category_id: value }))}
+                value={editFormData.category_name} 
+                onValueChange={(value) => setEditFormData(prev => ({ ...prev, category_name: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="카테고리를 선택하세요" />
@@ -587,7 +587,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                 <SelectContent>
                   <SelectItem value="none">카테고리 없음</SelectItem>
                   {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
+                    <SelectItem key={category.id} value={category.name}>
                       {category.name}
                     </SelectItem>
                   ))}

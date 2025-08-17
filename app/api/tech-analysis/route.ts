@@ -56,10 +56,10 @@ export async function POST(request: Request) {
     const summary = description || '설명이 없습니다.';
     
     // Automatically categorize the content using OpenAI
-    let categoryId: number | null = null;
+    let categoryName: string | null = null;
     try {
-      categoryId = await categorizeContent(title, summary);
-      console.log(`Auto-categorized content: "${title}" -> category ID: ${categoryId}`);
+      categoryName = await categorizeContent(title, summary);
+      console.log(`Auto-categorized content: "${title}" -> category: ${categoryName}`);
     } catch (error) {
       console.error('Failed to auto-categorize content:', error);
       // Continue without categorization if AI fails
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       title,
       summary,
       image_url: image?.url,
-      category_id: categoryId
+      category_name: categoryName
     });
 
     return NextResponse.json(newReport, { status: 201 });
@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const { id, title, summary, url, image_url, category_id } = await request.json();
+    const { id, title, summary, url, image_url, category_name } = await request.json();
     
     if (!id || !title) {
       return NextResponse.json({ message: 'ID와 제목이 필요합니다.' }, { status: 400 });
@@ -112,7 +112,7 @@ export async function PUT(request: NextRequest) {
       summary: summary || '설명이 없습니다.',
       url,
       image_url,
-      category_id: category_id || null
+      category_name: category_name || null
     });
     
     return NextResponse.json(updatedReport);

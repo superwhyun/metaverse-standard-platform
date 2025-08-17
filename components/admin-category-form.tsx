@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/use-toast'
-import { List, Plus, Trash2 } from 'lucide-react'
+import { List, Plus, Trash2, Edit3 } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,13 @@ export function AdminCategoryForm() {
   const [newCatDescription, setNewCatDescription] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  
+  // 편집 관련 상태
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    description: ''
+  })
 
   const fetchCategories = async () => {
     setIsLoading(true)
@@ -119,6 +127,59 @@ export function AdminCategoryForm() {
     }
   };
 
+  const handleEditCategory = (category: Category) => {
+    setEditingCategory(category)
+    setEditFormData({
+      name: category.name,
+      description: category.description || ''
+    })
+  }
+
+  const handleEditSubmit = async () => {
+    if (!editingCategory) return
+    
+    if (!editFormData.name.trim()) {
+      toast({
+        title: '오류',
+        description: '카테고리 이름을 입력해주세요.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/categories/${editingCategory.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editFormData.name.trim(),
+          description: editFormData.description.trim()
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to update category')
+      }
+
+      toast({
+        title: '성공',
+        description: '카테고리를 수정했습니다.',
+      })
+
+      setEditingCategory(null)
+      await fetchCategories()
+    } catch (err: any) {
+      toast({
+        title: '오류',
+        description: err.message || '카테고리 수정에 실패했습니다.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
@@ -173,27 +234,37 @@ export function AdminCategoryForm() {
                 <li key={cat.id} className="flex flex-col p-2 border rounded-md bg-card">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{cat.name}</span>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>정말 삭제하시겠습니까?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            이 작업은 되돌릴 수 없습니다. '{cat.name}' 카테고리를 영구적으로 삭제합니다.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>취소</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteCategory(cat.id)}>
-                            삭제
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6"
+                        onClick={() => handleEditCategory(cat)}
+                      >
+                        <Edit3 className="w-4 h-4 text-blue-500" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>정말 삭제하시겠습니까?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              이 작업은 되돌릴 수 없습니다. '{cat.name}' 카테고리를 영구적으로 삭제합니다.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>취소</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteCategory(cat.id)}>
+                              삭제
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                   {cat.description && (
                     <p className="text-sm text-muted-foreground mt-1">{cat.description}</p>
@@ -204,6 +275,47 @@ export function AdminCategoryForm() {
           )}
         </div>
       </CardContent>
+
+      {/* 편집 모달 */}
+      <Dialog open={editingCategory !== null} onOpenChange={() => setEditingCategory(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>카테고리 편집</DialogTitle>
+            <DialogDescription>
+              카테고리 이름과 설명을 수정할 수 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">카테고리 이름</Label>
+              <Input
+                id="edit-name"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="카테고리 이름을 입력하세요"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">설명 (선택사항)</Label>
+              <Textarea
+                id="edit-description"
+                value={editFormData.description}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="카테고리 설명을 입력하세요"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCategory(null)}>
+              취소
+            </Button>
+            <Button onClick={handleEditSubmit}>
+              저장
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
