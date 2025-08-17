@@ -9,7 +9,7 @@ import { categorizeContent } from '@/lib/openai-categorizer';
 // GET tech analysis reports with pagination and search
 export async function GET(request: NextRequest, { env }: { env: any }) {
   try {
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '8');
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { env }: { env: any }) {
 // POST a new tech analysis report from a URL
 export async function POST(request: NextRequest, { env }: { env: any }) {
   try {
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { url } = await request.json();
     if (!url) {
@@ -91,7 +91,7 @@ export async function PUT(request: NextRequest, { env }: { env: any }) {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { id, title, summary, url, image_url, category_name } = await request.json();
     
@@ -132,7 +132,7 @@ export async function DELETE(request: NextRequest, { env }: { env: any }) {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

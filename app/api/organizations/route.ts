@@ -8,7 +8,7 @@ import { authOptions } from '@/lib/auth';
 // GET all organizations
 export async function GET(request: NextRequest, { env }: { env: any }) {
   try {
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const organizationOperations = createOrganizationOperations(db);
     const organizations = await organizationOperations.getAll();
     return NextResponse.json(organizations);
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest, { env }: { env: any }) {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const organizationOperations = createOrganizationOperations(db);
     const { name } = await request.json();
     if (!name) {

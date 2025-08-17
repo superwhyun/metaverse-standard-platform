@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params, env }: { params: { id:
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const categoryOperations = createCategoryOperations(db);
     const id = parseInt(params.id, 10);
 
@@ -53,7 +53,7 @@ export async function DELETE(request: NextRequest, { params, env }: { params: { 
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const categoryOperations = createCategoryOperations(db);
     const id = parseInt(params.id, 10);
 

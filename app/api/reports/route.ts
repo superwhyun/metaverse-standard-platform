@@ -7,7 +7,7 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest, { env }: { env: any }) {
   try {
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const reportOperations = createReportOperations(db);
     const { searchParams } = new URL(request.url);
     const includeContent = searchParams.get('includeContent') === 'true';
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest, { env }: { env: any }) {
       return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const reportOperations = createReportOperations(db);
     const data = await request.json();
     

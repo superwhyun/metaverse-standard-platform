@@ -6,7 +6,7 @@ import { createCategoryOperations } from '@/lib/database-operations';
 // GET all categories
 export async function GET(request: NextRequest, { env }: { env: any }) {
   try {
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const categoryOperations = createCategoryOperations(db);
     const categories = await categoryOperations.getAll();
     return NextResponse.json(categories);
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, { env }: { env: any }) {
 // POST a new category
 export async function POST(request: NextRequest, { env }: { env: any }) {
   try {
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const categoryOperations = createCategoryOperations(db);
     const { name, description } = await request.json();
     if (!name) {

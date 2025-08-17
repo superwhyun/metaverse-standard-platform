@@ -88,7 +88,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
 
 
 // Factory function to create the appropriate adapter
-export function createDatabaseAdapter(env?: any): DatabaseAdapter {
+export async function createDatabaseAdapter(env?: any): Promise<DatabaseAdapter> {
   // Check if we're in a Cloudflare environment (production or preview)
   if (env?.MSP) {
     console.log('Using D1 database (Cloudflare)');
@@ -96,7 +96,7 @@ export function createDatabaseAdapter(env?: any): DatabaseAdapter {
   }
 
   // If not in Cloudflare, we must be in a local Node.js environment.
-  // We require the node-specific file here to avoid bundling Node.js modules in the edge build.
-  const { getNodeAdapter } = require('./database-adapter-node');
+  // We dynamically import the node-specific file here to avoid bundling Node.js modules in the edge build.
+  const { getNodeAdapter } = await import('./database-adapter-node');
   return getNodeAdapter();
 }

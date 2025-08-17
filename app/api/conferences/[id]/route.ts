@@ -7,7 +7,7 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
   try {
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const conferenceOperations = createConferenceOperations(db);
     const id = parseInt(params.id, 10);
     const conference = await conferenceOperations.getById(id);
@@ -49,7 +49,7 @@ export async function PUT(request: NextRequest, { params, env }: { params: { id:
       return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const conferenceOperations = createConferenceOperations(db);
     const id = parseInt(params.id, 10);
     const body = await request.json();
@@ -105,7 +105,7 @@ export async function DELETE(request: NextRequest, { params, env }: { params: { 
       return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter(env);
     const conferenceOperations = createConferenceOperations(db);
     const id = parseInt(params.id, 10);
     
