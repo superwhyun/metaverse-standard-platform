@@ -68,14 +68,35 @@ export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
     const stmt = db.prepare('SELECT * FROM tech_analysis_reports WHERE id = ?');
     return await stmt.get([id]);
   },
-  create: async (report: { url: string; title: string; summary?: string; image_url?: string; category_name?: string }) => {
+  create: async (report: { url: string; title: string; summary?: string | null; image_url?: string | null; category_name?: string | null }) => {
+    console.log('DATABASE CREATE - Raw input:', report);
+    
+    // Explicitly handle undefined values
+    const params = [
+      report.url, 
+      report.title, 
+      report.summary === undefined ? null : report.summary, 
+      report.image_url === undefined ? null : report.image_url, 
+      report.category_name === undefined ? null : report.category_name
+    ];
+    
+    console.log('DATABASE CREATE - Final params:', params);
+    console.log('DATABASE CREATE - Param types:', params.map(p => typeof p));
+    
     const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url, category_name) VALUES (?, ?, ?, ?, ?)');
-    const result = await stmt.run([report.url, report.title, report.summary, report.image_url, report.category_name]);
+    const result = await stmt.run(params);
     return { id: result.lastInsertRowid, ...report };
   },
   update: async (id: number, report: { title: string; summary: string; url?: string; image_url?: string; category_name?: string }) => {
     const stmt = db.prepare('UPDATE tech_analysis_reports SET title = ?, summary = ?, url = ?, image_url = ?, category_name = ? WHERE id = ?');
-    const result = await stmt.run([report.title, report.summary, report.url, report.image_url, report.category_name, id]);
+    const result = await stmt.run([
+      report.title, 
+      report.summary, 
+      report.url || null, 
+      report.image_url || null, 
+      report.category_name || null, 
+      id
+    ]);
     if ((result.changes || 0) === 0) {
       throw new Error('Report not found or no changes made');
     }

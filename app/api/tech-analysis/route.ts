@@ -41,17 +41,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid URL format' }, { status: 400 });
     }
 
+    console.log('About to fetch microlink for URL:', url);
     const microlinkResponse = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+    console.log('Microlink response status:', microlinkResponse.status);
+    
     if (!microlinkResponse.ok) {
       throw new Error('Failed to fetch metadata from URL');
     }
     const metadata = await microlinkResponse.json();
+    console.log('Microlink metadata status:', metadata.status);
 
     if (metadata.status !== 'success') {
         return NextResponse.json({ message: 'Could not retrieve metadata from the provided URL.' }, { status: 400 });
     }
 
+    console.log('Metadata data keys:', Object.keys(metadata.data || {}));
     const { title, description, image } = metadata.data;
+    console.log('Raw extracted values:', { 
+      title, 
+      description, 
+      image,
+      hasImageUrl: !!image?.url
+    });
 
     if (!title) {
         return NextResponse.json({ message: 'Could not find a title for the provided URL.' }, { status: 400 });
@@ -68,13 +79,32 @@ export async function POST(request: NextRequest) {
       console.error('Failed to auto-categorize content:', error);
     }
 
-    const newReport = await techAnalysisReportOperations.create({
+    console.log('BEFORE CREATE - About to create with values:', {
+      url: `"${url}"`,
+      title: `"${title}"`,
+      summary: `"${summary}"`,
+      categoryName: `"${categoryName}"`,
+      imageUrl: image?.url ? `"${image.url}"` : 'undefined'
+    });
+    
+    // Debug logging before create call
+    const createParams = {
       url,
       title,
-      summary,
-      image_url: image?.url,
-      category_name: categoryName || undefined
+      summary: summary || null,
+      image_url: image?.url || null,
+      category_name: categoryName || null
+    };
+    
+    console.log('FINAL CREATE PARAMS:', {
+      url: createParams.url,
+      title: createParams.title,
+      summary: createParams.summary,
+      image_url: createParams.image_url,
+      category_name: createParams.category_name
     });
+
+    const newReport = await techAnalysisReportOperations.create(createParams);
 
     return NextResponse.json(newReport, { status: 201 });
   } catch (error) {
