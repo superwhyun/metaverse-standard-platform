@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-export const runtime = 'edge';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createOrganizationOperations } from '@/lib/database-operations';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
 // GET all organizations
-export async function GET(request: NextRequest, { env }: { env: any }) {
+export async function GET(request: NextRequest) {
   try {
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const organizationOperations = createOrganizationOperations(db);
     const organizations = await organizationOperations.getAll();
     return NextResponse.json(organizations);
@@ -19,14 +18,14 @@ export async function GET(request: NextRequest, { env }: { env: any }) {
 }
 
 // POST a new organization
-export async function POST(request: NextRequest, { env }: { env: any }) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const organizationOperations = createOrganizationOperations(db);
     const { name } = await request.json();
     if (!name) {

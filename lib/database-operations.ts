@@ -4,41 +4,41 @@ import { DatabaseAdapter } from './database-adapter';
 
 // Category operations
 export const createCategoryOperations = (db: DatabaseAdapter) => ({
-  getAll: () => {
+  getAll: async () => {
     const stmt = db.prepare('SELECT * FROM categories ORDER BY name ASC');
-    return stmt.all();
+    return await stmt.all();
   },
-  getById: (id: number) => {
+  getById: async (id: number) => {
     const stmt = db.prepare('SELECT * FROM categories WHERE id = ?');
-    return stmt.get([id]);
+    return await stmt.get([id]);
   },
-  create: (category: { name: string; description?: string }) => {
+  create: async (category: { name: string; description?: string }) => {
     const stmt = db.prepare('INSERT INTO categories (name, description) VALUES (?, ?)');
-    const result = stmt.run([category.name, category.description]);
+    const result = await stmt.run([category.name, category.description]);
     return { id: result.lastInsertRowid, ...category };
   },
-  update: (id: number, category: { name: string; description?: string }) => {
+  update: async (id: number, category: { name: string; description?: string }) => {
     const stmt = db.prepare('UPDATE categories SET name = ?, description = ? WHERE id = ?');
-    const result = stmt.run([category.name, category.description, id]);
-    if (result.changes === 0) {
+    const result = await stmt.run([category.name, category.description, id]);
+    if ((result.changes || 0) === 0) {
       throw new Error('Category not found or no changes made');
     }
     return { id, ...category };
   },
-  delete: (id: number) => {
+  delete: async (id: number) => {
     const stmt = db.prepare('DELETE FROM categories WHERE id = ?');
-    const result = stmt.run([id]);
-    return result.changes > 0;
+    const result = await stmt.run([id]);
+    return (result.changes || 0) > 0;
   }
 });
 
 // Tech Analysis Report operations
 export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
-  getAll: () => {
+  getAll: async () => {
     const stmt = db.prepare('SELECT * FROM tech_analysis_reports ORDER BY created_at DESC');
-    return stmt.all();
+    return await stmt.all();
   },
-  getPaginated: (limit: number, offset: number, search?: string, categoryName?: string) => {
+  getPaginated: async (limit: number, offset: number, search?: string, categoryName?: string) => {
     let query = 'SELECT * FROM tech_analysis_reports';
     let params: any[] = [];
     let conditions: string[] = [];
@@ -62,63 +62,63 @@ export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
     params.push(limit, offset);
     
     const stmt = db.prepare(query);
-    return stmt.all(params);
+    return await stmt.all(params);
   },
-  getById: (id: number) => {
+  getById: async (id: number) => {
     const stmt = db.prepare('SELECT * FROM tech_analysis_reports WHERE id = ?');
-    return stmt.get([id]);
+    return await stmt.get([id]);
   },
-  create: (report: { url: string; title: string; summary?: string; image_url?: string; category_name?: string }) => {
+  create: async (report: { url: string; title: string; summary?: string; image_url?: string; category_name?: string }) => {
     const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url, category_name) VALUES (?, ?, ?, ?, ?)');
-    const result = stmt.run([report.url, report.title, report.summary, report.image_url, report.category_name]);
+    const result = await stmt.run([report.url, report.title, report.summary, report.image_url, report.category_name]);
     return { id: result.lastInsertRowid, ...report };
   },
-  update: (id: number, report: { title: string; summary: string; url?: string; image_url?: string; category_name?: string }) => {
+  update: async (id: number, report: { title: string; summary: string; url?: string; image_url?: string; category_name?: string }) => {
     const stmt = db.prepare('UPDATE tech_analysis_reports SET title = ?, summary = ?, url = ?, image_url = ?, category_name = ? WHERE id = ?');
-    const result = stmt.run([report.title, report.summary, report.url, report.image_url, report.category_name, id]);
-    if (result.changes === 0) {
+    const result = await stmt.run([report.title, report.summary, report.url, report.image_url, report.category_name, id]);
+    if ((result.changes || 0) === 0) {
       throw new Error('Report not found or no changes made');
     }
     return { id, ...report };
   },
-  delete: (id: number) => {
+  delete: async (id: number) => {
     const stmt = db.prepare('DELETE FROM tech_analysis_reports WHERE id = ?');
-    const result = stmt.run([id]);
-    return result.changes > 0;
+    const result = await stmt.run([id]);
+    return (result.changes || 0) > 0;
   },
 });
 
 // Organization operations
 export const createOrganizationOperations = (db: DatabaseAdapter) => ({
-  getAll: () => {
+  getAll: async () => {
     const stmt = db.prepare('SELECT * FROM organizations ORDER BY name ASC');
-    return stmt.all();
+    return await stmt.all();
   },
-  create: (organization: { name: string }) => {
+  create: async (organization: { name: string }) => {
     const stmt = db.prepare('INSERT INTO organizations (name) VALUES (?)');
-    const result = stmt.run([organization.name]);
+    const result = await stmt.run([organization.name]);
     return { id: result.lastInsertRowid, ...organization };
   },
-  delete: (id: number) => {
+  delete: async (id: number) => {
     const stmt = db.prepare('DELETE FROM organizations WHERE id = ?');
-    const result = stmt.run([id]);
-    return result.changes > 0;
+    const result = await stmt.run([id]);
+    return (result.changes || 0) > 0;
   }
 });
 
 // Conference operations
 export const createConferenceOperations = (db: DatabaseAdapter) => ({
-  getAll: () => {
+  getAll: async () => {
     const stmt = db.prepare(`
       SELECT * FROM conferences 
       ORDER BY start_date DESC
     `);
-    const conferences = stmt.all();
+    const conferences = await stmt.all();
     const reportStmt = db.prepare(`
       SELECT id, title FROM reports WHERE conference_id = ?
     `);
-    return conferences.map((conference: any) => {
-      const reports = reportStmt.all([conference.id]);
+    return Promise.all(conferences.map(async (conference: any) => {
+      const reports = await reportStmt.all([conference.id]);
       return {
         ...conference,
         startDate: conference.start_date,
@@ -129,21 +129,21 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
         endTime: conference.end_time,
         reports: reports
       };
-    });
+    }));
   },
-  getByDateRange: (startDate: string, endDate: string) => {
+  getByDateRange: async (startDate: string, endDate: string) => {
     const stmt = db.prepare(`
       SELECT * FROM conferences 
       WHERE (start_date <= ? AND end_date >= ?) 
          OR (start_date >= ? AND start_date <= ?)
       ORDER BY start_date ASC
     `);
-    const conferences = stmt.all([endDate, startDate, startDate, endDate]);
+    const conferences = await stmt.all([endDate, startDate, startDate, endDate]);
     const reportStmt = db.prepare(`
       SELECT id, title FROM reports WHERE conference_id = ?
     `);
-    return conferences.map((conference: any) => {
-      const reports = reportStmt.all([conference.id]);
+    return Promise.all(conferences.map(async (conference: any) => {
+      const reports = await reportStmt.all([conference.id]);
       return {
         ...conference,
         startDate: conference.start_date,
@@ -154,9 +154,9 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
         endTime: conference.end_time,
         reports: reports
       };
-    });
+    }));
   },
-  getByMonth: (year: number, month: number) => {
+  getByMonth: async (year: number, month: number) => {
     const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
     const monthEnd = `${year}-${String(month).padStart(2, '0')}-31`;
     const stmt = db.prepare(`
@@ -165,12 +165,12 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
          OR (start_date >= ? AND start_date <= ?)
       ORDER BY start_date ASC
     `);
-    const conferences = stmt.all([monthEnd, monthStart, monthStart, monthEnd]);
+    const conferences = await stmt.all([monthEnd, monthStart, monthStart, monthEnd]);
     const reportStmt = db.prepare(`
       SELECT id, title FROM reports WHERE conference_id = ?
     `);
-    return conferences.map((conference: any) => {
-      const reports = reportStmt.all([conference.id]);
+    return Promise.all(conferences.map(async (conference: any) => {
+      const reports = await reportStmt.all([conference.id]);
       return {
         ...conference,
         startDate: conference.start_date,
@@ -181,18 +181,18 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
         endTime: conference.end_time,
         reports: reports
       };
-    });
+    }));
   },
-  getById: (id: number) => {
+  getById: async (id: number) => {
     const stmt = db.prepare(`
       SELECT * FROM conferences WHERE id = ?
     `);
-    const conference = stmt.get([id]);
+    const conference = await stmt.get([id]);
     if (conference) {
       const reportStmt = db.prepare(`
         SELECT id, title FROM reports WHERE conference_id = ?
       `);
-      const reports = reportStmt.all([conference.id]);
+      const reports = await reportStmt.all([conference.id]);
       return {
         ...conference,
         startDate: conference.start_date,
@@ -206,7 +206,7 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
     }
     return conference;
   },
-  create: (conference: {
+  create: async (conference: {
     title: string;
     organization: string;
     location?: string;
@@ -224,7 +224,7 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
         updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
-    const result = stmt.run([
+    const result = await stmt.run([
       conference.title,
       conference.organization,
       conference.location || null,
@@ -237,7 +237,7 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
     ]);
     return { id: result.lastInsertRowid, ...conference };
   },
-  update: (id: number, conference: Partial<{
+  update: async (id: number, conference: Partial<{
     title: string;
     organization: string;
     location: string;
@@ -262,27 +262,27 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
       SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `);
-    const result = stmt.run([...values, id]);
-    return result.changes > 0;
+    const result = await stmt.run([...values, id]);
+    return (result.changes || 0) > 0;
   },
-  delete: (id: number) => {
+  delete: async (id: number) => {
     const stmt = db.prepare('DELETE FROM conferences WHERE id = ?');
-    const result = stmt.run([id]);
-    return result.changes > 0;
+    const result = await stmt.run([id]);
+    return (result.changes || 0) > 0;
   }
 });
 
 // Report operations
 export const createReportOperations = (db: DatabaseAdapter) => ({
-  getAll: () => {
+  getAll: async () => {
     const stmt = db.prepare('SELECT * FROM reports ORDER BY created_at DESC');
-    return stmt.all();
+    return await stmt.all();
   },
-  getById: (id: number) => {
+  getById: async (id: number) => {
     const stmt = db.prepare('SELECT * FROM reports WHERE id = ?');
-    return stmt.get([id]);
+    return await stmt.get([id]);
   },
-  create: (report: {
+  create: async (report: {
     title: string;
     date?: string;
     summary?: string;
@@ -299,7 +299,7 @@ export const createReportOperations = (db: DatabaseAdapter) => ({
         download_url, conference_id, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
-    const result = stmt.run([
+    const result = await stmt.run([
       report.title,
       report.date || null,
       report.summary || null,
@@ -312,7 +312,7 @@ export const createReportOperations = (db: DatabaseAdapter) => ({
     ]);
     return { id: result.lastInsertRowid, ...report };
   },
-  update: (id: number, report: Partial<{
+  update: async (id: number, report: Partial<{
     title: string;
     date: string;
     summary: string;
@@ -331,16 +331,16 @@ export const createReportOperations = (db: DatabaseAdapter) => ({
       SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `);
-    const result = stmt.run([...values, id]);
-    if (result.changes > 0) {
+    const result = await stmt.run([...values, id]);
+    if ((result.changes || 0) > 0) {
       const selectStmt = db.prepare('SELECT * FROM reports WHERE id = ?');
-      return selectStmt.get([id]);
+      return await selectStmt.get([id]);
     }
     return null;
   },
-  delete: (id: number) => {
+  delete: async (id: number) => {
     const stmt = db.prepare('DELETE FROM reports WHERE id = ?');
-    const result = stmt.run([id]);
-    return result.changes > 0;
+    const result = await stmt.run([id]);
+    return (result.changes || 0) > 0;
   }
 });

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-export const runtime = 'edge';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createConferenceOperations } from '@/lib/database-operations';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-export async function GET(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   try {
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const conferenceOperations = createConferenceOperations(db);
     const id = parseInt(params.id, 10);
     const conference = await conferenceOperations.getById(id);
@@ -42,14 +42,15 @@ export async function GET(request: NextRequest, { params, env }: { params: { id:
   }
 }
 
-export async function PUT(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const conferenceOperations = createConferenceOperations(db);
     const id = parseInt(params.id, 10);
     const body = await request.json();
@@ -98,14 +99,15 @@ export async function PUT(request: NextRequest, { params, env }: { params: { id:
   }
 }
 
-export async function DELETE(request: NextRequest, { params, env }: { params: { id: string }, env: any }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const conferenceOperations = createConferenceOperations(db);
     const id = parseInt(params.id, 10);
     

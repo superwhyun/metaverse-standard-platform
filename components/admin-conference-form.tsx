@@ -74,7 +74,7 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
     fetchOrganizations()
   }, [])
 
-  const isMultiDay = formData.startDate && formData.endDate && formData.startDate !== formData.endDate
+  const isMultiDay = !!(formData.startDate && formData.endDate && formData.startDate !== formData.endDate)
 
   const validateForm = () => {
     const newErrors: Partial<ConferenceFormData> = {}

@@ -12,9 +12,9 @@ interface Category {
   description?: string;
 }
 
-export async function categorizeContent(title: string, summary: string, env: any): Promise<string | null> {
+export async function categorizeContent(title: string, summary: string): Promise<string | null> {
   try {
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const categoryOperations = createCategoryOperations(db);
     const categories = await categoryOperations.getAll() as Category[];
     

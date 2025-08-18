@@ -6,6 +6,9 @@
     "build": "next build && rm -rf .next/cache",
     "dev": "nodemon",
     "dev:next": "next dev",
+    "dev:cloudflare": "wrangler pages dev .next --compatibility-date=2024-08-18 --port=3001",
+    "build:cloudflare": "CF_PAGES=1 npm run build",
+    "preview:cloudflare": "npm run build:cloudflare && wrangler pages dev .next --compatibility-date=2024-08-18 --port=3001",
     "lint": "next lint",
     "start": "next start"
   },
@@ -69,6 +72,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",

@@ -1,0 +1,26 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  webpack: (config, { dev, isServer }) => {
+    // Cloudflare Workers에서는 Node.js 모듈들을 제외
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      os: false,
+      crypto: false,
+      'better-sqlite3': false,
+    };
+
+    // Edge 환경(Cloudflare)에서는 Node.js 어댑터를 stub으로 대체
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        './database-adapter-node': './database-adapter-stub',
+      };
+    }
+
+    return config;
+  },
+};
+
+module.exports = nextConfig;

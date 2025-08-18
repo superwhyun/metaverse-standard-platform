@@ -34,7 +34,7 @@ export default function HomePage() {
   const [selectedReport, setSelectedReport] = useState<any>(null)
   const [selectedConference, setSelectedConference] = useState<any>(null)
   const [conferences, setConferences] = useState([])
-  const [reports, setReports] = useState([])
+  const [reports, setReports] = useState<any[]>([])
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [adminReportViewer, setAdminReportViewer] = useState<any>(null) // 관리자에서 보는 보고서
@@ -474,14 +474,14 @@ export default function HomePage() {
                 const formData = {
                   id: conference.id, // Preserve the ID
                   title: conference.title,
-                  startDate: conference.startDate || conference.date,
-                  endDate: conference.endDate || conference.date,
-                  startTime: conference.startTime || "",
-                  endTime: conference.endTime || "",
+                  startDate: (conference as any).startDate || (conference as any).date,
+                  endDate: (conference as any).endDate || (conference as any).date,
+                  startTime: (conference as any).startTime || "",
+                  endTime: (conference as any).endTime || "",
                   location: conference.location,
                   organization: conference.organization,
                   hasReport: conference.hasReport,
-                  description: conference.description || ""
+                  description: (conference as any).description || ""
                 };
                 setSelectedConference(formData)
                 setCurrentView("admin-edit-conference")

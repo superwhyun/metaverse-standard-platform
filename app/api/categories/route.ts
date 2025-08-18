@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-export const runtime = 'edge';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createCategoryOperations } from '@/lib/database-operations';
 
 // GET all categories
-export async function GET(request: NextRequest, { env }: { env: any }) {
+export async function GET(request: NextRequest) {
   try {
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const categoryOperations = createCategoryOperations(db);
     const categories = await categoryOperations.getAll();
     return NextResponse.json(categories);
@@ -17,9 +16,9 @@ export async function GET(request: NextRequest, { env }: { env: any }) {
 }
 
 // POST a new category
-export async function POST(request: NextRequest, { env }: { env: any }) {
+export async function POST(request: NextRequest) {
   try {
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const categoryOperations = createCategoryOperations(db);
     const { name, description } = await request.json();
     if (!name) {

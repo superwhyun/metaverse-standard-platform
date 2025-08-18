@@ -88,15 +88,36 @@ export class SQLiteAdapter implements DatabaseAdapter {
 
 
 // Factory function to create the appropriate adapter
-export async function createDatabaseAdapter(env?: any): Promise<DatabaseAdapter> {
-  // Check if we're in a Cloudflare environment (production or preview)
-  if (env?.MSP) {
-    console.log('Using D1 database (Cloudflare)');
-    return new D1Adapter(env.MSP);
+export async function createDatabaseAdapter(): Promise<DatabaseAdapter> {
+  // Check for CF_PAGES environment variable (set when building for Cloudflare)
+  if (process.env.CF_PAGES) {
+    console.log('CF_PAGES environment detected');
+    
+    // Check if we're in a Cloudflare Pages environment with D1 binding
+    // In Cloudflare Pages Functions, D1 is available through globalThis
+    if (typeof globalThis !== 'undefined' && (globalThis as any).MSP) {
+      console.log('Using D1 database (Cloudflare - global)');
+      return new D1Adapter((globalThis as any).MSP);
+    }
+    
+    // In wrangler dev, the binding might be available differently
+    if (typeof globalThis !== 'undefined' && (globalThis as any).env?.MSP) {
+      console.log('Using D1 database (Cloudflare - env)');
+      return new D1Adapter((globalThis as any).env.MSP);
+    }
+    
+    // For Cloudflare simulation without actual D1, create a mock
+    console.warn('Cloudflare Pages environment detected but no D1 database binding found. Using mock adapter.');
+    throw new Error('D1 database binding (MSP) not found. Please configure D1 database in wrangler.toml or Cloudflare Pages settings.');
   }
 
   // If not in Cloudflare, we must be in a local Node.js environment.
-  // We dynamically import the node-specific file here to avoid bundling Node.js modules in the edge build.
-  const { getNodeAdapter } = await import('./database-adapter-node');
-  return getNodeAdapter();
+  // We dynamically import the node-specific file here.
+  try {
+    const { getNodeAdapter } = await import('./database-adapter-node');
+    return getNodeAdapter();
+  } catch (error) {
+    console.error('Database adapter error:', error);
+    throw new Error('Failed to load Node.js database adapter. Make sure you are running in a Node.js environment with better-sqlite3 installed.');
+  }
 }

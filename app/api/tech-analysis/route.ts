@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-export const runtime = 'edge';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createTechAnalysisReportOperations } from '@/lib/database-operations';
 import { getServerSession } from 'next-auth';
@@ -7,9 +6,9 @@ import { authOptions } from '@/lib/auth';
 import { categorizeContent } from '@/lib/openai-categorizer';
 
 // GET tech analysis reports with pagination and search
-export async function GET(request: NextRequest, { env }: { env: any }) {
+export async function GET(request: NextRequest) {
   try {
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '8');
@@ -26,9 +25,9 @@ export async function GET(request: NextRequest, { env }: { env: any }) {
 }
 
 // POST a new tech analysis report from a URL
-export async function POST(request: NextRequest, { env }: { env: any }) {
+export async function POST(request: NextRequest) {
   try {
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { url } = await request.json();
     if (!url) {
@@ -61,8 +60,8 @@ export async function POST(request: NextRequest, { env }: { env: any }) {
     
     let categoryName: string | null = null;
     try {
-      // Pass the env to the categorizer so it can create its own db adapter
-      categoryName = await categorizeContent(title, summary, env);
+      // Categorizer will create its own db adapter
+      categoryName = await categorizeContent(title, summary);
       console.log(`Auto-categorized content: "${title}" -> category: ${categoryName}`);
     } catch (error) {
       console.error('Failed to auto-categorize content:', error);
@@ -73,7 +72,7 @@ export async function POST(request: NextRequest, { env }: { env: any }) {
       title,
       summary,
       image_url: image?.url,
-      category_name: categoryName
+      category_name: categoryName || undefined
     });
 
     return NextResponse.json(newReport, { status: 201 });
@@ -84,14 +83,14 @@ export async function POST(request: NextRequest, { env }: { env: any }) {
 }
 
 // PUT update a tech analysis report (admin only)
-export async function PUT(request: NextRequest, { env }: { env: any }) {
+export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { id, title, summary, url, image_url, category_name } = await request.json();
     
@@ -125,14 +124,14 @@ export async function PUT(request: NextRequest, { env }: { env: any }) {
 }
 
 // DELETE a tech analysis report (admin only)
-export async function DELETE(request: NextRequest, { env }: { env: any }) {
+export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
 
-    const db = await createDatabaseAdapter(env);
+    const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
