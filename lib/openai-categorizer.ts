@@ -1,10 +1,17 @@
 import OpenAI from 'openai';
 import { createDatabaseAdapter } from './database-adapter';
 import { createCategoryOperations } from './database-operations';
+import { getRequestContext } from '@cloudflare/next-on-pages';
 
-const openai = new OpenAI({
-  apiKey: env.OPENAI_API_KEY,
-});
+// OpenAI 클라이언트는 런타임에 생성
+function getOpenAIClient() {
+  const { env } = getRequestContext();
+  const apiKey = env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY environment variable is required');
+  }
+  return new OpenAI({ apiKey });
+}
 
 interface Category {
   id: number;
@@ -31,15 +38,21 @@ export async function categorizeContent(title: string, summary: string): Promise
 
     console.log('Sending prompt to OpenAI:', prompt.length, 'characters');
     
-    const completion = await openai.responses.create({
-      model: 'gpt-5-mini',
-      input: prompt,
-      reasoning: { effort: 'low' },
-      max_output_tokens: 256,
+    const openai = getOpenAIClient();
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 256,
+      temperature: 0.1,
     });
     
     console.log('OpenAI response:', completion);
-    const response = completion.output_text?.trim();
+    const response = completion.choices[0]?.message?.content?.trim();
     
     if (!response) {
       console.error('No response from OpenAI - completion object:', JSON.stringify(completion, null, 2));

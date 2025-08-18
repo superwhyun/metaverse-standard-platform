@@ -3,6 +3,7 @@
 declare global {
   interface CloudflareEnv {
     MSP: D1Database;
+    OPENAI_API_KEY: string;
   }
 }
 
