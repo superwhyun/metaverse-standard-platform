@@ -65,19 +65,16 @@ export class D1Adapter implements DatabaseAdapter {
 
 // Factory function to create D1 adapter
 export async function createDatabaseAdapter(): Promise<DatabaseAdapter> {
-  // Only try getRequestContext in runtime (not during build)
-  if (typeof process === 'undefined' || process.env.NODE_ENV !== 'production' || typeof window === 'undefined') {
-    try {
-      // Use @cloudflare/next-on-pages getRequestContext to access D1 binding
-      const { env } = getRequestContext();
-      if (env?.MSP) {
-        console.log('Using D1 database (next-on-pages)');
-        return new D1Adapter(env.MSP);
-      }
-    } catch (error) {
-      // getRequestContext() may fail in some environments, fall back to other methods
-      console.log('getRequestContext() failed, trying alternative methods:', error);
+  try {
+    // Use @cloudflare/next-on-pages getRequestContext to access D1 binding
+    const { env } = getRequestContext();
+    if (env?.MSP) {
+      console.log('Using D1 database (next-on-pages)');
+      return new D1Adapter(env.MSP);
     }
+  } catch (error) {
+    // getRequestContext() may fail in some environments, fall back to other methods
+    console.log('getRequestContext() failed, trying alternative methods:', error);
   }
 
   // Fallback: Check if we're in a Cloudflare Pages environment with D1 binding

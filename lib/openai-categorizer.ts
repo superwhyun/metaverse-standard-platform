@@ -3,7 +3,7 @@ import { createDatabaseAdapter } from './database-adapter';
 import { createCategoryOperations } from './database-operations';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: env.OPENAI_API_KEY,
 });
 
 interface Category {
