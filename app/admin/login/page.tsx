@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn, getSession } from 'next-auth/react'
+import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,11 +10,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Lock, User, AlertCircle } from 'lucide-react'
 
 export default function AdminLoginPage() {
-  const [username, setUsername] = useState('')
+  const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const { signIn } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,14 +23,10 @@ export default function AdminLoginPage() {
     setIsLoading(true)
 
     try {
-      const result = await signIn('credentials', {
-        username,
-        password,
-        redirect: false,
-      })
+      const result = await signIn(username, password)
 
-      if (result?.error) {
-        setError('로그인에 실패했습니다. 사용자명과 비밀번호를 확인해주세요.')
+      if (!result.success) {
+        setError(result.error || '로그인에 실패했습니다. 사용자명과 비밀번호를 확인해주세요.')
       } else {
         // 로그인 성공 시 관리자 페이지로 리다이렉트
         router.push('/?view=admin')

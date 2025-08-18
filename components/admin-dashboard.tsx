@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from "react"
-import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User } from "lucide-react"
+import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -85,6 +85,15 @@ export function AdminDashboard({
               <User className="w-4 h-4" />
               <span>{session.user.name || '관리자'}</span>
             </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.location.href = '/admin/settings'}
+              className="flex items-center gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              설정
+            </Button>
             {onLogout && (
               <Button 
                 variant="outline" 

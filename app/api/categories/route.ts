@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createCategoryOperations } from '@/lib/database-operations';
 
+export const runtime = 'edge';
+
 // GET all categories
 export async function GET(request: NextRequest) {
   try {

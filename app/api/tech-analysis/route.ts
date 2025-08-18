@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createTechAnalysisReportOperations } from '@/lib/database-operations';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getSessionFromRequest } from '@/lib/edge-auth';
 import { categorizeContent } from '@/lib/openai-categorizer';
+
+export const runtime = 'edge';
 
 // GET tech analysis reports with pagination and search
 export async function GET(request: NextRequest) {
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
 // PUT update a tech analysis report (admin only)
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSessionFromRequest(request);
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }
@@ -126,7 +127,7 @@ export async function PUT(request: NextRequest) {
 // DELETE a tech analysis report (admin only)
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSessionFromRequest(request);
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ message: '관리자 권한이 필요합니다.' }, { status: 401 });
     }

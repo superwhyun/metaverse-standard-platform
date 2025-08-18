@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from "react"
-import { useSession, signOut } from "next-auth/react"
+import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { CalendarComponent } from "@/components/calendar-component"
@@ -28,7 +28,7 @@ import { getPageClasses } from "@/utils/navigationUtils"
 type ViewType = string
 
 export default function HomePage() {
-  const { data: session, status } = useSession()
+  const { session, status, signOut } = useAuth()
   const router = useRouter()
   const [currentView, setCurrentView] = useState<ViewType>("calendar")
   const [selectedReport, setSelectedReport] = useState<any>(null)
@@ -530,7 +530,7 @@ export default function HomePage() {
               }}
               session={session}
               onLogout={async () => {
-                await signOut({ callbackUrl: '/' })
+                await signOut()
               }}
             />
           </div>
