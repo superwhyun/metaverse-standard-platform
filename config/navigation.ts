@@ -1,5 +1,5 @@
 import { ComponentType } from 'react'
-import { Settings, Calendar, FileText, Search, Lightbulb } from 'lucide-react'
+import { Settings, Calendar, FileText, Search, Lightbulb, Wrench } from 'lucide-react'
 
 // 페이지 위치 좌표
 interface Position {
@@ -83,8 +83,18 @@ export const navigationConfig: PageConfig[] = [
     title: "AI표준검색",
     icon: Search,
     position: { x: 300, y: 0 },
-    navigation: { left: "tech-analysis" },
+    navigation: { left: "tech-analysis", right: "standard-tools" },
     shortcuts: [{ key: "5", description: "AI 표준검색 페이지로 이동" }],
+    isTopLevel: true
+  },
+  {
+    id: "standard-tools",
+    component: "StandardTools",
+    title: "표준화도구",
+    icon: Wrench,
+    position: { x: 400, y: 0 },
+    navigation: { left: "standard-search" },
+    shortcuts: [{ key: "6", description: "표준화도구 페이지로 이동" }],
     isTopLevel: true
   },
   {

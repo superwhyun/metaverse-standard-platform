@@ -16,6 +16,7 @@ import { OrganizationReports } from "@/components/organization-reports"
 import { CategoryReports } from "@/components/category-reports"
 import { StandardSearch } from "@/components/standard-search"
 import { TechAnalysis } from "@/components/tech-analysis"
+import { StandardTools } from "@/components/standard-tools"
 
 // Configuration 기반 imports
 import { getTopLevelPages, getAllPageIds } from "@/config/navigation"
@@ -488,8 +489,15 @@ export default function HomePage() {
               }}
               onDeleteConference={handleDeleteConference}
               onAddReport={() => setCurrentView("admin-add-report")}
-              onEditReport={(report) => {
-                setSelectedReport(report)
+              onEditReport={async (report) => {
+                // content를 포함한 상세 데이터 로딩 (뷰어와 동일한 방식)
+                const detailReport = await loadReportDetail(report.id)
+                if (detailReport) {
+                  setSelectedReport(detailReport)
+                } else {
+                  // 실패 시 기본 데이터라도 전달 (기존 방식과 동일)
+                  setSelectedReport(report)
+                }
                 setCurrentView("admin-edit-report")
               }}
               onDeleteReport={handleDeleteReport}
@@ -651,6 +659,13 @@ export default function HomePage() {
         <div className={getPageClasses("standard-search", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <StandardSearch />
+          </div>
+        </div>
+
+        {/* Standard tools page */}
+        <div className={getPageClasses("standard-tools", currentView)}>
+          <div className="container mx-auto px-4 py-6 pb-20">
+            <StandardTools />
           </div>
         </div>
       </div>
