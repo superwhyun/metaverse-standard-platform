@@ -223,20 +223,44 @@ export default function HomePage() {
     }
   }
 
-  const handleMonthlyReportSelect = (report: any) => {
-    setMonthlyReportViewer(report)
+  const handleMonthlyReportSelect = async (report: any) => {
+    // content를 포함한 상세 데이터 로딩
+    const detailReport = await loadReportDetail(report.id)
+    if (detailReport) {
+      setMonthlyReportViewer(detailReport)
+    } else {
+      setMonthlyReportViewer(report)
+    }
   }
 
-  const handleOrganizationReportSelect = (report: any) => {
-    setOrganizationReportViewer(report)
+  const handleOrganizationReportSelect = async (report: any) => {
+    // content를 포함한 상세 데이터 로딩
+    const detailReport = await loadReportDetail(report.id)
+    if (detailReport) {
+      setOrganizationReportViewer(detailReport)
+    } else {
+      setOrganizationReportViewer(report)
+    }
   }
 
-  const handleCategoryReportSelect = (report: any) => {
-    setCategoryReportViewer(report)
+  const handleCategoryReportSelect = async (report: any) => {
+    // content를 포함한 상세 데이터 로딩
+    const detailReport = await loadReportDetail(report.id)
+    if (detailReport) {
+      setCategoryReportViewer(detailReport)
+    } else {
+      setCategoryReportViewer(report)
+    }
   }
 
-  const handleCalendarReportSelect = (report: any) => {
-    setCalendarReportViewer(report)
+  const handleCalendarReportSelect = async (report: any) => {
+    // content를 포함한 상세 데이터 로딩
+    const detailReport = await loadReportDetail(report.id)
+    if (detailReport) {
+      setCalendarReportViewer(detailReport)
+    } else {
+      setCalendarReportViewer(report)
+    }
   }
 
   // 더보기 버튼 핸들러 - DB에서 추가 보고서 로딩
