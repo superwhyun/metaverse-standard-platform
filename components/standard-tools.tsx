@@ -108,7 +108,7 @@ const tools: ToolItem[] = [
     id: 'metaverse-meeting',
     name: '메타버스회의실',
     description: '가상 공간에서 회의를 진행할 수 있는 메타버스 플랫폼입니다.',
-    url: 'https://cuberse.vercel.app/',
+    url: 'https://cuberse.is-an.ai/',
     icon: <MetaverseMeetingIcon />
   },
   {
