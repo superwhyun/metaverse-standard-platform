@@ -28,6 +28,14 @@ export async function GET(request: NextRequest) {
 // POST a new tech analysis report from a URL
 export async function POST(request: NextRequest) {
   try {
+    // Environment variable check
+    const { OPENAI_API_KEY } = process.env;
+    if (!OPENAI_API_KEY) {
+      return NextResponse.json({ 
+        message: 'OPENAI_API_KEY 환경변수가 설정되지 않았습니다. 관리자 설정에서 확인해주세요.' 
+      }, { status: 500 });
+    }
+
     const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { url } = await request.json();
@@ -42,31 +50,48 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('About to fetch microlink for URL:', url);
-    const microlinkResponse = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
-    console.log('Microlink response status:', microlinkResponse.status);
+    let title, description, image;
     
-    if (!microlinkResponse.ok) {
-      throw new Error('Failed to fetch metadata from URL');
-    }
-    const metadata = await microlinkResponse.json();
-    console.log('Microlink metadata status:', metadata.status);
+    try {
+      const microlinkResponse = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+      console.log('Microlink response status:', microlinkResponse.status);
+      
+      if (!microlinkResponse.ok) {
+        console.log('Microlink HTTP error, using fallback values');
+        title = url;
+        description = null;
+        image = null;
+      } else {
+        const metadata = await microlinkResponse.json();
+        console.log('Microlink metadata status:', metadata.status);
 
-    if (metadata.status !== 'success') {
-        return NextResponse.json({ message: 'Could not retrieve metadata from the provided URL.' }, { status: 400 });
+        if (metadata.status !== 'success') {
+          console.log('Microlink parsing failed, using fallback values');
+          title = url;
+          description = null;
+          image = null;
+        } else {
+          console.log('Metadata data keys:', Object.keys(metadata.data || {}));
+          ({ title, description, image } = metadata.data);
+        }
+      }
+    } catch (microlinkError) {
+      console.log('Microlink network error, using fallback values:', microlinkError);
+      title = url;
+      description = null;
+      image = null;
     }
 
-    console.log('Metadata data keys:', Object.keys(metadata.data || {}));
-    const { title, description, image } = metadata.data;
+    // Ensure we have a title
+    if (!title) {
+      title = url;
+    }
     console.log('Raw extracted values:', { 
       title, 
       description, 
       image,
       hasImageUrl: !!image?.url
     });
-
-    if (!title) {
-        return NextResponse.json({ message: 'Could not find a title for the provided URL.' }, { status: 400 });
-    }
 
     const summary = description || '설명이 없습니다.';
     
@@ -75,8 +100,10 @@ export async function POST(request: NextRequest) {
       // Categorizer will create its own db adapter
       categoryName = await categorizeContent(title, summary);
       console.log(`Auto-categorized content: "${title}" -> category: ${categoryName}`);
-    } catch (error) {
-      console.error('Failed to auto-categorize content:', error);
+    } catch (categorizerError) {
+      console.error('Failed to auto-categorize content:', categorizerError);
+      // Note: We continue without categorization rather than failing the entire request
+      console.log('Continuing without AI categorization due to error');
     }
 
     console.log('BEFORE CREATE - About to create with values:', {
@@ -104,12 +131,23 @@ export async function POST(request: NextRequest) {
       category_name: createParams.category_name
     });
 
-    const newReport = await techAnalysisReportOperations.create(createParams);
+    let newReport;
+    try {
+      newReport = await techAnalysisReportOperations.create(createParams);
+    } catch (dbError) {
+      console.error('Database create error:', dbError);
+      return NextResponse.json({ 
+        message: `데이터베이스 저장 실패: ${dbError instanceof Error ? dbError.message : 'Database connection error'}` 
+      }, { status: 500 });
+    }
 
     return NextResponse.json(newReport, { status: 201 });
   } catch (error) {
-    console.error('Failed to create tech analysis report:', error);
-    return NextResponse.json({ message: (error as Error).message || 'Failed to create tech analysis report' }, { status: 500 });
+    console.error('Unexpected error in tech-analysis POST:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error';
+    return NextResponse.json({ 
+      message: `예상치 못한 서버 오류: ${errorMessage}` 
+    }, { status: 500 });
   }
 }
 

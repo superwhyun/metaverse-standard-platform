@@ -47,7 +47,7 @@ export async function categorizeContent(title: string, summary: string): Promise
           content: prompt
         }
       ],
-      max_tokens: 256,
+      max_tokens: 512,
       temperature: 0.1,
     });
     
