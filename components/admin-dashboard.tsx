@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from "react"
-import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User, Settings } from "lucide-react"
+import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User, Settings, Server } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminOrganizationForm } from '@/components/admin-organization-form'
 import { AdminCategoryForm } from '@/components/admin-category-form'
+import { AdminEnvSettings } from '@/components/admin-env-settings'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -165,7 +166,7 @@ export function AdminDashboard({
       </div>
 
       <Tabs defaultValue="conferences" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="conferences" className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
             회의 관리
@@ -181,6 +182,10 @@ export function AdminDashboard({
           <TabsTrigger value="categories" className="flex items-center gap-2">
             <FolderKanban className="w-4 h-4" />
             카테고리 관리
+          </TabsTrigger>
+          <TabsTrigger value="system" className="flex items-center gap-2">
+            <Server className="w-4 h-4" />
+            시스템 설정
           </TabsTrigger>
         </TabsList>
         <TabsContent value="conferences">
@@ -368,6 +373,9 @@ export function AdminDashboard({
         </TabsContent>
         <TabsContent value="categories">
             <AdminCategoryForm />
+        </TabsContent>
+        <TabsContent value="system">
+            <AdminEnvSettings />
         </TabsContent>
       </Tabs>
     </div>
