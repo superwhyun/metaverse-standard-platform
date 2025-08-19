@@ -34,10 +34,12 @@ export default function HomePage() {
   const [currentView, setCurrentView] = useState<ViewType>("calendar")
   const [selectedReport, setSelectedReport] = useState<any>(null)
   const [selectedConference, setSelectedConference] = useState<any>(null)
-  const [conferences, setConferences] = useState([])
+  const [conferences, setConferences] = useState<any[]>([])
   const [reports, setReports] = useState<any[]>([])
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [conferencesCache, setConferencesCache] = useState<Map<string, any[]>>(new Map())
+  const [isLoadingConferences, setIsLoadingConferences] = useState(false)
   const [adminReportViewer, setAdminReportViewer] = useState<any>(null) // 관리자에서 보는 보고서
   const [monthlyReportViewer, setMonthlyReportViewer] = useState<any>(null) // 월별 동향에서 보는 보고서
   const [organizationReportViewer, setOrganizationReportViewer] = useState<any>(null) // 기구별 동향에서 보는 보고서
@@ -49,13 +51,34 @@ export default function HomePage() {
   const [hasMoreReports, setHasMoreReports] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
-  // Load conferences from database
-  const loadConferences = async () => {
+  // Load conferences from database with monthly optimization and caching
+  const loadConferences = async (year?: number, month?: number, forceReload = false) => {
+    const now = new Date();
+    const targetYear = year || now.getFullYear();
+    const targetMonth = month || (now.getMonth() + 1);
+    const cacheKey = `${targetYear}-${targetMonth}`;
+    
+    // Check cache first
+    if (!forceReload && conferencesCache.has(cacheKey)) {
+      setConferences(conferencesCache.get(cacheKey) || []);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoadingConferences(true);
     try {
-      const response = await fetch('/api/conferences');
+      const response = await fetch(`/api/conferences?year=${targetYear}&month=${targetMonth}`);
       if (response.ok) {
         const result = await response.json();
-        setConferences(result.data || []);
+        const conferenceData = result.data || [];
+        
+        // Update cache
+        const newCache = new Map(conferencesCache);
+        newCache.set(cacheKey, conferenceData);
+        setConferencesCache(newCache);
+        
+        // Set current conferences
+        setConferences(conferenceData);
       } else {
         console.error('Failed to load conferences');
         setConferences([]);
@@ -65,6 +88,7 @@ export default function HomePage() {
       setConferences([]);
     } finally {
       setIsLoading(false);
+      setIsLoadingConferences(false);
     }
   };
 
@@ -159,7 +183,8 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    loadConferences();
+    const now = new Date();
+    loadConferences(now.getFullYear(), now.getMonth() + 1);
     loadReports();
   }, []);
 
@@ -263,6 +288,11 @@ export default function HomePage() {
     }
   }
 
+  // Handle calendar month change
+  const handleCalendarMonthChange = (year: number, month: number) => {
+    loadConferences(year, month);
+  }
+
   // 더보기 버튼 핸들러 - DB에서 추가 보고서 로딩
   const handleLoadMoreReports = async () => {
     if (isLoadingMore || !hasMoreReports) return
@@ -290,8 +320,9 @@ export default function HomePage() {
 
         if (response.ok) {
           const result = await response.json();
-          // Reload conferences to get fresh data from database
-          await loadConferences();
+          // Reload conferences to get fresh data from database (force reload)
+          const now = new Date();
+          await loadConferences(now.getFullYear(), now.getMonth() + 1, true);
         } else {
           console.error('Failed to update conference');
         }
@@ -307,8 +338,9 @@ export default function HomePage() {
 
         if (response.ok) {
           const result = await response.json();
-          // Reload conferences to get fresh data from database
-          await loadConferences();
+          // Reload conferences to get fresh data from database (force reload)
+          const now = new Date();
+          await loadConferences(now.getFullYear(), now.getMonth() + 1, true);
         } else {
           console.error('Failed to create conference');
         }
@@ -373,8 +405,9 @@ export default function HomePage() {
       });
 
       if (response.ok) {
-        // Reload conferences to get fresh data from database
-        await loadConferences();
+        // Reload conferences to get fresh data from database (force reload)
+        const now = new Date();
+        await loadConferences(now.getFullYear(), now.getMonth() + 1, true);
       } else {
         console.error('Failed to delete conference');
       }
@@ -614,7 +647,13 @@ export default function HomePage() {
         {/* Calendar page */}
         <div className={getPageClasses("calendar", currentView)}>
           <div className="container mx-auto px-4 py-6 pb-20">
-            <CalendarComponent conferences={conferences} reports={reports} onViewReport={handleCalendarReportSelect} />
+            <CalendarComponent 
+              conferences={conferences} 
+              reports={reports} 
+              onViewReport={handleCalendarReportSelect} 
+              onMonthChange={handleCalendarMonthChange}
+              isLoading={isLoadingConferences}
+            />
           </div>
         </div>
 

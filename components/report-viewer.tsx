@@ -11,6 +11,7 @@ import {
   Building,
   Tag,
   X,
+  Copy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,6 +37,45 @@ interface ReportViewerProps {
 }
 
 export function ReportViewer({ report, onBack }: ReportViewerProps) {
+  const [copySuccess, setCopySuccess] = useState(false)
+
+  // 마크다운 복사 함수
+  const handleCopyMarkdown = async () => {
+    const markdownContent = `# ${report.title}
+
+| 항목 | 내용 |
+|------|------|
+| 날짜 | ${report.date} |
+| 기관 | ${report.organization} |
+| 카테고리 | ${report.category} |
+| 태그 | ${report.tags?.join(', ') || '없음'} |
+
+${report.summary}
+
+${report.content}`
+
+    try {
+      await navigator.clipboard.writeText(markdownContent)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch (err) {
+      console.error('복사 실패:', err)
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = markdownContent
+      document.body.appendChild(textArea)
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        setCopySuccess(true)
+        setTimeout(() => setCopySuccess(false), 2000)
+      } catch (fallbackErr) {
+        console.error('Fallback 복사도 실패:', fallbackErr)
+      }
+      document.body.removeChild(textArea)
+    }
+  }
+
   // 마크다운 내용을 번호와 함께 전처리하는 함수
   const processMarkdownWithNumbers = (content: string) => {
     if (typeof content !== 'string') {
@@ -81,6 +121,10 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
                 <Share2 className="w-4 h-4 mr-2" />
                 공유
               </Button>
+              <Button variant="outline" size="sm" onClick={handleCopyMarkdown}>
+                <Copy className="w-4 h-4 mr-2" />
+                {copySuccess ? '복사됨!' : '복사'}
+              </Button>
               {report.downloadUrl && (
                 <Button variant="outline" size="sm">
                   <Download className="w-4 h-4 mr-2" />
@@ -124,7 +168,22 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
           <CardContent className="prose max-w-none">
             <div className="mb-6">
               <h3 className="text-xl font-semibold mb-4">요약</h3>
-              <p className="text-lg leading-relaxed mb-6 text-muted-foreground">{report.summary}</p>
+              <div className="prose prose-sm max-w-none leading-relaxed">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({children}) => <p className="text-lg leading-relaxed mb-4 text-muted-foreground">{children}</p>,
+                    ul: ({children}) => <ul className="list-disc ml-6 mb-4 space-y-1 text-muted-foreground">{children}</ul>,
+                    ol: ({children}) => <ol className="list-decimal ml-6 mb-4 space-y-1 text-muted-foreground">{children}</ol>,
+                    li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                    strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                    em: ({children}) => <em className="italic text-gray-600">{children}</em>,
+                    code: ({children}) => <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-gray-800">{children}</code>,
+                  }}
+                >
+                  {report.summary}
+                </ReactMarkdown>
+              </div>
             </div>
 
             <Separator className="my-6" />

@@ -19,15 +19,18 @@ interface Conference {
   reportId?: number
   isMultiDay?: boolean
   reports?: { id: number; title: string }[]
+  description?: string
 }
 
 interface CalendarComponentProps {
   conferences: Conference[]
   reports?: any[]
   onViewReport: (report: any) => void
+  onMonthChange?: (year: number, month: number) => void
+  isLoading?: boolean
 }
 
-export function CalendarComponent({ conferences, reports = [], onViewReport }: CalendarComponentProps) {
+export function CalendarComponent({ conferences, reports = [], onViewReport, onMonthChange, isLoading = false }: CalendarComponentProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
 
   const year = currentDate.getFullYear()
@@ -100,7 +103,11 @@ export function CalendarComponent({ conferences, reports = [], onViewReport }: C
   }
 
   const navigateMonth = (direction: "prev" | "next") => {
-    setCurrentDate(new Date(year, month + (direction === "next" ? 1 : -1)))
+    const newDate = new Date(year, month + (direction === "next" ? 1 : -1))
+    setCurrentDate(newDate)
+    if (onMonthChange) {
+      onMonthChange(newDate.getFullYear(), newDate.getMonth() + 1)
+    }
   }
 
   const renderCalendarDay = (day: number) => {
@@ -183,6 +190,12 @@ export function CalendarComponent({ conferences, reports = [], onViewReport }: C
                           <span>{conference.location}</span>
                         </div>
                         <div className="text-muted-foreground">주최: {conference.organization}</div>
+                        {conference.description && (
+                          <div className="text-sm border-t pt-2 mt-2">
+                            <div className="font-medium mb-1">회의 설명</div>
+                            <div className="text-muted-foreground">{conference.description}</div>
+                          </div>
+                        )}
                         {conference.reports && conference.reports.length > 0 && (
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 text-primary">
@@ -233,17 +246,29 @@ export function CalendarComponent({ conferences, reports = [], onViewReport }: C
           <p className="text-muted-foreground mt-1">국제회의 일정</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")}>
+          <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")} disabled={isLoading}>
             <ChevronLeft className="w-4 h-4" />
             이전달
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="px-4">
+          <Button variant="outline" size="sm" onClick={() => {
+            const today = new Date()
+            setCurrentDate(today)
+            if (onMonthChange) {
+              onMonthChange(today.getFullYear(), today.getMonth() + 1)
+            }
+          }} className="px-4" disabled={isLoading}>
             오늘
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigateMonth("next")}>
+          <Button variant="outline" size="sm" onClick={() => navigateMonth("next")} disabled={isLoading}>
             다음달
             <ChevronRight className="w-4 h-4" />
           </Button>
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+              로딩 중...
+            </div>
+          )}
         </div>
       </div>
 
