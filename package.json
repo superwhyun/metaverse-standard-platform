@@ -8,7 +8,7 @@
     "start": "next start",
     "build:cloudflare": "npx @cloudflare/next-on-pages@1",
     "dev:cloudflare": "wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --port=3001",
-    "preview": "wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --port=3001 --d1 MSP=5bca3ce1-0488-47bb-95ec-3d8cbb347c43",
+    "preview": "CF_PAGES=1 wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --port=3002 --d1 MSP=5bca3ce1-0488-47bb-95ec-3d8cbb347c43",
     "lint": "next lint"
   },
   "dependencies": {

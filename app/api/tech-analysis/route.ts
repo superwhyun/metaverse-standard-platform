@@ -3,8 +3,22 @@ import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createTechAnalysisReportOperations } from '@/lib/database-operations';
 import { getSessionFromRequest } from '@/lib/edge-auth';
 import { categorizeContent } from '@/lib/openai-categorizer';
+import { getRequestContext } from '@cloudflare/next-on-pages';
 
 export const runtime = 'edge';
+
+// Cloudflare Pages/Workers 환경 호환을 위한 환경변수 접근 헬퍼
+function getEnv(name: string): string | undefined {
+  // Next.js Edge 런타임에서는 process.env가 없을 수 있음
+  // 일부 배포 환경에서는 globalThis 혹은 __env__에 바인딩됨
+  // 가능한 모든 위치를 점검
+  // @ts-ignore
+  return (typeof process !== 'undefined' && process?.env?.[name])
+    // @ts-ignore
+    || (globalThis as any)?.[name]
+    // @ts-ignore
+    || (globalThis as any)?.__env__?.[name];
+}
 
 // GET tech analysis reports with pagination and search
 export async function GET(request: NextRequest) {
@@ -41,52 +55,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid URL format' }, { status: 400 });
     }
 
-    // 환경 감지: 로컬 개발 vs 프로덕션
-    // Wrangler dev에서는 CF_PAGES가 없고, 실제 프로덕션에서는 CF_PAGES가 있음
-    const isLocal = !process.env.CF_PAGES;
-    
-    if (isLocal) {
-      // 로컬 환경: 즉시 처리 (waitUntil 지원 안됨)
-      console.log('Local environment detected: processing synchronously');
-      return await processUrlSynchronously(url, techAnalysisReportOperations);
-    } else {
-      // 프로덕션 환경: 백그라운드 처리 (ctx.waitUntil 사용)
-      console.log('Production environment detected: processing in background');
-      const pendingReport = await techAnalysisReportOperations.create({
-        url,
-        title: url,
-        summary: '메타데이터를 분석 중입니다...',
-        image_url: null,
-        category_name: null,
-        status: 'pending'
-      });
-
-      if (pendingReport.id) {
-        try {
-          // Cloudflare Pages Functions에서 ctx 객체 접근
-          // @ts-ignore - Cloudflare Workers runtime context
-          const ctx = globalThis.process?.env?.CONTEXT || globalThis.__CF_CONTEXT__;
-          
-          if (ctx && typeof ctx.waitUntil === 'function') {
-            console.log('Using ctx.waitUntil for background processing');
-            ctx.waitUntil(processMetadataInBackground(Number(pendingReport.id), url));
-          } else {
-            console.warn('ctx.waitUntil not available, using fallback');
-            // waitUntil이 없는 경우 fallback (일반적인 Promise)
-            processMetadataInBackground(Number(pendingReport.id), url).catch(error => {
-              console.error('Background processing failed:', error);
-            });
-          }
-        } catch (contextError) {
-          console.warn('Failed to access Cloudflare context, using fallback:', contextError);
-          processMetadataInBackground(Number(pendingReport.id), url).catch(error => {
-            console.error('Background processing failed:', error);
-          });
-        }
+    // Cloudflare next-on-pages의 request context에서 waitUntil 지원 여부 판단
+    let supportsWaitUntil = false;
+    let waitUntilFn: undefined | ((p: Promise<any>) => void);
+    try {
+      // next-on-pages의 타입 정의에서는 waitUntil이 RequestContext의 최상위가 아니라 ctx(ExecutionContext)에 존재함
+      const rc: any = getRequestContext();
+      const ctx = rc?.ctx;
+      if (ctx && typeof ctx.waitUntil === 'function') {
+        supportsWaitUntil = true;
+        waitUntilFn = ctx.waitUntil.bind(ctx);
       }
-
-      return NextResponse.json(pendingReport, { status: 201 });
+    } catch (_) {
+      supportsWaitUntil = false;
     }
+
+    if (!supportsWaitUntil) {
+      // 미지원: 동기 처리로 즉시 완료까지 수행
+      console.log('No requestContext.waitUntil: processing synchronously');
+      return await processUrlSynchronously(url, techAnalysisReportOperations);
+    }
+
+    // 지원: pending 레코드 생성 후 백그라운드 처리
+    console.log('requestContext.waitUntil detected: creating pending and scheduling background job');
+    const pendingReport = await techAnalysisReportOperations.create({
+      url,
+      title: url,
+      summary: '메타데이터를 분석 중입니다...',
+      image_url: null,
+      category_name: null,
+      status: 'pending'
+    });
+
+    if (pendingReport.id && waitUntilFn) {
+      try {
+        waitUntilFn(processMetadataInBackground(Number(pendingReport.id), url));
+      } catch (e) {
+        console.warn('waitUntil enqueue failed, falling back to direct Promise:', e);
+        processMetadataInBackground(Number(pendingReport.id), url).catch(err => {
+          console.error('Background processing failed:', err);
+        });
+      }
+    }
+
+    return NextResponse.json(pendingReport, { status: 201 });
   } catch (error) {
     console.error('Unexpected error in tech-analysis POST:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown server error';
@@ -99,7 +111,7 @@ export async function POST(request: NextRequest) {
 // 로컬 환경용 동기 처리 함수
 async function processUrlSynchronously(url: string, techAnalysisReportOperations: any) {
   try {
-    const { OPENAI_API_KEY } = process.env;
+    const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not available');
       return NextResponse.json({ 
@@ -182,7 +194,7 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
 // 백그라운드 메타데이터 처리 함수
 async function processMetadataInBackground(reportId: number, url: string) {
   try {
-    const { OPENAI_API_KEY } = process.env;
+    const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not available for background processing');
       return;
