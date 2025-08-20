@@ -2,8 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createReportOperations, createConferenceOperations } from '@/lib/database-operations';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import type { SearchCache, StandardResult } from '@/types/standard-search';
+import { SEARCH_CACHE_TTL } from '@/types/standard-search';
+
+// Cloudflare KV 타입 임포트
+/// <reference types="@cloudflare/workers-types" />
 
 export const runtime = 'edge';
+
+// KV 접근 헬퍼
+function getKVNamespace(): any | null {
+  try {
+    const { env } = getRequestContext();
+    return env.STANDARD_SEARCH_CACHE || null;
+  } catch (error) {
+    console.error('Failed to get KV namespace:', error);
+    return null;
+  }
+}
 
 // Cloudflare Pages/Workers 환경 호환을 위한 환경변수 접근 헬퍼
 function getEnv(name: string): string | undefined {
@@ -51,6 +67,21 @@ export async function POST(request: NextRequest) {
     console.log('requestContext.waitUntil detected: scheduling background search');
     const searchId = generateSearchId();
     
+    // KV에 초기 상태 저장
+    const kv = getKVNamespace();
+    if (kv) {
+      const initialCache: SearchCache = {
+        searchId,
+        query,
+        status: 'pending',
+        createdAt: Date.now()
+      };
+      
+      await kv.put(`search:${searchId}`, JSON.stringify(initialCache), {
+        expirationTtl: SEARCH_CACHE_TTL
+      });
+    }
+    
     // 임시 결과로 즉시 응답 (pending 상태)
     const pendingResult = {
       searchId,
@@ -90,12 +121,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'searchId is required' }, { status: 400 });
     }
 
-    // TODO: 실제로는 KV나 메모리에서 결과 조회
-    // 현재는 단순 구현으로 완료된 것으로 간주
+    // 스트리밍 모드: stream=1 이면 KV를 폴링하며 SSE로 진행상황 전송
+    const streamFlag = searchParams.get('stream');
+    if (streamFlag === '1') {
+      const kvForStream = getKVNamespace();
+      if (!kvForStream) {
+        return new NextResponse('KV namespace not available for streaming', { status: 500 });
+      }
+      return streamSearchViaSSE(kvForStream, searchId);
+    }
+
+    const kv = getKVNamespace();
+    if (!kv) {
+      return NextResponse.json({ message: 'KV namespace not available' }, { status: 500 });
+    }
+
+    // KV에서 검색 결과 조회
+    const cacheData = await kv.get(`search:${searchId}`);
+    if (!cacheData) {
+      return NextResponse.json({ message: 'Search not found or expired' }, { status: 404 });
+    }
+
+    const searchCache: SearchCache = JSON.parse(cacheData);
+    
+    // 응답 형식 통일
     return NextResponse.json({
-      searchId,
-      status: 'completed',
-      results: []
+      searchId: searchCache.searchId,
+      status: searchCache.status,
+      results: searchCache.results || [],
+      error: searchCache.error,
+      query: searchCache.query
     });
   } catch (error) {
     console.error('Failed to get search results:', error);
@@ -141,10 +196,26 @@ async function processStandardSearchSynchronously(query: string) {
 
 // 백그라운드 처리 함수
 async function processStandardSearchInBackground(searchId: string, query: string) {
+  const kv = getKVNamespace();
+  
   try {
     const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not available for background search');
+      // KV에 에러 상태 저장
+      if (kv) {
+        const errorCache: SearchCache = {
+          searchId,
+          query,
+          status: 'failed',
+          error: 'OpenAI API key not available',
+          createdAt: Date.now(),
+          completedAt: Date.now()
+        };
+        await kv.put(`search:${searchId}`, JSON.stringify(errorCache), {
+          expirationTtl: SEARCH_CACHE_TTL
+        });
+      }
       return;
     }
 
@@ -158,11 +229,38 @@ async function processStandardSearchInBackground(searchId: string, query: string
 
     console.log(`Background search completed for ${searchId} with ${searchResults.length} results`);
 
-    // TODO: 실제로는 결과를 KV나 메모리에 저장
-    // 현재는 로그만 출력
+    // KV에 완료된 결과 저장
+    if (kv) {
+      const completedCache: SearchCache = {
+        searchId,
+        query,
+        status: 'completed',
+        results: searchResults,
+        createdAt: Date.now(),
+        completedAt: Date.now()
+      };
+      await kv.put(`search:${searchId}`, JSON.stringify(completedCache), {
+        expirationTtl: SEARCH_CACHE_TTL
+      });
+    }
 
   } catch (error) {
     console.error(`Background search error for ${searchId}:`, error);
+    
+    // KV에 에러 상태 저장
+    if (kv) {
+      const errorCache: SearchCache = {
+        searchId,
+        query,
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        createdAt: Date.now(),
+        completedAt: Date.now()
+      };
+      await kv.put(`search:${searchId}`, JSON.stringify(errorCache), {
+        expirationTtl: SEARCH_CACHE_TTL
+      });
+    }
   }
 }
 
@@ -228,8 +326,9 @@ async function performAISearch(query: string, contextData: any, apiKey: string) 
 주의사항:
 1. 실제 존재하는 표준들만 추천하세요
 2. relevanceScore는 사용자 요구사항과의 관련도를 정확히 평가하세요
-3. 최대 5개의 표준을 추천하세요
-4. 각 표준의 설명은 구체적이고 상세해야 합니다`;
+3. 최대 3개의 표준만 추천하세요 (3개를 넘기지 마세요)
+4. 각 표준의 설명은 2-3문장, 400자 이내로 간결하게 작성하세요
+5. 반드시 JSON 배열만 출력하세요. 설명 문구, 해설, 마크다운 코드펜스 금지`;
 
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -238,35 +337,125 @@ async function performAISearch(query: string, contextData: any, apiKey: string) 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5',
-        reasoning: { effort: 'high' },
+        model: 'gpt-5-nano',
+        reasoning: { effort: 'low' },
         input: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `사용자 요구사항: ${query}` }
+          { role: 'user', content: `${systemPrompt}\n\n사용자 요구사항: ${query}` }
         ],
-        max_output_tokens: 2000
+        max_output_tokens: 2048
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('OpenAI API error response:', response.status, errorText);
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
-    const content = data.output_text;
+    const wasIncomplete = data?.status === 'incomplete' && data?.incomplete_details?.reason === 'max_output_tokens';
+    console.log('OpenAI API full response:', JSON.stringify(data, null, 2));
 
-    if (!content) {
-      throw new Error('No content in OpenAI response');
+    // Responses API 출력에서 텍스트 추출
+    let content: string = '';
+    if (typeof data.output_text === 'string' && data.output_text.trim()) {
+      content = data.output_text.trim();
+    } else if (Array.isArray(data.output)) {
+      for (const item of data.output) {
+        if (item && item.type === 'message' && Array.isArray(item.content)) {
+          for (const part of item.content) {
+            if (typeof part?.text === 'string' && part.text.trim()) { content = part.text.trim(); break; }
+          }
+          if (content) break;
+        }
+        if (item && typeof item.text === 'string' && item.text.trim()) { content = item.text.trim(); break; }
+      }
+    }
+    
+    // JSON 응답 파싱 (안전 파서)
+    function tryParseArray(text: string): any[] | null {
+      try {
+        let jsonText = text;
+        const fenceMatch = text.match(/```(?:json)?\n([\s\S]*?)```/i);
+        if (fenceMatch) jsonText = fenceMatch[1];
+        const firstBracket = jsonText.indexOf('[');
+        const lastBracket = jsonText.lastIndexOf(']');
+        if (firstBracket !== -1 && lastBracket !== -1) {
+          jsonText = jsonText.slice(firstBracket, lastBracket + 1);
+        }
+        const arr = JSON.parse(jsonText);
+        return Array.isArray(arr) ? arr : null;
+      } catch (_) {
+        // 객체 단위 복구 시도
+        const objs: any[] = [];
+        const matches = text.match(/\{[\s\S]*?\}/g);
+        if (matches) {
+          for (const m of matches) {
+            try {
+              const obj = JSON.parse(m);
+              objs.push(obj);
+            } catch (_) { /* skip */ }
+          }
+        }
+        return objs.length ? objs : null;
+      }
     }
 
-    // JSON 응답 파싱
-    try {
-      const results = JSON.parse(content);
-      return Array.isArray(results) ? results : [];
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response as JSON:', content);
-      return [];
+    let results: any[] = [];
+    const parsedOnce = tryParseArray(content);
+    if (parsedOnce) results = parsedOnce;
+
+    // 불완전 출력이면 자동 이어받기 호출
+    if (wasIncomplete || results.length < 3) {
+      const existingIds = results.map((r: any) => r?.id).filter(Boolean);
+      const continuationPrompt = `${systemPrompt}\n\n사용자 요구사항: ${query}\n\n이미 확보한 표준 ID: ${existingIds.join(', ') || '(없음)'}\n남은 항목만 작성하세요. 전체 개수는 최대 3개를 넘지 마세요. 반드시 JSON 배열만 출력하세요.`;
+
+      const contRes = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-5-nano',
+          reasoning: { effort: 'low' },
+          input: [
+            { role: 'user', content: continuationPrompt }
+          ],
+          max_output_tokens: 1024
+        }),
+      });
+
+      if (contRes.ok) {
+        const contData = await contRes.json();
+        let contText: string | undefined = contData.output_text;
+        if (!contText && Array.isArray(contData.output)) {
+          for (const item of contData.output) {
+            if (item && item.type === 'message' && Array.isArray(item.content)) {
+              for (const part of item.content) {
+                if (typeof part?.text === 'string' && part.text.trim()) { contText = part.text.trim(); break; }
+              }
+              if (contText) break;
+            }
+            if (item && typeof item.text === 'string' && item.text.trim()) { contText = item.text.trim(); break; }
+          }
+        }
+        if (contText) {
+          const more = tryParseArray(contText) || [];
+          // 병합 (id 중복 제거)
+          const byId = new Map<string, any>();
+          for (const r of [...results, ...more]) {
+            const key = r?.id || JSON.stringify(r);
+            if (!byId.has(key)) byId.set(key, r);
+          }
+          results = Array.from(byId.values()).slice(0, 3);
+        }
+      } else {
+        console.warn('Continuation call failed:', contRes.status, await contRes.text());
+      }
     }
+
+    return Array.isArray(results) ? results : [];
 
   } catch (error) {
     console.error('AI search failed:', error);
@@ -277,4 +466,62 @@ async function performAISearch(query: string, contextData: any, apiKey: string) 
 // 검색 ID 생성
 function generateSearchId(): string {
   return `search_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// --- SSE Streaming Helpers ---
+function sseHeaders() {
+  return {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive'
+  };
+}
+
+function sseFormat(event: string, data: any) {
+  const payload = typeof data === 'string' ? data : JSON.stringify(data);
+  return `event: ${event}\n` + `data: ${payload}\n\n`;
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function streamSearchViaSSE(kv: any, searchId: string) {
+  const encoder = new TextEncoder();
+  let lastSnapshot = '';
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      // 초기 핸드셰이크
+      controller.enqueue(encoder.encode(sseFormat('open', { searchId })));
+
+      const startTime = Date.now();
+      const timeoutMs = 30_000; // 최대 30초 스트리밍
+
+      try {
+        while (Date.now() - startTime < timeoutMs) {
+          const cacheData = await kv.get(`search:${searchId}`);
+          if (cacheData && cacheData !== lastSnapshot) {
+            lastSnapshot = cacheData;
+            try {
+              const parsed = JSON.parse(cacheData);
+              controller.enqueue(encoder.encode(sseFormat('update', parsed)));
+              if (parsed?.status === 'completed' || parsed?.status === 'failed') {
+                controller.enqueue(encoder.encode(sseFormat('end', { status: parsed.status })));
+                break;
+              }
+            } catch (_) {
+              controller.enqueue(encoder.encode(sseFormat('update', { raw: cacheData })));
+            }
+          }
+          await sleep(1000);
+        }
+      } catch (err) {
+        controller.enqueue(encoder.encode(sseFormat('error', { message: (err as Error).message })));
+      } finally {
+        controller.close();
+      }
+    }
+  });
+
+  return new NextResponse(stream, { status: 200, headers: sseHeaders() });
 }
