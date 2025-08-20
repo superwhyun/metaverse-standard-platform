@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST a new tech analysis report from a URL
-export async function POST(request: NextRequest, context: { params: any; waitUntil?: (promise: Promise<any>) => void }) {
+export async function POST(request: NextRequest) {
   try {
     const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest, context: { params: any; waitUnt
       console.log('Local environment detected: processing synchronously');
       return await processUrlSynchronously(url, techAnalysisReportOperations);
     } else {
-      // 프로덕션 환경: 백그라운드 처리 (waitUntil 사용)
+      // 프로덕션 환경: 백그라운드 처리 (ctx.waitUntil 사용)
       console.log('Production environment detected: processing in background');
       const pendingReport = await techAnalysisReportOperations.create({
         url,
@@ -61,14 +61,28 @@ export async function POST(request: NextRequest, context: { params: any; waitUnt
         status: 'pending'
       });
 
-      if (pendingReport.id && context.waitUntil) {
-        // Cloudflare Workers의 waitUntil 사용
-        context.waitUntil(processMetadataInBackground(Number(pendingReport.id), url));
-      } else if (pendingReport.id) {
-        // waitUntil이 없는 경우 fallback (일반적인 Promise)
-        processMetadataInBackground(Number(pendingReport.id), url).catch(error => {
-          console.error('Background processing failed:', error);
-        });
+      if (pendingReport.id) {
+        try {
+          // Cloudflare Pages Functions에서 ctx 객체 접근
+          // @ts-ignore - Cloudflare Workers runtime context
+          const ctx = globalThis.process?.env?.CONTEXT || globalThis.__CF_CONTEXT__;
+          
+          if (ctx && typeof ctx.waitUntil === 'function') {
+            console.log('Using ctx.waitUntil for background processing');
+            ctx.waitUntil(processMetadataInBackground(Number(pendingReport.id), url));
+          } else {
+            console.warn('ctx.waitUntil not available, using fallback');
+            // waitUntil이 없는 경우 fallback (일반적인 Promise)
+            processMetadataInBackground(Number(pendingReport.id), url).catch(error => {
+              console.error('Background processing failed:', error);
+            });
+          }
+        } catch (contextError) {
+          console.warn('Failed to access Cloudflare context, using fallback:', contextError);
+          processMetadataInBackground(Number(pendingReport.id), url).catch(error => {
+            console.error('Background processing failed:', error);
+          });
+        }
       }
 
       return NextResponse.json(pendingReport, { status: 201 });
