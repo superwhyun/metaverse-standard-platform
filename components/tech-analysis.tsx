@@ -21,6 +21,7 @@ interface TechReport {
   image_url?: string
   created_at: string
   category_name?: string
+  status?: 'pending' | 'completed' | 'failed'
 }
 
 interface TechAnalysisProps {
@@ -121,6 +122,49 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
     fetchReports(true, '', '')
     fetchCategories()
   }, [])
+
+  // 폴링: pending 상태의 보고서가 있으면 3초마다 업데이트 확인
+  useEffect(() => {
+    const pendingReports = reports.filter(report => report.status === 'pending')
+    if (pendingReports.length === 0) return
+
+    const interval = setInterval(async () => {
+      try {
+        // pending 상태인 보고서들만 개별적으로 확인
+        const updatePromises = pendingReports.map(async (pendingReport) => {
+          const response = await fetch(`/api/tech-analysis?limit=100&offset=0`)
+          if (response.ok) {
+            const allReports = await response.json()
+            const updatedReport = allReports.find((r: TechReport) => r.id === pendingReport.id)
+            return updatedReport
+          }
+          return null
+        })
+
+        const updatedReports = await Promise.all(updatePromises)
+        
+        // 업데이트된 보고서들로 상태 갱신
+        setReports(prevReports => {
+          const newReports = [...prevReports]
+          updatedReports.forEach((updatedReport) => {
+            if (updatedReport) {
+              const index = newReports.findIndex(r => r.id === updatedReport.id)
+              if (index !== -1) {
+                newReports[index] = updatedReport
+              }
+            }
+          })
+          return newReports
+        })
+
+        console.log(`Polling: 업데이트된 보고서 ${updatedReports.filter(r => r).length}개`)
+      } catch (error) {
+        console.error('Polling error:', error)
+      }
+    }, 3000) // 3초마다 확인
+
+    return () => clearInterval(interval)
+  }, [reports])
 
   const fetchCategories = async () => {
     if (categoriesLoaded) return
@@ -431,10 +475,15 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                     </span>
                   </div>
                 )}
-                <Card className="flex flex-col overflow-hidden relative">
+                <Card className={`flex flex-col overflow-hidden relative ${report.status === 'pending' ? 'opacity-70' : ''}`}>
                 <a href={report.url} target="_blank" rel="noopener noreferrer" className="block bg-muted">
                     <div className="w-full h-32 flex items-center justify-center">
-                    {report.image_url ? (
+                    {report.status === 'pending' ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-xs text-muted-foreground">분석 중...</span>
+                        </div>
+                    ) : report.image_url ? (
                         <img src={report.image_url} alt={report.title} className="w-full h-full object-cover" />
                     ) : (
                         <ImageOff className="w-8 h-8 text-muted-foreground" />

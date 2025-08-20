@@ -26,16 +26,8 @@ export async function GET(request: NextRequest) {
 }
 
 // POST a new tech analysis report from a URL
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest, context: { params: any; waitUntil?: (promise: Promise<any>) => void }) {
   try {
-    // Environment variable check
-    const { OPENAI_API_KEY } = process.env;
-    if (!OPENAI_API_KEY) {
-      return NextResponse.json({ 
-        message: 'OPENAI_API_KEY 환경변수가 설정되지 않았습니다. 관리자 설정에서 확인해주세요.' 
-      }, { status: 500 });
-    }
-
     const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { url } = await request.json();
@@ -49,9 +41,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid URL format' }, { status: 400 });
     }
 
-    console.log('About to fetch microlink for URL:', url);
-    let title, description, image;
+    // 환경 감지: 로컬 개발 vs 프로덕션
+    // Wrangler dev에서는 CF_PAGES가 없고, 실제 프로덕션에서는 CF_PAGES가 있음
+    const isLocal = !process.env.CF_PAGES;
     
+    if (isLocal) {
+      // 로컬 환경: 즉시 처리 (waitUntil 지원 안됨)
+      console.log('Local environment detected: processing synchronously');
+      return await processUrlSynchronously(url, techAnalysisReportOperations);
+    } else {
+      // 프로덕션 환경: 백그라운드 처리 (waitUntil 사용)
+      console.log('Production environment detected: processing in background');
+      const pendingReport = await techAnalysisReportOperations.create({
+        url,
+        title: url,
+        summary: '메타데이터를 분석 중입니다...',
+        image_url: null,
+        category_name: null,
+        status: 'pending'
+      });
+
+      if (pendingReport.id && context.waitUntil) {
+        // Cloudflare Workers의 waitUntil 사용
+        context.waitUntil(processMetadataInBackground(Number(pendingReport.id), url));
+      } else if (pendingReport.id) {
+        // waitUntil이 없는 경우 fallback (일반적인 Promise)
+        processMetadataInBackground(Number(pendingReport.id), url).catch(error => {
+          console.error('Background processing failed:', error);
+        });
+      }
+
+      return NextResponse.json(pendingReport, { status: 201 });
+    }
+  } catch (error) {
+    console.error('Unexpected error in tech-analysis POST:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error';
+    return NextResponse.json({ 
+      message: `예상치 못한 서버 오류: ${errorMessage}` 
+    }, { status: 500 });
+  }
+}
+
+// 로컬 환경용 동기 처리 함수
+async function processUrlSynchronously(url: string, techAnalysisReportOperations: any) {
+  try {
+    const { OPENAI_API_KEY } = process.env;
+    if (!OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY not available');
+      return NextResponse.json({ 
+        message: 'OpenAI API 키가 설정되지 않았습니다. 관리자에게 문의해주세요.' 
+      }, { status: 500 });
+    }
+
+    console.log(`Synchronous processing for URL: ${url}`);
+
+    // Microlink 메타데이터 가져오기
+    let title, description, image;
     try {
       const microlinkResponse = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
       console.log('Microlink response status:', microlinkResponse.status);
@@ -82,72 +127,139 @@ export async function POST(request: NextRequest) {
       image = null;
     }
 
-    // Ensure we have a title
+    // 제목 확보
     if (!title) {
       title = url;
     }
-    console.log('Raw extracted values:', { 
-      title, 
-      description, 
-      image,
-      hasImageUrl: !!image?.url
-    });
 
     const summary = description || '설명이 없습니다.';
     
+    // AI 카테고리 분류
     let categoryName: string | null = null;
     try {
-      // Categorizer will create its own db adapter
       categoryName = await categorizeContent(title, summary);
-      console.log(`Auto-categorized content: "${title}" -> category: ${categoryName}`);
+      console.log(`Auto-categorized: "${title}" -> category: ${categoryName}`);
     } catch (categorizerError) {
-      console.error('Failed to auto-categorize content:', categorizerError);
-      // Note: We continue without categorization rather than failing the entire request
-      console.log('Continuing without AI categorization due to error');
+      console.error('Categorization failed:', categorizerError);
     }
 
-    console.log('BEFORE CREATE - About to create with values:', {
-      url: `"${url}"`,
-      title: `"${title}"`,
-      summary: `"${summary}"`,
-      categoryName: `"${categoryName}"`,
-      imageUrl: image?.url ? `"${image.url}"` : 'undefined'
-    });
-    
-    // Debug logging before create call
-    const createParams = {
+    // DB에 완료된 보고서 저장
+    const report = await techAnalysisReportOperations.create({
       url,
       title,
-      summary: summary || null,
-      image_url: image?.url || null,
-      category_name: categoryName || null
-    };
-    
-    console.log('FINAL CREATE PARAMS:', {
-      url: createParams.url,
-      title: createParams.title,
-      summary: createParams.summary,
-      image_url: createParams.image_url,
-      category_name: createParams.category_name
+      summary,
+      image_url: image?.url || undefined,
+      category_name: categoryName || undefined,
+      status: 'completed'
     });
 
-    let newReport;
-    try {
-      newReport = await techAnalysisReportOperations.create(createParams);
-    } catch (dbError) {
-      console.error('Database create error:', dbError);
-      return NextResponse.json({ 
-        message: `데이터베이스 저장 실패: ${dbError instanceof Error ? dbError.message : 'Database connection error'}` 
-      }, { status: 500 });
+    console.log(`Synchronous processing completed for report ${report.id}`);
+    return NextResponse.json(report, { status: 201 });
+
+  } catch (error) {
+    console.error('Synchronous processing error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ 
+      message: `처리 중 오류 발생: ${errorMessage}` 
+    }, { status: 500 });
+  }
+}
+
+// 백그라운드 메타데이터 처리 함수
+async function processMetadataInBackground(reportId: number, url: string) {
+  try {
+    const { OPENAI_API_KEY } = process.env;
+    if (!OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY not available for background processing');
+      return;
     }
 
-    return NextResponse.json(newReport, { status: 201 });
+    const db = await createDatabaseAdapter();
+    const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
+
+    console.log(`Background processing for report ${reportId}, URL: ${url}`);
+
+    // Microlink 메타데이터 가져오기
+    let title, description, image;
+    try {
+      const microlinkResponse = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+      console.log('Background Microlink response status:', microlinkResponse.status);
+      
+      if (!microlinkResponse.ok) {
+        console.log('Background Microlink HTTP error, using fallback values');
+        title = url;
+        description = null;
+        image = null;
+      } else {
+        const metadata = await microlinkResponse.json();
+        console.log('Background Microlink metadata status:', metadata.status);
+
+        if (metadata.status !== 'success') {
+          console.log('Background Microlink parsing failed, using fallback values');
+          title = url;
+          description = null;
+          image = null;
+        } else {
+          console.log('Background metadata data keys:', Object.keys(metadata.data || {}));
+          ({ title, description, image } = metadata.data);
+        }
+      }
+    } catch (microlinkError) {
+      console.log('Background Microlink network error, using fallback values:', microlinkError);
+      title = url;
+      description = null;
+      image = null;
+    }
+
+    // 제목 확보
+    if (!title) {
+      title = url;
+    }
+
+    const summary = description || '설명이 없습니다.';
+    
+    // AI 카테고리 분류
+    let categoryName: string | null = null;
+    try {
+      categoryName = await categorizeContent(title, summary);
+      console.log(`Background auto-categorized: "${title}" -> category: ${categoryName}`);
+    } catch (categorizerError) {
+      console.error('Background categorization failed:', categorizerError);
+    }
+
+    // DB 업데이트
+    try {
+      await techAnalysisReportOperations.update(reportId, {
+        title,
+        summary,
+        image_url: image?.url || undefined,
+        category_name: categoryName || undefined,
+        status: 'completed'
+      });
+      console.log(`Background processing completed for report ${reportId}`);
+    } catch (updateError) {
+      console.error(`Background DB update failed for report ${reportId}:`, updateError);
+      // 실패 상태로 업데이트
+      try {
+        await techAnalysisReportOperations.update(reportId, {
+          status: 'failed'
+        });
+      } catch (statusUpdateError) {
+        console.error('Failed to update status to failed:', statusUpdateError);
+      }
+    }
   } catch (error) {
-    console.error('Unexpected error in tech-analysis POST:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown server error';
-    return NextResponse.json({ 
-      message: `예상치 못한 서버 오류: ${errorMessage}` 
-    }, { status: 500 });
+    console.error(`Background processing error for report ${reportId}:`, error);
+    // 실패 상태로 업데이트 시도
+    try {
+      const db = await createDatabaseAdapter();
+      const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
+      await techAnalysisReportOperations.update(reportId, {
+        status: 'failed'
+      });
+    } catch (statusUpdateError) {
+      console.error('Failed to update status to failed:', statusUpdateError);
+    }
   }
 }
 
