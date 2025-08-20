@@ -39,20 +39,20 @@ export async function categorizeContent(title: string, summary: string): Promise
     console.log('Sending prompt to OpenAI:', prompt.length, 'characters');
     
     const openai = getOpenAIClient();
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
+    const completion = await openai.responses.create({
+      model: 'gpt-5-nano',
+      reasoning: { effort: 'low' },
+      input: [
         {
           role: 'user',
           content: prompt
         }
       ],
-      max_tokens: 512,
-      temperature: 0.1,
+      max_output_tokens: 512,
     });
     
     console.log('OpenAI response:', completion);
-    const response = completion.choices[0]?.message?.content?.trim();
+    const response = completion.output_text?.trim();
     
     if (!response) {
       console.error('No response from OpenAI - completion object:', JSON.stringify(completion, null, 2));

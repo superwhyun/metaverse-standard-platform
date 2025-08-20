@@ -25,67 +25,67 @@ export function StandardSearch({}: StandardSearchProps) {
   const [isSearching, setIsSearching] = useState(false)
   const [results, setResults] = useState<StandardResult[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock search function - in real implementation, this would call RAG + LLM
+  // AI 표준 검색 API 호출
   const handleSearch = async () => {
     if (!query.trim()) return
 
     setIsSearching(true)
     setHasSearched(true)
+    setResults([])
+    setError(null)
 
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      const response = await fetch('/api/standard-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: query.trim() }),
+      })
 
-    // Mock results based on query
-    const mockResults: StandardResult[] = [
-      {
-        id: "iso-iec-23005",
-        title: "ISO/IEC 23005 - 메타버스 상호운용성 표준",
-        organization: "ISO/IEC",
-        description:
-          "메타버스 플랫폼 간 상호운용성을 위한 데이터 교환, 사용자 인터페이스, 서비스 통합 프레임워크를 정의합니다. 아바타 이동성, 가상 자산 표현, 크로스 플랫폼 통신 프로토콜을 포함합니다.",
-        relevanceScore: 95,
-        tags: ["상호운용성", "아바타", "데이터교환", "플랫폼통합"],
-        status: "개발중",
-        publishedDate: "2024-12-15",
-      },
-      {
-        id: "ieee-2888",
-        title: "IEEE 2888 - 메타버스 시스템 아키텍처",
-        organization: "IEEE",
-        description:
-          "메타버스 시스템의 전체적인 아키텍처를 정의하는 포괄적인 표준으로, 참조 모델, 컴포넌트 간 인터페이스, 데이터 모델 및 보안 프레임워크를 제공합니다.",
-        relevanceScore: 88,
-        tags: ["시스템아키텍처", "참조모델", "인터페이스", "보안"],
-        status: "발표됨",
-        publishedDate: "2024-11-28",
-      },
-      {
-        id: "w3c-webxr",
-        title: "W3C WebXR Device API",
-        organization: "W3C",
-        description:
-          "웹 브라우저에서 가상현실과 증강현실 경험을 제공하기 위한 API 표준입니다. 메타버스 웹 구현의 핵심 기술로 활용됩니다.",
-        relevanceScore: 82,
-        tags: ["웹표준", "WebXR", "VR", "AR"],
-        status: "권고안",
-        publishedDate: "2024-10-20",
-      },
-      {
-        id: "itu-t-h430",
-        title: "ITU-T H.430 시리즈 - VR 품질 평가",
-        organization: "ITU-T",
-        description:
-          "가상현실 서비스의 품질 평가를 위한 객관적 측정 방법론을 제시하며, VR 비디오/오디오 품질, 상호작용 지연시간, 사용자 경험 품질을 다룹니다.",
-        relevanceScore: 75,
-        tags: ["품질평가", "VR", "QoE", "측정방법론"],
-        status: "개발중",
-        publishedDate: "2024-12-08",
-      },
-    ]
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || '검색 중 오류가 발생했습니다.')
+      }
 
-    setResults(mockResults)
-    setIsSearching(false)
+      const data = await response.json()
+
+      if (data.status === 'pending') {
+        // 백그라운드 처리 중인 경우
+        console.log('Search is being processed in background...')
+        // TODO: 폴링이나 SSE로 결과 대기
+        // 현재는 간단히 2초 후 완료로 간주
+        setTimeout(() => {
+          setResults([
+            {
+              id: "processing-placeholder",
+              title: "검색이 백그라운드에서 처리 중입니다",
+              organization: "시스템",
+              description: "GPT-5가 관련 표준을 분석하고 있습니다. 잠시 후 다시 확인해주세요.",
+              relevanceScore: 0,
+              tags: ["처리중"],
+              status: "처리중",
+              publishedDate: new Date().toISOString().split('T')[0],
+            }
+          ])
+          setIsSearching(false)
+        }, 2000)
+      } else if (data.status === 'completed') {
+        // 동기 처리 완료된 경우
+        setResults(data.results || [])
+        setIsSearching(false)
+      }
+    } catch (error: any) {
+      console.error('Search failed:', error)
+      setResults([])
+      setIsSearching(false)
+      
+      // 에러 상태를 사용자에게 표시
+      const errorMessage = error.message || '검색 중 오류가 발생했습니다.'
+      setError(errorMessage)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -96,6 +96,8 @@ export function StandardSearch({}: StandardSearchProps) {
         return "bg-blue-100 text-blue-800"
       case "개발중":
         return "bg-yellow-100 text-yellow-800"
+      case "처리중":
+        return "bg-orange-100 text-orange-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -154,10 +156,26 @@ export function StandardSearch({}: StandardSearchProps) {
               {results.length > 0 && <Badge variant="secondary">{results.length}개 표준 발견</Badge>}
             </div>
 
-            {isSearching ? (
+            {error ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2 text-red-700">검색 오류</h3>
+                  <p className="text-muted-foreground mb-4">{error}</p>
+                  <Button onClick={() => { setError(null); handleSearch(); }} variant="outline">
+                    다시 시도
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : isSearching ? (
               <div className="text-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                <p className="text-muted-foreground">RAG 검색과 LLM 분석을 통해 관련 표준을 찾고 있습니다...</p>
+                <p className="text-muted-foreground">AI가 관련 표준을 분석하고 검색하고 있습니다...</p>
+                <p className="text-sm text-muted-foreground mt-2">GPT-5의 강력한 reasoning을 활용하여 최적의 표준을 찾고 있습니다.</p>
               </div>
             ) : results.length > 0 ? (
               <div className="space-y-4">
