@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from "react"
-import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User, Settings, Server } from "lucide-react"
+import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User, Settings, Server, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -46,6 +46,8 @@ interface Report {
 interface AdminDashboardProps {
   conferences: Conference[]
   reports: Report[]
+  allConferences?: Conference[]
+  allReports?: Report[]
   onAddConference: () => void
   onEditConference: (conference: Conference) => void
   onDeleteConference: (id: number) => void
@@ -55,6 +57,7 @@ interface AdminDashboardProps {
   onViewReport: (report: Report) => void
   onViewConferenceReport: (conferenceId: number) => void
   onViewSpecificReport: (reportId: number) => void
+  onMonthChange?: (year: number, month: number) => void
   session?: any
   onLogout?: () => void
 }
@@ -62,6 +65,8 @@ interface AdminDashboardProps {
 export function AdminDashboard({
   conferences,
   reports,
+  allConferences,
+  allReports,
   onAddConference,
   onEditConference,
   onDeleteConference,
@@ -71,9 +76,34 @@ export function AdminDashboard({
   onViewReport,
   onViewConferenceReport,
   onViewSpecificReport,
+  onMonthChange,
   session,
   onLogout,
 }: AdminDashboardProps) {
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date()
+    return { year: now.getFullYear(), month: now.getMonth() + 1 }
+  })
+
+  const handlePrevMonth = () => {
+    const newDate = currentDate.month === 1 
+      ? { year: currentDate.year - 1, month: 12 }
+      : { year: currentDate.year, month: currentDate.month - 1 }
+    setCurrentDate(newDate)
+    onMonthChange?.(newDate.year, newDate.month)
+  }
+
+  const handleNextMonth = () => {
+    const newDate = currentDate.month === 12 
+      ? { year: currentDate.year + 1, month: 1 }
+      : { year: currentDate.year, month: currentDate.month + 1 }
+    setCurrentDate(newDate)
+    onMonthChange?.(newDate.year, newDate.month)
+  }
+
+  const formatCurrentMonth = () => {
+    return `${currentDate.year}년 ${currentDate.month}월`
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
@@ -117,7 +147,7 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">총 회의</p>
-                <p className="text-2xl font-bold">{conferences.length}</p>
+                <p className="text-2xl font-bold">{(allConferences || conferences).length}</p>
               </div>
               <Calendar className="w-8 h-8 text-primary" />
             </div>
@@ -129,7 +159,7 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">보고서 있는 회의</p>
-                <p className="text-2xl font-bold">{conferences.filter((c) => c.reports && c.reports.length > 0).length}</p>
+                <p className="text-2xl font-bold">{(allConferences || conferences).filter((c) => c.reports && c.reports.length > 0).length}</p>
               </div>
               <FileText className="w-8 h-8 text-secondary" />
             </div>
@@ -141,7 +171,7 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">총 보고서</p>
-                <p className="text-2xl font-bold">{reports.length}</p>
+                <p className="text-2xl font-bold">{(allReports || reports).length}</p>
               </div>
               <FileText className="w-8 h-8 text-primary" />
             </div>
@@ -152,11 +182,10 @@ export function AdminDashboard({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">이번 달 회의</p>
+                <p className="text-sm font-medium text-muted-foreground">{formatCurrentMonth()} 회의</p>
                 <p className="text-2xl font-bold">{conferences.filter((c) => {
-                  const today = new Date();
-                  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-                  return c.date.startsWith(currentMonth);
+                  const selectedMonth = `${currentDate.year}-${String(currentDate.month).padStart(2, '0')}`;
+                  return c.date.startsWith(selectedMonth);
                 }).length}</p>
               </div>
               <Calendar className="w-8 h-8 text-secondary" />
@@ -193,9 +222,33 @@ export function AdminDashboard({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>회의 일정 관리</CardTitle>
-                <Button onClick={onAddConference}>
-                  <Plus className="w-4 h-4 mr-2" />새 회의 등록
-                </Button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handlePrevMonth}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <div className="flex items-center gap-2 min-w-[120px] justify-center">
+                      <Calendar className="w-4 h-4" />
+                      <span className="font-medium">{formatCurrentMonth()}</span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleNextMonth}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Button onClick={onAddConference}>
+                    <Plus className="w-4 h-4 mr-2" />새 회의 등록
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>

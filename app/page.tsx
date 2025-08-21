@@ -36,6 +36,8 @@ export default function HomePage() {
   const [selectedConference, setSelectedConference] = useState<any>(null)
   const [conferences, setConferences] = useState<any[]>([])
   const [reports, setReports] = useState<any[]>([])
+  const [allConferences, setAllConferences] = useState<any[]>([])
+  const [allReports, setAllReports] = useState<any[]>([])
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [conferencesCache, setConferencesCache] = useState<Map<string, any[]>>(new Map())
@@ -50,6 +52,63 @@ export default function HomePage() {
   const [currentOffset, setCurrentOffset] = useState(0)
   const [hasMoreReports, setHasMoreReports] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+
+  // Load all conferences from database (for admin dashboard statistics)
+  const loadAllConferences = async () => {
+    try {
+      const response = await fetch('/api/conferences'); // No year/month params = get all
+      if (response.ok) {
+        const result = await response.json();
+        const conferenceData = result.data || [];
+        setAllConferences(conferenceData);
+      } else {
+        console.error('Failed to load all conferences');
+        setAllConferences([]);
+      }
+    } catch (error) {
+      console.error('Error loading all conferences:', error);
+      setAllConferences([]);
+    }
+  };
+
+  // Load all reports from database (for admin dashboard statistics)
+  const loadAllReports = async () => {
+    try {
+      // Get a high limit to fetch all reports for statistics
+      const response = await fetch('/api/reports?limit=10000&offset=0');
+      if (response.ok) {
+        const result = await response.json();
+        const reportData = (result.data || []).map((report: any) => {
+          let tags = [];
+          try {
+            tags = typeof report.tags === 'string' ? JSON.parse(report.tags || '[]') : (report.tags || []);
+          } catch (e) {
+            console.warn('Failed to parse tags for report', report.id, e);
+            tags = [];
+          }
+          
+          return {
+            id: report.id,
+            title: report.title,
+            date: report.date,
+            summary: report.summary,
+            category: report.category,
+            organization: report.organization,
+            tags: tags,
+            downloadUrl: report.download_url,
+            conferenceId: report.conference_id
+          };
+        });
+        setAllReports(reportData);
+      } else {
+        console.error('Failed to load all reports');
+        setAllReports([]);
+      }
+    } catch (error) {
+      console.error('Error loading all reports:', error);
+      setAllReports([]);
+    }
+  };
 
   // Load conferences from database with monthly optimization and caching
   const loadConferences = async (year?: number, month?: number, forceReload = false) => {
@@ -199,6 +258,11 @@ export default function HomePage() {
       if (newView === "admin" || newView === "reports") {
         setSelectedConference(null)
         setSelectedReport(null)
+      }
+      if (newView === "admin") {
+        // 관리자 페이지 진입 시 전체 데이터 로드
+        loadAllConferences()
+        loadAllReports()
       }
       if (newView === "report-detail") {
         // report-detail로 갈 때는 selectedReport이 있어야 함
@@ -526,6 +590,8 @@ export default function HomePage() {
             <AdminDashboard
               conferences={conferences}
               reports={reports}
+              allConferences={allConferences}
+              allReports={allReports}
               onAddConference={() => setCurrentView("admin-add-conference")}
               onEditConference={(conference) => {
                 // Transform conference data for the form
@@ -593,6 +659,7 @@ export default function HomePage() {
                   }
                 }
               }}
+              onMonthChange={handleCalendarMonthChange}
               session={session}
               onLogout={async () => {
                 await signOut()
