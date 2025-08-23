@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Playfair_Display, Source_Sans_3 } from "next/font/google"
 import "./globals.css"
 import ClientSessionProvider from "@/components/providers/session-provider"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -30,11 +31,18 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className={`${playfair.variable} ${sourceSans.variable}`}>
+    <html lang="ko" className={`${playfair.variable} ${sourceSans.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <ClientSessionProvider>
-          {children}
-        </ClientSessionProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <ClientSessionProvider>
+            {children}
+          </ClientSessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

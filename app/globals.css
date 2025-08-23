@@ -41,40 +41,39 @@
 }
 
 .dark {
-  /* Updated dark mode colors to maintain contrast */
-  --background: #1f2937;
-  --foreground: #f9fafb;
-  --card: #374151;
-  --card-foreground: #f9fafb;
-  --popover: #1f2937;
-  --popover-foreground: #f9fafb;
-  --primary: #0891b2;
-  --primary-foreground: #ffffff;
-  --secondary: #84cc16;
-  --secondary-foreground: #1f2937;
-  --muted: #374151;
-  --muted-foreground: #9ca3af;
-  --accent: #84cc16;
-  --accent-foreground: #1f2937;
-  --destructive: #ea580c;
-  --destructive-foreground: #ffffff;
-  --border: #4b5563;
-  --input: #374151;
-  --ring: rgba(8, 145, 178, 0.5);
-  --chart-1: #0891b2;
-  --chart-2: #84cc16;
-  --chart-3: #ea580c;
-  --chart-4: #9ca3af;
-  --chart-5: #f97316;
+  --background: hsl(224 71% 4% / 1);
+  --foreground: hsl(213 31% 91% / 1);
+  --card: hsl(224 60% 9% / 1);
+  --card-foreground: hsl(213 31% 91% / 1);
+  --popover: hsl(224 71% 4% / 1);
+  --popover-foreground: hsl(213 31% 91% / 1);
+  --primary: hsl(262 88% 66% / 1);
+  --primary-foreground: hsl(213 31% 91% / 1);
+  --secondary: hsl(186 96% 58% / 1);
+  --secondary-foreground: hsl(224 71% 4% / 1);
+  --muted: hsl(224 60% 9% / 1);
+  --muted-foreground: hsl(216 15% 52% / 1);
+  --accent: hsl(262 88% 66% / 1);
+  --accent-foreground: hsl(213 31% 91% / 1);
+  --destructive: hsl(0 63% 31% / 1);
+  --destructive-foreground: hsl(213 31% 91% / 1);
+  --border: hsl(216 34% 17% / 1);
+  --input: hsl(216 34% 17% / 1);
+  --ring: hsl(262 88% 66% / 1);
+  --chart-1: hsl(262 88% 66% / 1);
+  --chart-2: hsl(186 96% 58% / 1);
+  --chart-3: hsl(38 92% 50% / 1);
+  --chart-4: hsl(213 31% 91% / 1);
+  --chart-5: hsl(120 81% 40% / 1);
   --radius: 0.5rem;
-  --sidebar: #1f2937;
-  --sidebar-foreground: #f9fafb;
-  --sidebar-primary: #374151;
-  --sidebar-primary-foreground: #f9fafb;
-  --sidebar-accent: #84cc16;
-  --sidebar-accent-foreground: #1f2937;
-  --sidebar-border: #4b5563;
-  --sidebar-ring: rgba(8, 145, 178, 0.5);
+  --sidebar: hsl(224 71% 4% / 0.95);
+  --sidebar-foreground: hsl(213 31% 91% / 1);
+  --sidebar-primary: hsl(224 60% 9% / 1);
+  --sidebar-primary-foreground: hsl(213 31% 91% / 1);
+  --sidebar-accent: hsl(262 88% 66% / 1);
+  --sidebar-accent-foreground: hsl(213 31% 91% / 1);
+  --sidebar-border: hsl(216 34% 17% / 1);
+  --sidebar-ring: hsl(262 88% 66% / 1);
 }
 
 @theme inline {
@@ -241,4 +240,65 @@ html {
   .page-slide {
     transition: none;
   }
+}
+/* ===== Custom Image Backgrounds v1 ===== */
+
+/* General style for backgrounds */
+.page-slide[class*="bg-pattern-"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  z-index: -1;
+  transition: opacity 0.5s;
+}
+
+/* --- Theme Opacity --- */
+html.dark .page-slide[class*="bg-pattern-"]::before {
+  opacity: 0.2;
+}
+html.light .page-slide[class*="bg-pattern-"]::before {
+  opacity: 0.4;
+}
+
+/* --- Image Assignments --- */
+.bg-pattern-grid::before {
+  background-image: url('/metaverse-4.jpeg');
+}
+.bg-pattern-circuit::before {
+  background-image: url('/metaverse-4.jpeg');
+}
+.bg-pattern-constellation::before {
+  background-image: url('/metaverse-4.jpeg');
+}
+.bg-pattern-hex::before {
+  background-image: url('/metaverse-4.jpeg');
+}
+
+/* Custom background for Admin page */
+.bg-admin-custom::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/admin-bg.jpeg');
+  background-size: cover;
+  background-position: center;
+  z-index: -1;
+  transition: opacity 0.5s;
+}
+
+html.dark .bg-admin-custom::before {
+  opacity: 0.15;
+}
+
+html.light .bg-admin-custom::before {
+  opacity: 0.3;
 }

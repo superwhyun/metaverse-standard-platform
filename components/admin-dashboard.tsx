@@ -84,6 +84,9 @@ export function AdminDashboard({
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() + 1 }
   })
+  
+  const [showAllConferences, setShowAllConferences] = useState(false)
+  const [showAllReports, setShowAllReports] = useState(false)
 
   const handlePrevMonth = () => {
     const newDate = currentDate.month === 1 
@@ -103,6 +106,20 @@ export function AdminDashboard({
 
   const formatCurrentMonth = () => {
     return `${currentDate.year}년 ${currentDate.month}월`
+  }
+
+  // 전체 회의 목록을 날짜순으로 정렬 (최신순)
+  const getSortedConferences = () => {
+    return [...(allConferences || conferences)].sort((a, b) => {
+      return new Date(b.date).getTime() - new Date(a.date).getTime()
+    })
+  }
+
+  // 전체 보고서 목록을 날짜순으로 정렬 (최신순)  
+  const getSortedReports = () => {
+    return [...(allReports || reports)].sort((a, b) => {
+      return new Date(b.date).getTime() - new Date(a.date).getTime()
+    })
   }
 
   return (
@@ -142,7 +159,10 @@ export function AdminDashboard({
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all duration-200 ${showAllConferences ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
+          onClick={() => setShowAllConferences(!showAllConferences)}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -166,7 +186,10 @@ export function AdminDashboard({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all duration-200 ${showAllReports ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
+          onClick={() => setShowAllReports(!showAllReports)}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -193,6 +216,186 @@ export function AdminDashboard({
           </CardContent>
         </Card>
       </div>
+
+      {/* 전체 회의 목록 */}
+      {showAllConferences && (
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-lg font-semibold">전체 회의 목록 (최신순)</CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowAllConferences(false)}
+              className="h-8 w-8 p-0"
+            >
+              ✕
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>제목</TableHead>
+                    <TableHead>날짜</TableHead>
+                    <TableHead>시간</TableHead>
+                    <TableHead>위치</TableHead>
+                    <TableHead>기관</TableHead>
+                    <TableHead>보고서</TableHead>
+                    <TableHead className="text-right">작업</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {getSortedConferences().map((conference) => (
+                    <TableRow key={conference.id}>
+                      <TableCell className="font-medium">{conference.title}</TableCell>
+                      <TableCell>{conference.date}</TableCell>
+                      <TableCell>{conference.time}</TableCell>
+                      <TableCell>{conference.location}</TableCell>
+                      <TableCell>{conference.organization}</TableCell>
+                      <TableCell>
+                        {conference.reports && conference.reports.length > 0 ? (
+                          <Badge variant="secondary">
+                            {conference.reports.length}개
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">없음</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onEditConference?.(conference)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>수정</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onViewConferenceReport?.(conference.id)}
+                                  disabled={!conference.reports || conference.reports.length === 0}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>보고서 보기</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 전체 보고서 목록 */}
+      {showAllReports && (
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-lg font-semibold">전체 보고서 목록 (최신순)</CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowAllReports(false)}
+              className="h-8 w-8 p-0"
+            >
+              ✕
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>제목</TableHead>
+                    <TableHead>날짜</TableHead>
+                    <TableHead>카테고리</TableHead>
+                    <TableHead>기관</TableHead>
+                    <TableHead>태그</TableHead>
+                    <TableHead className="text-right">작업</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {getSortedReports().map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell className="font-medium">{report.title}</TableCell>
+                      <TableCell>{report.date}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{report.category}</Badge>
+                      </TableCell>
+                      <TableCell>{report.organization}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {report.tags.slice(0, 2).map((tag, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {report.tags.length > 2 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{report.tags.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onViewSpecificReport?.(report.id)}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>보기</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onEditReport?.(report)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>수정</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="conferences" className="w-full">
         <TabsList className="grid w-full grid-cols-5">

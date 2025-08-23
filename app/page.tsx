@@ -11,7 +11,6 @@ import { AdminDashboard } from "@/components/admin-dashboard"
 import { AdminConferenceForm } from "@/components/admin-conference-form"
 import { AdminReportForm } from "@/components/admin-report-form"
 import { KeyboardGuide } from "@/components/keyboard-guide"
-import { PositionIndicator } from "@/components/position-indicator"
 import { MonthlyReports } from "@/components/monthly-reports"
 import { OrganizationReports } from "@/components/organization-reports"
 import { CategoryReports } from "@/components/category-reports"
@@ -19,10 +18,13 @@ import { StandardSearch } from "@/components/standard-search"
 import { TechAnalysis } from "@/components/tech-analysis"
 import { StandardTools } from "@/components/standard-tools"
 
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+
 // Configuration 기반 imports
-import { getTopLevelPages, getAllPageIds } from "@/config/navigation"
+import { getTopLevelPages, getAllPageIds, getNavigationTarget, getPageById } from "@/config/navigation"
 import { useKeyboardNavigation, usePageTransition } from "@/hooks/useNavigation"
 import { getPageClasses } from "@/utils/navigationUtils"
+import { cn } from "@/lib/utils"
 
 
 
@@ -676,34 +678,67 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card relative z-10">
-        <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold font-serif text-primary">메타버스 국제표준화 동향</h1>
-          <p className="text-muted-foreground mt-2">메타버스 관련 국제표준화 동향과 표준 검색 서비스</p>
+        <div className="container mx-auto px-4 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold font-serif text-primary">메타버스 국제표준화 플랫폼</h1>
+            <p className="text-muted-foreground mt-2">메타버스 관련 국제표준화 동향과 표준 검색 서비스</p>
+          </div>
+          <ThemeToggle />
         </div>
       </header>
 
       {/* Configuration 기반 자동 생성 네비게이션 */}
       <nav className="border-b border-border bg-muted/30 relative z-10" role="navigation" aria-label="주요 네비게이션">
-        <div className="container mx-auto px-4 py-3">
+        <div className="container mx-auto px-4 py-3 pt-7 pb-7">
           <div className="flex items-center gap-6">
             {getTopLevelPages().map((page) => {
               const Icon = page.icon
               const shortcut = page.shortcuts?.[0]
-              const isActive = page.id === "admin" ? currentView.startsWith("admin") : currentView === page.id
+              
+              // 현재 뷰가 이 페이지나 이 페이지의 하위 페이지인지 확인
+              const currentPage = getPageById(currentView)
+              const isInPageTree = page.id === "admin" 
+                ? currentView.startsWith("admin") 
+                : currentView === page.id || currentPage?.parent === page.id
+              
+              // 현재 뷰에 해당하는 페이지 정보 (하위 페이지면 하위 페이지 정보 사용)
+              const displayPage = isInPageTree && currentPage?.parent === page.id ? currentPage : page
+              
+              // 방향별 이동 가능 여부는 현재 뷰 기준으로 확인
+              const canGoUp = getNavigationTarget(currentView, 'up') !== undefined && isInPageTree
+              const canGoDown = getNavigationTarget(currentView, 'down') !== undefined && isInPageTree
               
               return (
-                <Button
-                  key={page.id}
-                  variant={isActive ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => navigateToPage(page.id)}
-                  className="flex items-center gap-2"
-                  aria-label={shortcut ? `${page.title} 페이지로 이동 (단축키: ${shortcut.key})` : `${page.title} 페이지로 이동`}
-                  accessKey={shortcut?.key}
-                >
-                  {Icon && <Icon className="w-4 h-4" />}
-                  {page.title}
-                </Button>
+                <div key={page.id} className="relative flex items-center">
+                  {/* 위쪽 방향 표시 - 절대 위치로 버튼 높이에 영향 없음 */}
+                  {canGoUp && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-sm text-primary font-bold pointer-events-none z-20">
+                      ▲
+                    </div>
+                  )}
+                  
+                  <Button
+                    variant={isInPageTree ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => navigateToPage(page.id)}
+                    className={cn(
+                      "flex items-center gap-2 relative",
+                      isInPageTree && "font-semibold shadow-md"
+                    )}
+                    aria-label={shortcut ? `${page.title} 페이지로 이동 (단축키: ${shortcut.key})` : `${page.title} 페이지로 이동`}
+                    accessKey={shortcut?.key}
+                  >
+                    {Icon && <Icon className="w-4 h-4" />}
+                    {displayPage?.title || page.title}
+                  </Button>
+                  
+                  {/* 아래쪽 방향 표시 - 절대 위치로 버튼 높이에 영향 없음 */}
+                  {canGoDown && (
+                    <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-sm text-primary font-bold pointer-events-none z-20">
+                      ▼
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>
@@ -713,7 +748,7 @@ export default function HomePage() {
       {/* Sliding page container */}
       <div className="page-container">
         {/* Calendar page */}
-        <div className={getPageClasses("calendar", currentView)}>
+        <div className={`${getPageClasses("calendar", currentView)} bg-pattern-grid`}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <CalendarComponent 
               conferences={conferences} 
@@ -726,7 +761,7 @@ export default function HomePage() {
         </div>
 
         {/* Report list page */}
-        <div className={getPageClasses("reports", currentView)}>
+        <div className={`${getPageClasses("reports", currentView)} bg-pattern-circuit`}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <ReportList 
               reports={reports} 
@@ -740,7 +775,7 @@ export default function HomePage() {
 
         {/* Report detail page */}
         {selectedReport && (
-          <div className={getPageClasses("report-detail", currentView)}>
+          <div className={`${getPageClasses("report-detail", currentView)} bg-pattern-constellation`}>
             <div className="container mx-auto px-4 py-6 pb-20">
               <ReportViewer
                 report={selectedReport}
@@ -754,47 +789,47 @@ export default function HomePage() {
         )}
 
         {/* Admin page */}
-        <div className={getPageClasses("admin", currentView)}>
+        <div className={`${getPageClasses("admin", currentView)} bg-admin-custom`}>
           <div className="container mx-auto px-4 py-6 pb-20">{renderAdmin()}</div>
         </div>
 
         {/* Monthly reports page */}
-        <div className={getPageClasses("monthly-reports", currentView)}>
+        <div className={`${getPageClasses("monthly-reports", currentView)} bg-pattern-grid`}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <MonthlyReports reports={reports} onReportClick={handleMonthlyReportSelect} />
           </div>
         </div>
 
         {/* Organization reports page */}
-        <div className={getPageClasses("organization-reports", currentView)}>
+        <div className={`${getPageClasses("organization-reports", currentView)} bg-pattern-circuit`}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <OrganizationReports reports={reports} onReportClick={handleOrganizationReportSelect} />
           </div>
         </div>
 
         {/* Category reports page */}
-        <div className={getPageClasses("category-reports", currentView)}>
+        <div className={`${getPageClasses("category-reports", currentView)} bg-pattern-constellation`}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <CategoryReports reports={reports} onReportClick={handleCategoryReportSelect} />
           </div>
         </div>
 
         {/* Tech analysis page */}
-        <div className={getPageClasses("tech-analysis", currentView)}>
+        <div className={`${getPageClasses("tech-analysis", currentView)} bg-pattern-hex`}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <TechAnalysis session={session} />
           </div>
         </div>
 
         {/* Standard search page */}
-        <div className={getPageClasses("standard-search", currentView)}>
+        <div className={`${getPageClasses("standard-search", currentView)} bg-pattern-grid`}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <StandardSearch />
           </div>
         </div>
 
         {/* Standard tools page */}
-        <div className={getPageClasses("standard-tools", currentView)}>
+        <div className={`${getPageClasses("standard-tools", currentView)} bg-pattern-circuit`}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <StandardTools />
           </div>
@@ -811,10 +846,6 @@ export default function HomePage() {
       </footer>
 
       <KeyboardGuide />
-      <PositionIndicator 
-        currentView={currentView}
-        onNavigate={navigateToPage}
-      />
 
       {/* 관리자 대시보드에서 보고서 뷰어 모달 */}
       {adminReportViewer && (
