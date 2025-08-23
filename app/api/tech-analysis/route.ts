@@ -121,33 +121,37 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
 
     console.log(`Synchronous processing for URL: ${url}`);
 
-    // Microlink 메타데이터 가져오기
+    // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
     let title, description, image;
     try {
-      const microlinkResponse = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
-      console.log('Microlink response status:', microlinkResponse.status);
+      const requestUrl = `http://u2pia-oracle2.duckdns.org:3100/api/metadata?url=${encodeURIComponent(url)}`;
+      console.log('Synchronous requesting URL:', requestUrl);
+      const microlinkResponse = await fetch(requestUrl);
+      console.log('Custom metadata service response status:', microlinkResponse.status);
       
       if (!microlinkResponse.ok) {
-        console.log('Microlink HTTP error, using fallback values');
+        console.log('Custom metadata service HTTP error, using fallback values');
         title = url;
         description = null;
         image = null;
       } else {
         const metadata = await microlinkResponse.json();
-        console.log('Microlink metadata status:', metadata.status);
+        console.log('Custom metadata service status:', metadata.status);
 
-        if (metadata.status !== 'success') {
-          console.log('Microlink parsing failed, using fallback values');
+        if (!metadata.status) {
+          console.log('Custom metadata service parsing failed, using fallback values');
           title = url;
           description = null;
           image = null;
         } else {
           console.log('Metadata data keys:', Object.keys(metadata.data || {}));
-          ({ title, description, image } = metadata.data);
+          title = metadata.data.title;
+          description = metadata.data.description;
+          image = metadata.data.image; // 직접 URL 문자열
         }
       }
     } catch (microlinkError) {
-      console.log('Microlink network error, using fallback values:', microlinkError);
+      console.log('Custom metadata service network error, using fallback values:', microlinkError);
       title = url;
       description = null;
       image = null;
@@ -174,7 +178,7 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
       url,
       title,
       summary,
-      image_url: image?.url || undefined,
+      image_url: image || undefined,
       category_name: categoryName || undefined,
       status: 'completed'
     });
@@ -205,33 +209,37 @@ async function processMetadataInBackground(reportId: number, url: string) {
 
     console.log(`Background processing for report ${reportId}, URL: ${url}`);
 
-    // Microlink 메타데이터 가져오기
+    // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
     let title, description, image;
     try {
-      const microlinkResponse = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
-      console.log('Background Microlink response status:', microlinkResponse.status);
+      const requestUrl = `http://u2pia-oracle2.duckdns.org:3100/api/metadata?url=${encodeURIComponent(url)}`;
+      console.log('Background requesting URL:', requestUrl);
+      const microlinkResponse = await fetch(requestUrl);
+      console.log('Background custom metadata service response status:', microlinkResponse.status);
       
       if (!microlinkResponse.ok) {
-        console.log('Background Microlink HTTP error, using fallback values');
+        console.log('Background custom metadata service HTTP error, using fallback values');
         title = url;
         description = null;
         image = null;
       } else {
         const metadata = await microlinkResponse.json();
-        console.log('Background Microlink metadata status:', metadata.status);
+        console.log('Background custom metadata service status:', metadata.status);
 
-        if (metadata.status !== 'success') {
-          console.log('Background Microlink parsing failed, using fallback values');
+        if (!metadata.status) {
+          console.log('Background custom metadata service parsing failed, using fallback values');
           title = url;
           description = null;
           image = null;
         } else {
           console.log('Background metadata data keys:', Object.keys(metadata.data || {}));
-          ({ title, description, image } = metadata.data);
+          title = metadata.data.title;
+          description = metadata.data.description;
+          image = metadata.data.image; // 직접 URL 문자열
         }
       }
     } catch (microlinkError) {
-      console.log('Background Microlink network error, using fallback values:', microlinkError);
+      console.log('Background custom metadata service network error, using fallback values:', microlinkError);
       title = url;
       description = null;
       image = null;
@@ -258,7 +266,7 @@ async function processMetadataInBackground(reportId: number, url: string) {
       await techAnalysisReportOperations.update(reportId, {
         title,
         summary,
-        image_url: image?.url || undefined,
+        image_url: image || undefined,
         category_name: categoryName || undefined,
         status: 'completed'
       });
