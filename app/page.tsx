@@ -11,6 +11,7 @@ import { AdminDashboard } from "@/components/admin-dashboard"
 import { AdminConferenceForm } from "@/components/admin-conference-form"
 import { AdminReportForm } from "@/components/admin-report-form"
 import { KeyboardGuide } from "@/components/keyboard-guide"
+import { PositionIndicator } from "@/components/position-indicator"
 import { MonthlyReports } from "@/components/monthly-reports"
 import { OrganizationReports } from "@/components/organization-reports"
 import { CategoryReports } from "@/components/category-reports"
@@ -810,6 +811,10 @@ export default function HomePage() {
       </footer>
 
       <KeyboardGuide />
+      <PositionIndicator 
+        currentView={currentView}
+        onNavigate={navigateToPage}
+      />
 
       {/* 관리자 대시보드에서 보고서 뷰어 모달 */}
       {adminReportViewer && (
