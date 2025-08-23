@@ -176,9 +176,9 @@ ${report.content}`
                     ul: ({children}) => <ul className="list-disc ml-6 mb-4 space-y-1 text-muted-foreground">{children}</ul>,
                     ol: ({children}) => <ol className="list-decimal ml-6 mb-4 space-y-1 text-muted-foreground">{children}</ol>,
                     li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                    strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>,
-                    em: ({children}) => <em className="italic text-gray-600">{children}</em>,
-                    code: ({children}) => <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-gray-800">{children}</code>,
+                    strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
+                    em: ({children}) => <em className="italic text-muted-foreground">{children}</em>,
+                    code: ({children}) => <code className="bg-muted px-2 py-1 rounded text-sm font-mono text-foreground">{children}</code>,
                   }}
                 >
                   {report.summary}
@@ -193,51 +193,51 @@ ${report.content}`
                 remarkPlugins={[remarkGfm]}
                 components={{
                   h1: ({children}) => (
-                    <h1 className="text-2xl font-bold mb-4 mt-8 text-gray-900 border-b border-gray-200 pb-2">
+                    <h1 className="text-2xl font-bold mb-4 mt-8 text-foreground border-b border-border pb-2">
                       {children}
                     </h1>
                   ),
                   h2: ({children}) => (
-                    <h2 className="text-xl font-semibold mb-3 mt-6 ml-4 text-gray-900">
+                    <h2 className="text-xl font-semibold mb-3 mt-6 ml-4 text-foreground">
                       {children}
                     </h2>
                   ),
                   h3: ({children}) => (
-                    <h3 className="text-lg font-semibold mb-2 mt-4 ml-8 text-gray-900">
+                    <h3 className="text-lg font-semibold mb-2 mt-4 ml-8 text-foreground">
                       {children}
                     </h3>
                   ),
-                  p: ({children}) => <p className="mb-4 leading-relaxed text-gray-700 whitespace-pre-wrap">{children}</p>,
-                  ul: ({children}) => <ul className="list-disc ml-12 mb-4 space-y-2 text-gray-700">{children}</ul>,
-                  ol: ({children}) => <ol className="list-decimal ml-12 mb-4 space-y-2 text-gray-700">{children}</ol>,
+                  p: ({children}) => <p className="mb-4 leading-relaxed text-foreground whitespace-pre-wrap">{children}</p>,
+                  ul: ({children}) => <ul className="list-disc ml-12 mb-4 space-y-2 text-foreground">{children}</ul>,
+                  ol: ({children}) => <ol className="list-decimal ml-12 mb-4 space-y-2 text-foreground">{children}</ol>,
                   li: ({children}) => <li className="leading-relaxed">{children}</li>,
                   blockquote: ({children}) => (
-                    <blockquote className="border-l-4 border-blue-200 pl-4 my-4 italic text-gray-600 bg-blue-50 py-2">
+                    <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-muted-foreground bg-muted py-2">
                       {children}
                     </blockquote>
                   ),
-                  strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>,
-                  em: ({children}) => <em className="italic text-gray-600">{children}</em>,
-                  code: ({children}) => <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-gray-800">{children}</code>,
+                  strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
+                  em: ({children}) => <em className="italic text-muted-foreground">{children}</em>,
+                  code: ({children}) => <code className="bg-muted px-2 py-1 rounded text-sm font-mono text-foreground">{children}</code>,
                   pre: ({children}) => (
-                    <pre className="bg-gray-100 p-4 rounded-lg overflow-x-auto my-4 border border-gray-200">
+                    <pre className="bg-muted p-4 rounded-lg overflow-x-auto my-4 border border-border">
                       {children}
                     </pre>
                   ),
                   table: ({children}) => (
                     <div className="overflow-x-auto my-4">
-                      <table className="min-w-full border-collapse border border-gray-300">
+                      <table className="min-w-full border-collapse border border-border">
                         {children}
                       </table>
                     </div>
                   ),
                   th: ({children}) => (
-                    <th className="border border-gray-300 px-4 py-2 bg-gray-100 font-semibold text-left">
+                    <th className="border border-border px-4 py-2 bg-muted font-semibold text-left text-foreground">
                       {children}
                     </th>
                   ),
                   td: ({children}) => (
-                    <td className="border border-gray-300 px-4 py-2">
+                    <td className="border border-border px-4 py-2 text-foreground">
                       {children}
                     </td>
                   ),
