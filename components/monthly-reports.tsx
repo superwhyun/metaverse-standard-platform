@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ChevronDown, ChevronUp, Calendar, FileText, Tag } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -15,38 +15,79 @@ interface Report {
   tags: string[]
 }
 
+interface MonthlyStats {
+  name: string
+  count: number
+  year: number
+  month: number
+}
+
 interface MonthlyReportsProps {
-  reports: Report[]
   onReportClick: (report: Report) => void
 }
 
-export function MonthlyReports({ reports, onReportClick }: MonthlyReportsProps) {
+export function MonthlyReports({ onReportClick }: MonthlyReportsProps) {
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
   const [expandedMonths, setExpandedMonths] = useState<string[]>([])
+  const [loadedReports, setLoadedReports] = useState<Record<string, Report[]>>({})
+  const [loadingMonths, setLoadingMonths] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Group reports by month
-  const reportsByMonth = reports.reduce(
-    (acc, report) => {
-      const date = new Date(report.date)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
-      const monthName = date.toLocaleDateString("ko-KR", { year: "numeric", month: "long" })
+  // Load monthly statistics on component mount
+  useEffect(() => {
+    loadMonthlyStats()
+  }, [])
 
-      if (!acc[monthKey]) {
-        acc[monthKey] = {
-          name: monthName,
-          reports: [],
-        }
+  const loadMonthlyStats = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/reports/stats/monthly')
+      const result = await response.json()
+      if (result.success) {
+        setMonthlyStats(result.data || [])
       }
-      acc[monthKey].reports.push(report)
-      return acc
-    },
-    {} as Record<string, { name: string; reports: Report[] }>,
-  )
+    } catch (error) {
+      console.error('Failed to load monthly stats:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-  // Sort months in descending order (most recent first)
-  const sortedMonths = Object.entries(reportsByMonth).sort(([a], [b]) => b.localeCompare(a))
+  const loadMonthReports = async (year: number, month: number) => {
+    const monthKey = `${year}-${String(month).padStart(2, '0')}`
+    
+    if (loadedReports[monthKey]) {
+      return // Already loaded
+    }
 
-  const toggleMonth = (monthKey: string) => {
-    setExpandedMonths((prev) => (prev.includes(monthKey) ? prev.filter((m) => m !== monthKey) : [...prev, monthKey]))
+    setLoadingMonths(prev => [...prev, monthKey])
+    try {
+      const response = await fetch(`/api/reports/by-month/${year}/${month}`)
+      const result = await response.json()
+      if (result.success) {
+        setLoadedReports(prev => ({
+          ...prev,
+          [monthKey]: result.data || []
+        }))
+      }
+    } catch (error) {
+      console.error('Failed to load month reports:', error)
+    } finally {
+      setLoadingMonths(prev => prev.filter(m => m !== monthKey))
+    }
+  }
+
+  const toggleMonth = async (stat: MonthlyStats) => {
+    const monthKey = `${stat.year}-${String(stat.month).padStart(2, '0')}`
+    
+    if (expandedMonths.includes(monthKey)) {
+      // Collapse - close this month
+      setExpandedMonths([])
+    } else {
+      // Expand - close all others and open this one
+      setExpandedMonths([monthKey])
+      await loadMonthReports(stat.year, stat.month)
+    }
   }
 
   return (
@@ -57,86 +98,122 @@ export function MonthlyReports({ reports, onReportClick }: MonthlyReportsProps) 
           <p className="text-muted-foreground">최근 등록된 메타버스 관련 표준화 동향 보고서를 월별로 확인하세요</p>
         </div>
 
-        <div className="space-y-4">
-          {sortedMonths.map(([monthKey, monthData]) => (
-            <Card key={monthKey} className="overflow-hidden">
-              <CardHeader
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => toggleMonth(monthKey)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5 text-primary" />
-                    <CardTitle className="text-xl">{monthData.name}</CardTitle>
-                    <Badge variant="secondary" className="ml-2">
-                      {monthData.reports.length}개 보고서
-                    </Badge>
-                  </div>
-                  {expandedMonths.includes(monthKey) ? (
-                    <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  )}
-                </div>
-              </CardHeader>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="text-center py-12">
+            <div className="w-8 h-8 border-4 border-gray-300 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="text-muted-foreground">월별 통계를 불러오는 중...</div>
+          </div>
+        )}
 
-              {expandedMonths.includes(monthKey) && (
-                <CardContent className="pt-0">
-                  <div className="space-y-4">
-                    {monthData.reports
-                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .map((report) => (
-                        <div
-                          key={report.id}
-                          className="border rounded-lg p-4 hover:bg-muted/30 cursor-pointer transition-colors"
-                          onClick={() => onReportClick(report)}
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <h3 className="font-semibold text-lg hover:text-primary transition-colors">
-                              {report.title}
-                            </h3>
-                            <Badge variant="outline" className="ml-2 shrink-0">
-                              {report.organization}
-                            </Badge>
-                          </div>
+        {/* Monthly Stats */}
+        {!isLoading && (
+          <div className="space-y-4">
+            {monthlyStats.map((stat) => {
+              const monthKey = `${stat.year}-${String(stat.month).padStart(2, '0')}`
+              const isExpanded = expandedMonths.includes(monthKey)
+              const isLoadingMonth = loadingMonths.includes(monthKey)
+              const reports = loadedReports[monthKey] || []
+              
+              return (
+                <Card key={monthKey} className="overflow-hidden">
+                  <CardHeader
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => toggleMonth(stat)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="w-5 h-5 text-primary" />
+                        <CardTitle className="text-xl">{stat.name}</CardTitle>
+                        <Badge variant="secondary" className="ml-2">
+                          {stat.count}개 보고서
+                        </Badge>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </CardHeader>
 
-                          <p className="text-muted-foreground text-sm mb-3 line-clamp-2">{report.summary}</p>
+                  {isExpanded && (
+                    <CardContent className="pt-0">
+                      {isLoadingMonth ? (
+                        <div className="text-center py-6">
+                          <div className="w-6 h-6 border-2 border-gray-300 border-t-primary rounded-full animate-spin mx-auto mb-2"></div>
+                          <div className="text-sm text-muted-foreground">보고서를 불러오는 중...</div>
+                        </div>
+                      ) : reports.length > 0 ? (
+                        <div className="space-y-4">
+                          {reports.map((report) => (
+                            <div
+                              key={report.id}
+                              className="border rounded-lg p-4 hover:bg-muted/30 cursor-pointer transition-colors"
+                              onClick={() => onReportClick(report)}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <h3 className="font-semibold text-lg hover:text-primary transition-colors">
+                                  {report.title}
+                                </h3>
+                                <Badge variant="outline" className="ml-2 shrink-0">
+                                  {report.organization}
+                                </Badge>
+                              </div>
 
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground">
-                                {new Date(report.date).toLocaleDateString("ko-KR")}
-                              </span>
-                              <Badge variant="secondary" className="text-xs">
-                                {report.category}
-                              </Badge>
-                            </div>
+                              <p className="text-muted-foreground text-sm mb-3 line-clamp-2">{report.summary}</p>
 
-                            <div className="flex items-center gap-1">
-                              <Tag className="w-3 h-3 text-muted-foreground" />
-                              <div className="flex gap-1">
-                                {(Array.isArray(report.tags) ? report.tags : []).slice(0, 2).map((tag) => (
-                                  <Badge key={tag} variant="outline" className="text-xs">
-                                    {tag}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="w-4 h-4 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground">
+                                    {new Date(report.date).toLocaleDateString("ko-KR")}
+                                  </span>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {report.category}
                                   </Badge>
-                                ))}
-                                {(Array.isArray(report.tags) ? report.tags : []).length > 2 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{(Array.isArray(report.tags) ? report.tags : []).length - 2}
-                                  </Badge>
-                                )}
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                  <Tag className="w-3 h-3 text-muted-foreground" />
+                                  <div className="flex gap-1">
+                                    {(Array.isArray(report.tags) ? report.tags : []).slice(0, 2).map((tag) => (
+                                      <Badge key={tag} variant="outline" className="text-xs">
+                                        {tag}
+                                      </Badge>
+                                    ))}
+                                    {(Array.isArray(report.tags) ? report.tags : []).length > 2 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        +{(Array.isArray(report.tags) ? report.tags : []).length - 2}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          ))}
-        </div>
+                      ) : (
+                        <div className="text-center py-6 text-muted-foreground">
+                          이 달에 등록된 보고서가 없습니다.
+                        </div>
+                      )}
+                    </CardContent>
+                  )}
+                </Card>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && monthlyStats.length === 0 && (
+          <div className="text-center py-12">
+            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <div className="text-lg font-medium mb-2">월별 보고서가 없습니다</div>
+            <div className="text-muted-foreground">보고서가 등록되면 여기에 월별로 표시됩니다.</div>
+          </div>
+        )}
 
         <div className="text-center mt-8 text-sm text-muted-foreground">
           <p>아래 화살표 키를 눌러 표준화 기구별 동향으로 이동하세요</p>

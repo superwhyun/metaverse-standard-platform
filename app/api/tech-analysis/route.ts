@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       return await processUrlSynchronously(url, techAnalysisReportOperations);
     }
 
-    // 지원: pending 레코드 생성 후 백그라운드 처리
-    console.log('requestContext.waitUntil detected: creating pending and scheduling background job');
+    // 지원: pending 레코드 생성 후 즉시 응답 반환, 백그라운드 처리는 비동기로 실행
+    console.log('requestContext.waitUntil detected: creating pending record');
     const pendingReport = await techAnalysisReportOperations.create({
       url,
       title: url,
@@ -87,18 +87,24 @@ export async function POST(request: NextRequest) {
       status: 'pending'
     });
 
+    // pending 레코드 생성 후 즉시 응답 반환
+    const response = NextResponse.json(pendingReport, { status: 201 });
+    
+    // 백그라운드 처리 스케줄링 (응답과 독립적으로 실행)
     if (pendingReport.id && waitUntilFn) {
+      console.log('Scheduling background processing for report ID:', pendingReport.id);
       try {
         waitUntilFn(processMetadataInBackground(Number(pendingReport.id), url));
       } catch (e) {
         console.warn('waitUntil enqueue failed, falling back to direct Promise:', e);
+        // 백그라운드 처리 실패 시에도 응답은 이미 반환됨
         processMetadataInBackground(Number(pendingReport.id), url).catch(err => {
           console.error('Background processing failed:', err);
         });
       }
     }
 
-    return NextResponse.json(pendingReport, { status: 201 });
+    return response;
   } catch (error) {
     console.error('Unexpected error in tech-analysis POST:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown server error';
@@ -151,7 +157,8 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
         }
       }
     } catch (microlinkError) {
-      console.log('Custom metadata service network error, using fallback values:', microlinkError);
+      console.log('Custom metadata service network error, using fallback values');
+      console.log('Error details:', microlinkError instanceof Error ? microlinkError.message : 'Unknown error');
       title = url;
       description = null;
       image = null;
@@ -197,22 +204,29 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
 
 // 백그라운드 메타데이터 처리 함수
 async function processMetadataInBackground(reportId: number, url: string) {
+  const startTime = Date.now();
+  console.log(`=== 백그라운드 처리 시작 ===`);
+  console.log(`Report ID: ${reportId}`);
+  console.log(`URL: ${url}`);
+  console.log(`시작 시간: ${new Date().toISOString()}`);
+  
   try {
     const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not available for background processing');
+      await updateReportToFailed(reportId, 'OpenAI API key not available');
       return;
     }
 
     const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
 
-    console.log(`Background processing for report ${reportId}, URL: ${url}`);
-
     // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
     let title, description, image;
     try {
       const requestUrl = `http://u2pia-oracle2.duckdns.org:3100/api/metadata?url=${encodeURIComponent(url)}`;
+      // const requestUrl = `http://localhost:3100/api/metadata?url=${encodeURIComponent(url)}`;
+
       console.log('Background requesting URL:', requestUrl);
       const microlinkResponse = await fetch(requestUrl);
       console.log('Background custom metadata service response status:', microlinkResponse.status);
@@ -239,7 +253,8 @@ async function processMetadataInBackground(reportId: number, url: string) {
         }
       }
     } catch (microlinkError) {
-      console.log('Background custom metadata service network error, using fallback values:', microlinkError);
+      console.log('Background custom metadata service network error, using fallback values');
+      console.log('Error details:', microlinkError instanceof Error ? microlinkError.message : 'Unknown error');
       title = url;
       description = null;
       image = null;
@@ -270,30 +285,40 @@ async function processMetadataInBackground(reportId: number, url: string) {
         category_name: categoryName || undefined,
         status: 'completed'
       });
-      console.log(`Background processing completed for report ${reportId}`);
+      
+      const endTime = Date.now();
+      const processingTime = endTime - startTime;
+      console.log(`=== 백그라운드 처리 완료 ===`);
+      console.log(`Report ID: ${reportId}`);
+      console.log(`처리 시간: ${processingTime}ms`);
+      console.log(`완료 시간: ${new Date().toISOString()}`);
+      console.log(`최종 제목: ${title}`);
+      console.log(`최종 카테고리: ${categoryName || '기타'}`);
+      
     } catch (updateError) {
       console.error(`Background DB update failed for report ${reportId}:`, updateError);
-      // 실패 상태로 업데이트
-      try {
-        await techAnalysisReportOperations.update(reportId, {
-          status: 'failed'
-        });
-      } catch (statusUpdateError) {
-        console.error('Failed to update status to failed:', statusUpdateError);
-      }
+      await updateReportToFailed(reportId, 'Database update failed');
     }
   } catch (error) {
     console.error(`Background processing error for report ${reportId}:`, error);
-    // 실패 상태로 업데이트 시도
-    try {
-      const db = await createDatabaseAdapter();
-      const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
-      await techAnalysisReportOperations.update(reportId, {
-        status: 'failed'
-      });
-    } catch (statusUpdateError) {
-      console.error('Failed to update status to failed:', statusUpdateError);
-    }
+    await updateReportToFailed(reportId, `Processing error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+// 실패 상태 업데이트 헬퍼 함수
+async function updateReportToFailed(reportId: number, errorMessage: string) {
+  try {
+    const db = await createDatabaseAdapter();
+    const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
+    await techAnalysisReportOperations.update(reportId, {
+      status: 'failed'
+    });
+    console.log(`=== 백그라운드 처리 실패 ===`);
+    console.log(`Report ID: ${reportId}`);
+    console.log(`실패 사유: ${errorMessage}`);
+    console.log(`실패 시간: ${new Date().toISOString()}`);
+  } catch (statusUpdateError) {
+    console.error(`Failed to update status to failed for report ${reportId}:`, statusUpdateError);
   }
 }
 

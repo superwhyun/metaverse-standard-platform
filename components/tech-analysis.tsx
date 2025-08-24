@@ -130,34 +130,30 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
 
     const interval = setInterval(async () => {
       try {
-        // pending 상태인 보고서들만 개별적으로 확인
-        const updatePromises = pendingReports.map(async (pendingReport) => {
-          const response = await fetch(`/api/tech-analysis?limit=100&offset=0`)
-          if (response.ok) {
-            const allReports = await response.json()
-            const updatedReport = allReports.find((r: TechReport) => r.id === pendingReport.id)
-            return updatedReport
-          }
-          return null
-        })
-
-        const updatedReports = await Promise.all(updatePromises)
-        
-        // 업데이트된 보고서들로 상태 갱신
-        setReports(prevReports => {
-          const newReports = [...prevReports]
-          updatedReports.forEach((updatedReport) => {
-            if (updatedReport) {
-              const index = newReports.findIndex(r => r.id === updatedReport.id)
-              if (index !== -1) {
-                newReports[index] = updatedReport
-              }
-            }
+        // 최근 보고서들만 가져와서 pending 보고서 상태 확인 (limit=20으로 제한)
+        const response = await fetch(`/api/tech-analysis?limit=20&offset=0`)
+        if (response.ok) {
+          const recentReports = await response.json()
+          
+          // pending 보고서들의 업데이트된 상태만 찾기
+          const updatedReports = pendingReports.map(pendingReport => {
+            return recentReports.find((r: TechReport) => r.id === pendingReport.id) || pendingReport
           })
-          return newReports
-        })
-
-        console.log(`Polling: 업데이트된 보고서 ${updatedReports.filter(r => r).length}개`)
+          
+          // 업데이트된 보고서들로 상태 갱신
+          setReports(prevReports => {
+            const newReports = [...prevReports]
+            updatedReports.forEach((updatedReport) => {
+              if (updatedReport) {
+                const index = newReports.findIndex(r => r.id === updatedReport.id)
+                if (index !== -1) {
+                  newReports[index] = updatedReport
+                }
+              }
+            })
+            return newReports
+          })
+        }
       } catch (error) {
         console.error('Polling error:', error)
       }
@@ -245,12 +241,17 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         throw new Error(errorData.message || 'Failed to add report')
       }
 
+      const newReport = await response.json()
       setNewUrl('')
+      
+      // 즉시 새 리포트를 목록 맨 앞에 추가
+      setReports(prev => [newReport, ...prev])
+      
       toast({
         title: '성공',
         description: '새로운 기술 소식을 추가했습니다.',
       })
-      await fetchReports(true, searchTerm, selectedCategoryName) // Refresh the list
+      
     } catch (err: any) {
       toast({
         title: '오류',

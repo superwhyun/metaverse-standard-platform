@@ -793,11 +793,7 @@ export default function HomePage() {
         <div className={`${getPageClasses("reports", currentView)} bg-pattern-circuit`}>
           <div className="container mx-auto px-4 py-6 pb-20">
             <ReportList 
-              reports={reports} 
               onReportClick={handleReportSelect}
-              onLoadMore={handleLoadMoreReports}
-              hasMore={hasMoreReports}
-              isLoadingMore={isLoadingMore}
             />
           </div>
         </div>
@@ -825,21 +821,21 @@ export default function HomePage() {
         {/* Monthly reports page */}
         <div className={`${getPageClasses("monthly-reports", currentView)} bg-pattern-grid`}>
           <div className="container mx-auto px-4 py-6 pb-20">
-            <MonthlyReports reports={reports} onReportClick={handleMonthlyReportSelect} />
+            <MonthlyReports onReportClick={handleMonthlyReportSelect} />
           </div>
         </div>
 
         {/* Organization reports page */}
         <div className={`${getPageClasses("organization-reports", currentView)} bg-pattern-circuit`}>
           <div className="container mx-auto px-4 py-6 pb-20">
-            <OrganizationReports reports={reports} onReportClick={handleOrganizationReportSelect} />
+            <OrganizationReports onReportClick={handleOrganizationReportSelect} />
           </div>
         </div>
 
         {/* Category reports page */}
         <div className={`${getPageClasses("category-reports", currentView)} bg-pattern-constellation`}>
           <div className="container mx-auto px-4 py-6 pb-20">
-            <CategoryReports reports={reports} onReportClick={handleCategoryReportSelect} />
+            <CategoryReports onReportClick={handleCategoryReportSelect} />
           </div>
         </div>
 
