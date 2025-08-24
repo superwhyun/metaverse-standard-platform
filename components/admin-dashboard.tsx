@@ -543,10 +543,34 @@ export function AdminDashboard({
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>보고서 관리</CardTitle>
-                <Button onClick={onAddReport}>
-                  <Plus className="w-4 h-4 mr-2" />새 보고서 등록
-                </Button>
+                <CardTitle>{formatCurrentMonth()} 보고서 관리</CardTitle>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handlePrevMonth}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <div className="flex items-center gap-2 min-w-[120px] justify-center">
+                      <Calendar className="w-4 h-4" />
+                      <span className="font-medium">{formatCurrentMonth()}</span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleNextMonth}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Button onClick={onAddReport}>
+                    <Plus className="w-4 h-4 mr-2" />새 보고서 등록
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>

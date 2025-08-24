@@ -13,8 +13,18 @@ export async function GET(request: NextRequest) {
     const includeContent = searchParams.get('includeContent') === 'true';
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+    const year = searchParams.get('year') ? parseInt(searchParams.get('year')!) : undefined;
+    const month = searchParams.get('month') ? parseInt(searchParams.get('month')!) : undefined;
     
-    const allReports = await reportOperations.getAll();
+    let allReports = await reportOperations.getAll();
+    
+    // 월별 필터링 적용
+    if (year && month) {
+      const yearMonth = `${year}-${String(month).padStart(2, '0')}`;
+      allReports = allReports.filter((report: any) => {
+        return report.date && report.date.startsWith(yearMonth);
+      });
+    }
 
     if (includeContent) {
       return NextResponse.json({ success: true, data: allReports });

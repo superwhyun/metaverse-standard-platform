@@ -94,30 +94,28 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
       }
     }
 
-    // Validate times for single-day conferences
+    // Validate times (optional, but if provided, must be valid)
     if (!isMultiDay) {
-      if (!formData.startTime.trim()) newErrors.startTime = "시작 시간을 입력해주세요"
-      if (!formData.endTime.trim()) newErrors.endTime = "종료 시간을 입력해주세요"
+      // 시간 형식 검증 (입력된 경우에만)
+      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
       
-      // Validate time format and logic
-      if (formData.startTime && formData.endTime) {
-        const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
-        if (!timeRegex.test(formData.startTime)) {
-          newErrors.startTime = "올바른 시간 형식을 입력해주세요 (HH:MM)"
-        }
-        if (!timeRegex.test(formData.endTime)) {
-          newErrors.endTime = "올바른 시간 형식을 입력해주세요 (HH:MM)"
-        }
+      if (formData.startTime && !timeRegex.test(formData.startTime)) {
+        newErrors.startTime = "올바른 시간 형식을 입력해주세요 (HH:MM)"
+      }
+      if (formData.endTime && !timeRegex.test(formData.endTime)) {
+        newErrors.endTime = "올바른 시간 형식을 입력해주세요 (HH:MM)"
+      }
+      
+      // 둘 다 입력된 경우에만 시간 순서 검증
+      if (formData.startTime && formData.endTime && 
+          timeRegex.test(formData.startTime) && timeRegex.test(formData.endTime)) {
+        const [startHour, startMin] = formData.startTime.split(':').map(Number)
+        const [endHour, endMin] = formData.endTime.split(':').map(Number)
+        const startMinutes = startHour * 60 + startMin
+        const endMinutes = endHour * 60 + endMin
         
-        if (timeRegex.test(formData.startTime) && timeRegex.test(formData.endTime)) {
-          const [startHour, startMin] = formData.startTime.split(':').map(Number)
-          const [endHour, endMin] = formData.endTime.split(':').map(Number)
-          const startMinutes = startHour * 60 + startMin
-          const endMinutes = endHour * 60 + endMin
-          
-          if (endMinutes <= startMinutes) {
-            newErrors.endTime = "종료 시간은 시작 시간보다 늦어야 합니다"
-          }
+        if (endMinutes <= startMinutes) {
+          newErrors.endTime = "종료 시간은 시작 시간보다 늦어야 합니다"
         }
       }
     }
@@ -134,7 +132,35 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
   }
 
   const handleInputChange = (field: keyof ConferenceFormData, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value }
+      
+      // 시작 날짜 선택 시 종료 날짜 자동 설정 (종료 날짜가 비어있는 경우에만)
+      if (field === 'startDate' && typeof value === 'string' && value && !prev.endDate) {
+        newData.endDate = value
+      }
+      
+      // 시작 시간 선택 시 종료 시간 자동 설정 (+2시간, 종료 시간이 비어있는 경우에만)
+      if (field === 'startTime' && typeof value === 'string' && value && !prev.endTime) {
+        const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
+        const match = value.match(timeRegex)
+        
+        if (match) {
+          const startHour = parseInt(match[1])
+          const startMin = parseInt(match[2])
+          const endHour = (startHour + 2) % 24
+          
+          // 시간을 2자리로 포맷팅
+          const formattedEndHour = String(endHour).padStart(2, '0')
+          const formattedEndMin = String(startMin).padStart(2, '0')
+          
+          newData.endTime = `${formattedEndHour}:${formattedEndMin}`
+        }
+      }
+      
+      return newData
+    })
+    
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }))
     }
@@ -231,7 +257,7 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="startTime">시작 시간 {!isMultiDay && "*"}</Label>
+                <Label htmlFor="startTime">시작 시간</Label>
                 <Input
                   id="startTime"
                   type="time"
@@ -239,13 +265,13 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
                   onChange={(e) => handleInputChange("startTime", e.target.value)}
                   className={errors.startTime ? "border-destructive" : ""}
                   disabled={isMultiDay}
-                  placeholder={isMultiDay ? "종일 회의" : ""}
+                  placeholder={isMultiDay ? "종일 회의" : "선택사항"}
                 />
                 {errors.startTime && <p className="text-sm text-destructive">{errors.startTime}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="endTime">종료 시간 {!isMultiDay && "*"}</Label>
+                <Label htmlFor="endTime">종료 시간</Label>
                 <Input
                   id="endTime"
                   type="time"
@@ -253,7 +279,7 @@ export function AdminConferenceForm({ onSave, onCancel, initialData, isEdit = fa
                   onChange={(e) => handleInputChange("endTime", e.target.value)}
                   className={errors.endTime ? "border-destructive" : ""}
                   disabled={isMultiDay}
-                  placeholder={isMultiDay ? "종일 회의" : ""}
+                  placeholder={isMultiDay ? "종일 회의" : "선택사항"}
                 />
                 {errors.endTime && <p className="text-sm text-destructive">{errors.endTime}</p>}
               </div>

@@ -154,14 +154,19 @@ export default function HomePage() {
     }
   };
 
-  // Load reports from database - 최적화된 버전 (content 제외)
-  const loadReports = async (reset = true) => {
+  // Load reports from database - 월별 최적화 버전 (content 제외)
+  const loadReports = async (year?: number, month?: number, reset = true) => {
     try {
       const offset = reset ? 0 : currentOffset;
       const limit = 50;
       
-      // 리스트용 API - content 제외하고 빠른 로딩
-      const response = await fetch(`/api/reports?limit=${limit}&offset=${offset}`);
+      // 월별 파라미터 구성
+      const now = new Date();
+      const targetYear = year || now.getFullYear();
+      const targetMonth = month || (now.getMonth() + 1);
+      
+      // 리스트용 API - content 제외하고 빠른 로딩 (월별 필터링 포함)
+      const response = await fetch(`/api/reports?limit=${limit}&offset=${offset}&year=${targetYear}&month=${targetMonth}`);
       if (response.ok) {
         const result = await response.json();
         // Transform database data to frontend format
@@ -246,8 +251,10 @@ export default function HomePage() {
 
   useEffect(() => {
     const now = new Date();
-    loadConferences(now.getFullYear(), now.getMonth() + 1);
-    loadReports();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    loadConferences(currentYear, currentMonth);
+    loadReports(currentYear, currentMonth);
   }, []);
 
   // Configuration 기반 키보드 네비게이션 사용
@@ -358,6 +365,7 @@ export default function HomePage() {
   // Handle calendar month change
   const handleCalendarMonthChange = (year: number, month: number) => {
     loadConferences(year, month);
+    loadReports(year, month);
   }
 
   // 더보기 버튼 핸들러 - DB에서 추가 보고서 로딩
@@ -366,7 +374,8 @@ export default function HomePage() {
     
     setIsLoadingMore(true)
     try {
-      await loadReports(false) // reset=false로 추가 로딩
+      const now = new Date();
+      await loadReports(now.getFullYear(), now.getMonth() + 1, false) // reset=false로 추가 로딩
     } finally {
       setIsLoadingMore(false)
     }
@@ -433,9 +442,10 @@ export default function HomePage() {
 
         if (response.ok) {
           const result = await response.json();
-          // Reload both reports and conferences to get fresh data from database
-          await loadReports();
-          await loadConferences(); // 회의의 보고서 정보 업데이트
+          // Reload both reports and conferences to get fresh data from database (with current month)
+          const now = new Date();
+          await loadReports(now.getFullYear(), now.getMonth() + 1);
+          await loadConferences(now.getFullYear(), now.getMonth() + 1); // 회의의 보고서 정보 업데이트
         } else {
           console.error('Failed to update report');
         }
@@ -451,9 +461,10 @@ export default function HomePage() {
 
         if (response.ok) {
           const result = await response.json();
-          // Reload both reports and conferences to get fresh data from database
-          await loadReports();
-          await loadConferences(); // 회의의 보고서 정보 업데이트
+          // Reload both reports and conferences to get fresh data from database (with current month)
+          const now = new Date();
+          await loadReports(now.getFullYear(), now.getMonth() + 1);
+          await loadConferences(now.getFullYear(), now.getMonth() + 1); // 회의의 보고서 정보 업데이트
         } else {
           console.error('Failed to create report');
         }
@@ -490,9 +501,10 @@ export default function HomePage() {
       });
 
       if (response.ok) {
-        // Reload both reports and conferences to get fresh data from database
-        await loadReports();
-        await loadConferences(); // 회의의 보고서 정보 업데이트
+        // Reload both reports and conferences to get fresh data from database (with current month)
+        const now = new Date();
+        await loadReports(now.getFullYear(), now.getMonth() + 1);
+        await loadConferences(now.getFullYear(), now.getMonth() + 1); // 회의의 보고서 정보 업데이트
       } else {
         console.error('Failed to delete report');
       }
