@@ -130,7 +130,7 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
     // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
     let title, description, image;
     try {
-      const requestUrl = `http://xtandards.is-an.ai/:3100/api/metadata?url=${encodeURIComponent(url)}`;
+      const requestUrl = `http://xtandards.is-an.ai:3100/api/metadata?url=${encodeURIComponent(url)}`;
       console.log('Synchronous requesting URL:', requestUrl);
       const microlinkResponse = await fetch(requestUrl);
       console.log('Custom metadata service response status:', microlinkResponse.status);
@@ -224,7 +224,7 @@ async function processMetadataInBackground(reportId: number, url: string) {
     // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
     let title, description, image;
     try {
-      const requestUrl = `http://u2pia-oracle2.duckdns.org:3100/api/metadata?url=${encodeURIComponent(url)}`;
+      const requestUrl = `http://xtandards.is-an.ai:3100/api/metadata?url=${encodeURIComponent(url)}`;
       // const requestUrl = `http://localhost:3100/api/metadata?url=${encodeURIComponent(url)}`;
 
       console.log('Background requesting URL:', requestUrl);
