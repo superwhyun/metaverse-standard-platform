@@ -97,33 +97,24 @@ ${categoryList}
       return '기타';
     }
 
-    console.log('=== 카테고리 매칭 과정 ===');
-    console.log('사용 가능한 카테고리:', categories.map(cat => cat.name).join(', '));
     
     // 정확한 매칭 확인
-    console.log('1단계: 정확한 매칭 확인 중...');
     const exactMatch = categories.find(cat => cat.name === cleanedResponse);
     if (exactMatch) {
-      console.log(`✓ 정확한 매칭 발견: "${cleanedResponse}"`);
       return cleanedResponse;
     }
-    console.log('✗ 정확한 매칭 없음');
 
     // 부분 매칭 확인 (대소문자 무시)
-    console.log('2단계: 부분 매칭 확인 중...');
     const partialMatch = categories.find(cat => 
       cat.name.toLowerCase().includes(cleanedResponse.toLowerCase()) || 
       cleanedResponse.toLowerCase().includes(cat.name.toLowerCase())
     );
     
     if (partialMatch) {
-      console.log(`✓ 부분 매칭 발견: "${cleanedResponse}" -> "${partialMatch.name}"`);
       return partialMatch.name;
     }
-    console.log('✗ 부분 매칭 없음');
 
     // 카테고리 목록에서 가장 유사한 카테고리 찾기 (간단한 키워드 매칭)
-    console.log('3단계: 키워드 매칭 확인 중...');
     const keywordMatch = categories.find(cat => {
       const catKeywords = cat.name.split(' ');
       const responseKeywords = cleanedResponse.split(' ');
@@ -133,7 +124,6 @@ ${categoryList}
           respKeyword.toLowerCase().includes(keyword.toLowerCase())
         )
       );
-      console.log(`키워드 매칭 테스트: "${cat.name}" vs "${cleanedResponse}" = ${hasMatch}`);
       return hasMatch;
     });
 
