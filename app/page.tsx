@@ -43,7 +43,6 @@ export default function HomePage() {
   const [allReports, setAllReports] = useState<any[]>([])
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [conferencesCache, setConferencesCache] = useState<Map<string, any[]>>(new Map())
   const [isLoadingConferences, setIsLoadingConferences] = useState(false)
   const [adminReportViewer, setAdminReportViewer] = useState<any>(null) // 관리자에서 보는 보고서
   const [monthlyReportViewer, setMonthlyReportViewer] = useState<any>(null) // 월별 동향에서 보는 보고서
@@ -113,19 +112,11 @@ export default function HomePage() {
     }
   };
 
-  // Load conferences from database with monthly optimization and caching
-  const loadConferences = async (year?: number, month?: number, forceReload = false) => {
+  // Load conferences from database with monthly optimization
+  const loadConferences = async (year?: number, month?: number) => {
     const now = new Date();
     const targetYear = year || now.getFullYear();
     const targetMonth = month || (now.getMonth() + 1);
-    const cacheKey = `${targetYear}-${targetMonth}`;
-    
-    // Check cache first
-    if (!forceReload && conferencesCache.has(cacheKey)) {
-      setConferences(conferencesCache.get(cacheKey) || []);
-      setIsLoading(false);
-      return;
-    }
 
     setIsLoadingConferences(true);
     try {
@@ -133,13 +124,6 @@ export default function HomePage() {
       if (response.ok) {
         const result = await response.json();
         const conferenceData = result.data || [];
-        
-        // Update cache
-        const newCache = new Map(conferencesCache);
-        newCache.set(cacheKey, conferenceData);
-        setConferencesCache(newCache);
-        
-        // Set current conferences
         setConferences(conferenceData);
       } else {
         console.error('Failed to load conferences');
@@ -401,108 +385,93 @@ export default function HomePage() {
 
   const handleSaveConference = async (data: any) => {
     try {
-      if (selectedConference) {
-        // Edit existing conference
-        const response = await fetch(`/api/conferences/${selectedConference.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        });
+      const isEdit = !!selectedConference;
+      const url = isEdit ? `/api/conferences/${selectedConference.id}` : '/api/conferences';
+      const method = isEdit ? 'PUT' : 'POST';
 
-        if (response.ok) {
-          const result = await response.json();
-          // Reload conferences to get fresh data from database (force reload)
-          const now = new Date();
-          await loadConferences(now.getFullYear(), now.getMonth() + 1, true);
-        } else {
-          console.error('Failed to update conference');
-        }
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        // BUG FIX: Reload the month of the saved conference, not the current month
+        const conferenceDate = new Date(data.startDate);
+        const targetYear = conferenceDate.getFullYear();
+        const targetMonth = conferenceDate.getMonth() + 1;
+        await loadConferences(targetYear, targetMonth);
+        
+        // Also refresh the main calendar if the view is different
+        await handleAdminMonthChange(targetYear, targetMonth);
+
       } else {
-        // Add new conference
-        const response = await fetch('/api/conferences', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          // Reload conferences to get fresh data from database (force reload)
-          const now = new Date();
-          await loadConferences(now.getFullYear(), now.getMonth() + 1, true);
-        } else {
-          console.error('Failed to create conference');
-        }
+        const errorData = await response.json();
+        console.error('Failed to save conference:', errorData.error || response.statusText);
+        // TODO: Display error message to the user
       }
-      setCurrentView("admin")
-      setSelectedConference(null)
+
+      setCurrentView("admin");
+      setSelectedConference(null);
     } catch (error) {
       console.error('Error saving conference:', error);
     }
-  }
+  };
 
   const handleSaveReport = async (data: any) => {
     try {
-      if (selectedReport && currentView === "admin-edit-report") {
-        // Edit existing report
-        const response = await fetch(`/api/reports/${selectedReport.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        });
+      const isEdit = selectedReport && currentView === "admin-edit-report";
+      const url = isEdit ? `/api/reports/${selectedReport.id}` : '/api/reports';
+      const method = isEdit ? 'PUT' : 'POST';
 
-        if (response.ok) {
-          const result = await response.json();
-          // Reload both reports and conferences to get fresh data from database
-          await loadReports(); // 전체 데이터로 다시 로드
-          const now = new Date();
-          await loadConferences(now.getFullYear(), now.getMonth() + 1); // 회의의 보고서 정보 업데이트
-        } else {
-          console.error('Failed to update report');
-        }
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        // BUG FIX: Reload the month of the saved report
+        const reportDate = new Date(data.date);
+        const targetYear = reportDate.getFullYear();
+        const targetMonth = reportDate.getMonth() + 1;
+
+        // Reload reports and conferences for the specific month
+        await loadAdminReports(targetYear, targetMonth);
+        await loadConferences(targetYear, targetMonth);
+
       } else {
-        // Add new report
-        const response = await fetch('/api/reports', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          // Reload both reports and conferences to get fresh data from database
-          await loadReports(); // 전체 데이터로 다시 로드
-          const now = new Date();
-          await loadConferences(now.getFullYear(), now.getMonth() + 1); // 회의의 보고서 정보 업데이트
-        } else {
-          console.error('Failed to create report');
-        }
+        const errorData = await response.json();
+        console.error('Failed to save report:', errorData.error || response.statusText);
+        // TODO: Display error message to the user
       }
-      setCurrentView("admin")
-      setSelectedReport(null)
+
+      setCurrentView("admin");
+      setSelectedReport(null);
     } catch (error) {
       console.error('Error saving report:', error);
     }
-  }
+  };
 
   const handleDeleteConference = async (id: number) => {
     try {
+      // Find the conference to get its date before deleting
+      const conferenceToDelete = conferences.find(c => c.id === id) || allConferences.find(c => c.id === id);
+      const conferenceDate = conferenceToDelete ? new Date(conferenceToDelete.startDate || conferenceToDelete.date) : new Date();
+      
       const response = await fetch(`/api/conferences/${id}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        // Reload conferences to get fresh data from database (force reload)
-        const now = new Date();
-        await loadConferences(now.getFullYear(), now.getMonth() + 1, true);
+        const targetYear = conferenceDate.getFullYear();
+        const targetMonth = conferenceDate.getMonth() + 1;
+        await loadConferences(targetYear, targetMonth);
+        await handleAdminMonthChange(targetYear, targetMonth);
       } else {
         console.error('Failed to delete conference');
       }
@@ -513,15 +482,19 @@ export default function HomePage() {
 
   const handleDeleteReport = async (id: number) => {
     try {
+      // Find the report to get its date before deleting
+      const reportToDelete = reports.find(r => r.id === id) || allReports.find(r => r.id === id);
+      const reportDate = reportToDelete ? new Date(reportToDelete.date) : new Date();
+
       const response = await fetch(`/api/reports/${id}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        // Reload both reports and conferences to get fresh data from database
-        await loadReports(); // 전체 데이터로 다시 로드
-        const now = new Date();
-        await loadConferences(now.getFullYear(), now.getMonth() + 1); // 회의의 보고서 정보 업데이트
+        const targetYear = reportDate.getFullYear();
+        const targetMonth = reportDate.getMonth() + 1;
+        await loadAdminReports(targetYear, targetMonth);
+        await loadConferences(targetYear, targetMonth);
       } else {
         console.error('Failed to delete report');
       }
