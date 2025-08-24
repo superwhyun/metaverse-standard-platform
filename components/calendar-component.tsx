@@ -189,11 +189,11 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
                           <MapPin className="w-3 h-3" />
                           <span>{conference.location}</span>
                         </div>
-                        <div className="text-muted-foreground">주최: {conference.organization}</div>
+                        <div className="text-primary">주최: {conference.organization}</div>
                         {conference.description && (
                           <div className="text-sm border-t pt-2 mt-2">
                             <div className="font-medium mb-1">회의 설명</div>
-                            <div className="text-muted-foreground">{conference.description}</div>
+                            <div className="text-foreground">{conference.description}</div>
                           </div>
                         )}
                         {conference.reports && conference.reports.length > 0 && (
