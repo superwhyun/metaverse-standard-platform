@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // 새 비밀번호 해싱 및 업데이트
     const hashedNewPassword = await hashPassword(newPassword);
-    const updateQuery = db.prepare('UPDATE users SET password_hash = ?, updated_at = datetime("now") WHERE id = ?');
+    const updateQuery = db.prepare('UPDATE users SET password_hash = ? WHERE id = ?');
     await updateQuery.run([hashedNewPassword, session.user.id]);
 
     return NextResponse.json({

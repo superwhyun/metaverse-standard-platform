@@ -172,7 +172,7 @@ export default function AdminSettingsPage() {
             <div className="mt-6 pt-6 border-t">
               <Button 
                 variant="outline" 
-                onClick={() => router.push('/admin')}
+                onClick={() => router.back()}
                 className="w-full"
               >
                 관리자 대시보드로 돌아가기
