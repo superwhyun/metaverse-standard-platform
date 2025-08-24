@@ -154,19 +154,21 @@ export default function HomePage() {
     }
   };
 
-  // Load reports from database - 월별 최적화 버전 (content 제외)
+  // Load reports from database - 전체 또는 월별 로딩 (content 제외)
   const loadReports = async (year?: number, month?: number, reset = true) => {
     try {
       const offset = reset ? 0 : currentOffset;
       const limit = 50;
       
-      // 월별 파라미터 구성
-      const now = new Date();
-      const targetYear = year || now.getFullYear();
-      const targetMonth = month || (now.getMonth() + 1);
+      let apiUrl = `/api/reports?limit=${limit}&offset=${offset}`;
       
-      // 리스트용 API - content 제외하고 빠른 로딩 (월별 필터링 포함)
-      const response = await fetch(`/api/reports?limit=${limit}&offset=${offset}&year=${targetYear}&month=${targetMonth}`);
+      // year와 month가 모두 제공된 경우에만 월별 필터링 적용
+      if (year && month) {
+        apiUrl += `&year=${year}&month=${month}`;
+      }
+      
+      // 리스트용 API - content 제외하고 빠른 로딩
+      const response = await fetch(apiUrl);
       if (response.ok) {
         const result = await response.json();
         // Transform database data to frontend format
@@ -253,8 +255,10 @@ export default function HomePage() {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
+    // 회의는 캘린더를 위해 월별 로드
     loadConferences(currentYear, currentMonth);
-    loadReports(currentYear, currentMonth);
+    // 보고서는 전체 로드 (일반 사용자 페이지들이 전체 데이터를 사용)
+    loadReports();
   }, []);
 
   // Configuration 기반 키보드 네비게이션 사용
@@ -270,9 +274,12 @@ export default function HomePage() {
         setSelectedReport(null)
       }
       if (newView === "admin") {
-        // 관리자 페이지 진입 시 전체 데이터 로드
+        // 관리자 페이지 진입 시 통계용 전체 데이터와 현재 월 관리 데이터 로드
         loadAllConferences()
         loadAllReports()
+        // 현재 월의 관리용 데이터 로드
+        const now = new Date();
+        loadAdminReports(now.getFullYear(), now.getMonth() + 1)
       }
       if (newView === "report-detail") {
         // report-detail로 갈 때는 selectedReport이 있어야 함
@@ -362,20 +369,30 @@ export default function HomePage() {
     }
   }
 
-  // Handle calendar month change
+  // Handle calendar month change (회의만 월별 로드)
   const handleCalendarMonthChange = (year: number, month: number) => {
     loadConferences(year, month);
-    loadReports(year, month);
+    // 보고서는 전체 데이터를 유지 (캘린더에서는 전체 보고서 표시)
   }
 
-  // 더보기 버튼 핸들러 - DB에서 추가 보고서 로딩
+  // 관리자 대시보드 전용 월 변경 핸들러
+  const handleAdminMonthChange = (year: number, month: number) => {
+    loadConferences(year, month);
+    loadAdminReports(year, month);
+  }
+
+  // 관리자 대시보드 전용 월별 보고서 로딩
+  const loadAdminReports = async (year: number, month: number) => {
+    await loadReports(year, month, true) // 월별 필터링하여 로드
+  }
+
+  // 더보기 버튼 핸들러 - DB에서 추가 보고서 로딩 (전체 데이터)
   const handleLoadMoreReports = async () => {
     if (isLoadingMore || !hasMoreReports) return
     
     setIsLoadingMore(true)
     try {
-      const now = new Date();
-      await loadReports(now.getFullYear(), now.getMonth() + 1, false) // reset=false로 추가 로딩
+      await loadReports(undefined, undefined, false) // 전체 데이터에서 추가 로딩
     } finally {
       setIsLoadingMore(false)
     }
@@ -442,9 +459,9 @@ export default function HomePage() {
 
         if (response.ok) {
           const result = await response.json();
-          // Reload both reports and conferences to get fresh data from database (with current month)
+          // Reload both reports and conferences to get fresh data from database
+          await loadReports(); // 전체 데이터로 다시 로드
           const now = new Date();
-          await loadReports(now.getFullYear(), now.getMonth() + 1);
           await loadConferences(now.getFullYear(), now.getMonth() + 1); // 회의의 보고서 정보 업데이트
         } else {
           console.error('Failed to update report');
@@ -461,9 +478,9 @@ export default function HomePage() {
 
         if (response.ok) {
           const result = await response.json();
-          // Reload both reports and conferences to get fresh data from database (with current month)
+          // Reload both reports and conferences to get fresh data from database
+          await loadReports(); // 전체 데이터로 다시 로드
           const now = new Date();
-          await loadReports(now.getFullYear(), now.getMonth() + 1);
           await loadConferences(now.getFullYear(), now.getMonth() + 1); // 회의의 보고서 정보 업데이트
         } else {
           console.error('Failed to create report');
@@ -501,9 +518,9 @@ export default function HomePage() {
       });
 
       if (response.ok) {
-        // Reload both reports and conferences to get fresh data from database (with current month)
+        // Reload both reports and conferences to get fresh data from database
+        await loadReports(); // 전체 데이터로 다시 로드
         const now = new Date();
-        await loadReports(now.getFullYear(), now.getMonth() + 1);
         await loadConferences(now.getFullYear(), now.getMonth() + 1); // 회의의 보고서 정보 업데이트
       } else {
         console.error('Failed to delete report');
@@ -674,7 +691,7 @@ export default function HomePage() {
                   }
                 }
               }}
-              onMonthChange={handleCalendarMonthChange}
+              onMonthChange={handleAdminMonthChange}
               session={session}
               onLogout={async () => {
                 await signOut()

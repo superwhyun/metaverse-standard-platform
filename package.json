@@ -10,7 +10,9 @@
     "dev:cloudflare": "wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --port=3001",
     "dev:cloudflare-auto": "nodemon --exec \"npm run build:cloudflare && npm run dev:cloudflare\" --watch \"app/**/*\" --watch \"components/**/*\" --watch \"lib/**/*\" --watch \"config/**/*\" --watch \"hooks/**/*\" --watch \"utils/**/*\" --ext \"ts,tsx,js,jsx\" --delay 2",
     "preview": "CF_PAGES=1 wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --port=3002 --d1 MSP=5bca3ce1-0488-47bb-95ec-3d8cbb347c43",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync-db": "./sync-db.sh",
+    "sync-db:simple": "./sync-db-simple.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
