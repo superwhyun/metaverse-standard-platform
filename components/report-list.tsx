@@ -239,7 +239,7 @@ export function ReportList({ onReportClick }: ReportListProps) {
           {displayReports.map((report) => (
           <Card
             key={report.id}
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group"
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group border border-border/50 dark:border-gray-600/50 hover:border-primary/50 dark:hover:border-primary/70"
             onClick={() => onReportClick(report)}
           >
             <CardHeader className="pb-3">

@@ -127,7 +127,7 @@ const ToolCard = ({ tool }: { tool: ToolItem }) => {
 
   return (
     <Card 
-      className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border-border/50"
+      className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border border-border/50 dark:border-gray-600/50 hover:border-primary/50 dark:hover:border-primary/70"
       onClick={handleClick}
     >
       <CardHeader className="pb-3">
