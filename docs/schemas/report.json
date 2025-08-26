@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://metaverse-standards-platform.com/schemas/report.json",
+  "title": "Report Schema",
+  "description": "메타버스 국제표준화 플랫폼 보고서 데이터 스키마",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer",
+      "description": "보고서 고유 식별자",
+      "minimum": 1,
+      "readOnly": true
+    },
+    "title": {
+      "type": "string",
+      "description": "보고서 제목",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "date": {
+      "type": "string",
+      "description": "보고서 날짜",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "summary": {
+      "type": "string",
+      "description": "보고서 요약",
+      "minLength": 10,
+      "maxLength": 1000
+    },
+    "content": {
+      "type": "string",
+      "description": "보고서 본문 내용 (마크다운 지원)",
+      "minLength": 50
+    },
+    "category": {
+      "type": "string",
+      "description": "보고서 카테고리",
+      "enum": [
+        "표준",
+        "정책",
+        "기술동향",
+        "시장동향",
+        "연구개발",
+        "규제",
+        "국제협력",
+        "기타"
+      ]
+    },
+    "organization": {
+      "type": "string",
+      "description": "작성 기관명",
+      "minLength": 1,
+      "maxLength": 100,
+      "examples": [
+        "ITU",
+        "ISO", 
+        "IEEE",
+        "ETSI",
+        "3GPP",
+        "ETRI",
+        "KITECH",
+        "KISA"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "description": "태그 배열",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 50
+      },
+      "maxItems": 20,
+      "uniqueItems": true,
+      "examples": [
+        ["메타버스", "표준화", "VR", "AR"]
+      ]
+    },
+    "downloadUrl": {
+      "type": ["string", "null"],
+      "description": "보고서 다운로드 링크",
+      "format": "uri",
+      "pattern": "^https?://.*\\.(pdf|doc|docx|ppt|pptx)$"
+    },
+    "conferenceId": {
+      "type": ["integer", "null"],
+      "description": "연관된 회의 ID",
+      "minimum": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "생성 일시",
+      "format": "date-time",
+      "readOnly": true
+    },
+    "updatedAt": {
+      "type": "string", 
+      "description": "수정 일시",
+      "format": "date-time",
+      "readOnly": true
+    }
+  },
+  "required": [
+    "title",
+    "date", 
+    "summary",
+    "content",
+    "category",
+    "organization"
+  ],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "title": "ITU-T SG16 메타버스 표준화 현황",
+      "date": "2024-08-24",
+      "summary": "ITU-T Study Group 16에서 진행 중인 메타버스 관련 표준화 작업의 현황을 정리한 보고서입니다.",
+      "content": "## 개요\n\nITU-T Study Group 16은 멀티미디어 서비스, 시스템 및 애플리케이션에 대한 표준화를 담당하는 연구반입니다.\n\n### 주요 표준화 작업\n\n1. F.748.1 - Requirements for immersive services\n2. F.748.2 - Framework for immersive services\n\n## 결론\n\n메타버스 표준화는 계속 진행 중입니다.",
+      "category": "표준",
+      "organization": "ITU",
+      "tags": ["메타버스", "ITU-T", "SG16", "표준화", "몰입형서비스"],
+      "downloadUrl": "https://example.com/reports/itu-sg16-metaverse-2024.pdf",
+      "conferenceId": 123
+    }
+  ]
+}

@@ -682,7 +682,7 @@ export default function HomePage() {
       <header className="border-b border-border bg-card relative z-10">
         <div className="container mx-auto px-4 py-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold font-serif text-primary">메타버스 국제표준화 플랫폼</h1>
+            <h1 className="text-3xl font-bold font-playfair text-primary">메타버스 국제표준화 플랫폼</h1>
             <p className="text-muted-foreground mt-2">메타버스 관련 국제표준화 동향과 표준 검색 서비스</p>
           </div>
           <ThemeToggle />

@@ -153,7 +153,7 @@ ${report.content}`
               </div>
             </div>
 
-            <CardTitle className="font-serif text-2xl leading-tight">{report.title}</CardTitle>
+            <CardTitle className="font-playfair text-2xl leading-tight">{report.title}</CardTitle>
 
             <div className="flex flex-wrap gap-1 mt-4">
               {(Array.isArray(report.tags) ? report.tags : []).map((tag) => (

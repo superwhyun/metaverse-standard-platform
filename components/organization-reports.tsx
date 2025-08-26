@@ -87,7 +87,7 @@ export function OrganizationReports({ onReportClick }: OrganizationReportsProps)
   return (
     <div className="w-full max-w-6xl mx-auto">
       <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold font-serif text-primary mb-2">표준화 기구별 동향 보고서</h2>
+        <h2 className="text-3xl font-bold font-playfair text-primary mb-2">표준화 기구별 동향 보고서</h2>
         <p className="text-muted-foreground">메타버스 관련 표준화 기구별로 분류된 동향 보고서를 확인하세요</p>
       </div>
 

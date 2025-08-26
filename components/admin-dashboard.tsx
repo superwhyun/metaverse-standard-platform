@@ -126,7 +126,7 @@ export function AdminDashboard({
     <div className="w-full max-w-7xl mx-auto space-y-6">
       {/* Header with User Info */}
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold font-serif text-primary">관리자 대시보드</h2>
+        <h2 className="text-3xl font-bold font-playfair text-primary">관리자 대시보드</h2>
         {session && (
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -94,7 +94,7 @@ export function MonthlyReports({ onReportClick }: MonthlyReportsProps) {
     <div className="py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold font-serif text-primary mb-4">월별 표준화 동향 보고서</h2>
+          <h2 className="text-3xl font-bold font-playfair text-primary mb-4">월별 표준화 동향 보고서</h2>
           <p className="text-muted-foreground">최근 등록된 메타버스 관련 표준화 동향 보고서를 월별로 확인하세요</p>
         </div>
 

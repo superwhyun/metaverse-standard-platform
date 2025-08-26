@@ -1,0 +1,192 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://metaverse-standards-platform.com/schemas/conference.json",
+  "title": "Conference Schema",
+  "description": "메타버스 국제표준화 플랫폼 회의 데이터 스키마",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer",
+      "description": "회의 고유 식별자",
+      "minimum": 1,
+      "readOnly": true
+    },
+    "title": {
+      "type": "string",
+      "description": "회의 제목",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "organization": {
+      "type": "string",
+      "description": "주관 기관명",
+      "minLength": 1,
+      "maxLength": 100,
+      "examples": [
+        "ITU",
+        "ISO",
+        "IEEE", 
+        "ETSI",
+        "3GPP",
+        "ETRI",
+        "W3C",
+        "Khronos Group"
+      ]
+    },
+    "location": {
+      "type": ["string", "null"],
+      "description": "회의 장소",
+      "maxLength": 200,
+      "examples": [
+        "제네바, 스위스",
+        "서울, 한국",
+        "온라인",
+        "하이브리드 (온라인/오프라인)"
+      ]
+    },
+    "description": {
+      "type": ["string", "null"],
+      "description": "회의 설명",
+      "maxLength": 1000
+    },
+    "startDate": {
+      "type": "string",
+      "description": "시작 날짜",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "endDate": {
+      "type": "string",
+      "description": "종료 날짜", 
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "startTime": {
+      "type": ["string", "null"],
+      "description": "시작 시간 (다일간 회의시 null)",
+      "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$",
+      "examples": ["09:00", "14:30", null]
+    },
+    "endTime": {
+      "type": ["string", "null"],
+      "description": "종료 시간 (다일간 회의시 null)",
+      "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$", 
+      "examples": ["17:00", "18:30", null]
+    },
+    "isMultiDay": {
+      "type": "boolean",
+      "description": "다일간 회의 여부 (자동 계산됨)",
+      "readOnly": true
+    },
+    "time": {
+      "type": "string",
+      "description": "시간 정보 표시용 (자동 생성됨)",
+      "readOnly": true,
+      "examples": ["종일", "09:00-17:00"]
+    },
+    "date": {
+      "type": "string",
+      "description": "대표 날짜 (시작일과 동일, 자동 생성됨)",
+      "format": "date",
+      "readOnly": true
+    },
+    "hasReport": {
+      "type": "boolean",
+      "description": "관련 보고서 존재 여부",
+      "readOnly": true
+    },
+    "reports": {
+      "type": "array",
+      "description": "관련 보고서 목록",
+      "readOnly": true,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "보고서 ID"
+          },
+          "title": {
+            "type": "string",
+            "description": "보고서 제목"
+          }
+        },
+        "required": ["id", "title"]
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "생성 일시",
+      "format": "date-time",
+      "readOnly": true
+    },
+    "updatedAt": {
+      "type": "string",
+      "description": "수정 일시", 
+      "format": "date-time",
+      "readOnly": true
+    }
+  },
+  "required": [
+    "title",
+    "organization",
+    "startDate",
+    "endDate"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "startDate": {
+            "const": {
+              "$data": "1/endDate"
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "startTime": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "startTime": {
+            "type": "null"
+          },
+          "endTime": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "title": "ITU-T SG16 Q4 메타버스 표준화 회의",
+      "organization": "ITU",
+      "location": "제네바, 스위스",
+      "description": "메타버스 표준화 관련 분기별 정기 회의",
+      "startDate": "2024-09-15",
+      "endDate": "2024-09-17",
+      "startTime": null,
+      "endTime": null
+    },
+    {
+      "title": "국내 VR 기술 포럼",
+      "organization": "ETRI", 
+      "location": "대전 ETRI 본원",
+      "description": "VR 기술 동향 및 표준화 논의",
+      "startDate": "2024-09-25",
+      "endDate": "2024-09-25",
+      "startTime": "14:00",
+      "endTime": "17:00"
+    }
+  ]
+}

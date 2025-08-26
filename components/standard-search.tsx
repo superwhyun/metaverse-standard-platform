@@ -152,7 +152,7 @@ export function StandardSearch({}: StandardSearchProps) {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Sparkles className="w-8 h-8 text-primary" />
-            <h2 className="text-3xl font-bold font-serif text-primary">AI 표준 검색 & 추천</h2>
+            <h2 className="text-3xl font-bold font-playfair text-primary">AI 표준 검색 & 추천</h2>
           </div>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             개발하고자 하는 기능이나 요구사항을 설명하면, AI가 관련된 메타버스 표준들을 찾아서 추천해드립니다.

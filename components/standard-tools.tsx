@@ -154,7 +154,7 @@ export function StandardTools() {
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold font-serif text-primary">표준화도구 모음</h1>
+        <h1 className="text-3xl font-bold font-playfair text-primary">표준화도구 모음</h1>
         <p className="text-muted-foreground">
           표준화 작업에 도움이 되는 다양한 도구들을 모았습니다. 각 도구를 클릭하면 새 탭에서 열립니다.
         </p>

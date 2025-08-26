@@ -240,7 +240,7 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
       {/* Calendar Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-bold font-serif text-primary">
+          <h2 className="text-3xl font-bold font-playfair text-primary">
             {year}년 {monthNames[month]}
           </h2>
           <p className="text-muted-foreground mt-1">국제회의 일정</p>

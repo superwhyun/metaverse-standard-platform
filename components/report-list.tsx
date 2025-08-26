@@ -144,7 +144,7 @@ export function ReportList({ onReportClick }: ReportListProps) {
   return (
     <div className="w-full max-w-6xl mx-auto">
       <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold font-serif text-primary mb-2">표준화 동향 보고서</h2>
+        <h2 className="text-3xl font-bold font-playfair text-primary mb-2">표준화 동향 보고서</h2>
         <p className="text-muted-foreground">
           {isShowingSearchResults 
             ? '검색 결과를 확인하세요' 
@@ -252,7 +252,7 @@ export function ReportList({ onReportClick }: ReportListProps) {
                   {report.date}
                 </div>
               </div>
-              <CardTitle className="font-serif text-lg leading-tight group-hover:text-primary transition-colors">
+              <CardTitle className="font-playfair text-lg leading-tight group-hover:text-primary transition-colors">
                 {report.title}
               </CardTitle>
               <div className="text-sm text-muted-foreground">{report.organization}</div>

@@ -87,7 +87,7 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
   return (
     <div className="w-full max-w-6xl mx-auto">
       <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold font-serif text-primary mb-2">분야별 표준화 동향</h2>
+        <h2 className="text-3xl font-bold font-playfair text-primary mb-2">분야별 표준화 동향</h2>
         <p className="text-muted-foreground">표준화 분야별로 분류된 최신 동향 보고서를 확인하세요</p>
       </div>
 
@@ -119,7 +119,7 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
                         <Tag className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <div className="font-serif text-xl">{stat.name}</div>
+                        <div className="font-playfair text-xl">{stat.name}</div>
                         <div className="text-sm text-muted-foreground font-normal">
                           {stat.count}개의 보고서
                         </div>
@@ -163,7 +163,7 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
                                   {report.date}
                                 </div>
                               </div>
-                              <CardTitle className="font-serif text-base leading-tight group-hover:text-primary transition-colors line-clamp-2">
+                              <CardTitle className="font-playfair text-base leading-tight group-hover:text-primary transition-colors line-clamp-2">
                                 {report.title}
                               </CardTitle>
                             </CardHeader>
