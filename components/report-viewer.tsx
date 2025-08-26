@@ -90,15 +90,18 @@ ${report.content}`
         counters.h1++
         counters.h2 = 0
         counters.h3 = 0
-        return line.replace('# ', `# ${counters.h1}. `)
+        const headerContent = line.substring(2) // '# ' 이후의 내용
+        return `# ${counters.h1}. ${headerContent}`
       } else if (line.startsWith('## ')) {
         counters.h2++
         counters.h3 = 0
         const koreanChar = koreanChars[counters.h2 - 1] || counters.h2
-        return line.replace('## ', `## ${koreanChar}. `)
+        const headerContent = line.substring(3) // '## ' 이후의 내용
+        return `## ${koreanChar}. ${headerContent}`
       } else if (line.startsWith('### ')) {
         counters.h3++
-        return line.replace('### ', `### ${counters.h3}) `)
+        const headerContent = line.substring(4) // '### ' 이후의 내용
+        return `### ${counters.h3}) ${headerContent}`
       }
       return line
     }).join('\n')
@@ -109,7 +112,7 @@ ${report.content}`
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-y-auto">
       <div className="min-h-screen flex justify-center py-8 px-4">
-        <div className="bg-background rounded-lg shadow-2xl w-full max-w-4xl h-fit">
+        <div className="bg-background rounded-lg shadow-2xl border-2 border-border dark:border-white/20 dark:shadow-white/10 w-full max-w-4xl h-fit">
           {/* Header with close button */}
           <div className="flex items-center justify-between p-4 border-b bg-card sticky top-0 z-10 rounded-t-lg">
             <div className="flex gap-2">
@@ -166,19 +169,19 @@ ${report.content}`
           </CardHeader>
 
           <CardContent className="prose max-w-none">
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold mb-4">요약</h3>
+            <div className="mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-lg p-6">
+              <h3 className="text-xl font-semibold mb-4 text-blue-900 dark:text-blue-100">요약</h3>
               <div className="prose prose-sm max-w-none leading-relaxed">
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    p: ({children}) => <p className="text-lg leading-relaxed mb-4 text-muted-foreground">{children}</p>,
-                    ul: ({children}) => <ul className="list-disc ml-6 mb-4 space-y-1 text-muted-foreground">{children}</ul>,
-                    ol: ({children}) => <ol className="list-decimal ml-6 mb-4 space-y-1 text-muted-foreground">{children}</ol>,
+                    p: ({children}) => <p className="text-lg leading-relaxed mb-4 text-blue-800 dark:text-blue-200">{children}</p>,
+                    ul: ({children}) => <ul className="list-disc ml-6 mb-4 space-y-1 text-blue-800 dark:text-blue-200">{children}</ul>,
+                    ol: ({children}) => <ol className="list-decimal ml-6 mb-4 space-y-1 text-blue-800 dark:text-blue-200">{children}</ol>,
                     li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                    strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
-                    em: ({children}) => <em className="italic text-muted-foreground">{children}</em>,
-                    code: ({children}) => <code className="bg-muted px-2 py-1 rounded text-sm font-mono text-foreground">{children}</code>,
+                    strong: ({children}) => <strong className="font-semibold text-blue-900 dark:text-blue-100">{children}</strong>,
+                    em: ({children}) => <em className="italic text-blue-700 dark:text-blue-300">{children}</em>,
+                    code: ({children}) => <code className="bg-blue-100 dark:bg-blue-900/50 px-2 py-1 rounded text-sm font-mono text-blue-900 dark:text-blue-100">{children}</code>,
                   }}
                 >
                   {report.summary}
@@ -192,21 +195,30 @@ ${report.content}`
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  h1: ({children}) => (
-                    <h1 className="text-2xl font-bold mb-4 mt-8 text-foreground border-b border-border pb-2">
-                      {children}
-                    </h1>
-                  ),
-                  h2: ({children}) => (
-                    <h2 className="text-xl font-semibold mb-3 mt-6 ml-4 text-foreground">
-                      {children}
-                    </h2>
-                  ),
-                  h3: ({children}) => (
-                    <h3 className="text-lg font-semibold mb-2 mt-4 ml-8 text-foreground">
-                      {children}
-                    </h3>
-                  ),
+                  h1: ({children}) => {
+                    const content = typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : String(children);
+                    const processedContent = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    return (
+                      <h1 className="text-2xl font-bold mb-4 mt-8 text-foreground border-b border-border pb-2" 
+                          dangerouslySetInnerHTML={{ __html: processedContent }} />
+                    );
+                  },
+                  h2: ({children}) => {
+                    const content = typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : String(children);
+                    const processedContent = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    return (
+                      <h2 className="text-xl font-semibold mb-3 mt-6 ml-4 text-foreground" 
+                          dangerouslySetInnerHTML={{ __html: processedContent }} />
+                    );
+                  },
+                  h3: ({children}) => {
+                    const content = typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : String(children);
+                    const processedContent = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    return (
+                      <h3 className="text-lg font-semibold mb-2 mt-4 ml-8 text-foreground" 
+                          dangerouslySetInnerHTML={{ __html: processedContent }} />
+                    );
+                  },
                   p: ({children}) => <p className="mb-4 leading-relaxed text-foreground whitespace-pre-wrap">{children}</p>,
                   ul: ({children}) => <ul className="list-disc ml-12 mb-4 space-y-2 text-foreground">{children}</ul>,
                   ol: ({children}) => <ol className="list-decimal ml-12 mb-4 space-y-2 text-foreground">{children}</ol>,
@@ -226,18 +238,18 @@ ${report.content}`
                   ),
                   table: ({children}) => (
                     <div className="overflow-x-auto my-4">
-                      <table className="min-w-full border-collapse border border-border">
+                      <table className="min-w-full border-collapse border-2 border-gray-300 dark:border-gray-600">
                         {children}
                       </table>
                     </div>
                   ),
                   th: ({children}) => (
-                    <th className="border border-border px-4 py-2 bg-muted font-semibold text-left text-foreground">
+                    <th className="border border-gray-300 dark:border-gray-600 px-4 py-2 bg-muted font-semibold text-left text-foreground">
                       {children}
                     </th>
                   ),
                   td: ({children}) => (
-                    <td className="border border-border px-4 py-2 text-foreground">
+                    <td className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-foreground">
                       {children}
                     </td>
                   ),
