@@ -21,12 +21,13 @@ interface Category {
 
 export async function categorizeContent(title: string, summary: string): Promise<string | null> {
   try {
+    const DEBUG = process.env.NODE_ENV !== 'production'
     const db = await createDatabaseAdapter();
     const categoryOperations = createCategoryOperations(db);
     const categories = await categoryOperations.getAll() as Category[];
     
     if (categories.length === 0) {
-      console.log('No categories available for classification');
+      if (DEBUG) console.log('No categories available for classification');
       return null;
     }
 
@@ -50,10 +51,12 @@ ${categoryList}
 - 좋은 응답: "기타"
 - 나쁜 응답: "아바타 카테고리가 적합합니다"`;
 
-    console.log('=== OpenAI 프롬프트 전체 내용 ===');
-    console.log(prompt);
-    console.log('=== 프롬프트 끝 ===');
-    console.log('Sending prompt to OpenAI:', prompt.length, 'characters');
+    if (DEBUG) {
+      console.log('=== OpenAI 프롬프트 전체 내용 ===');
+      console.log(prompt);
+      console.log('=== 프롬프트 끝 ===');
+      console.log('Sending prompt to OpenAI:', prompt.length, 'characters');
+    }
     
     const openai = getOpenAIClient();
     
@@ -64,21 +67,25 @@ ${categoryList}
       max_output_tokens: 512,
     };
     
-    console.log('=== OpenAI 요청 파라미터 ===');
-    console.log('Model:', requestParams.model);
-    console.log('Max output tokens:', requestParams.max_output_tokens);
-    console.log('Reasoning effort:', requestParams.reasoning.effort);
-    console.log('Request timestamp:', new Date().toISOString());
+    if (DEBUG) {
+      console.log('=== OpenAI 요청 파라미터 ===');
+      console.log('Model:', requestParams.model);
+      console.log('Max output tokens:', requestParams.max_output_tokens);
+      console.log('Reasoning effort:', requestParams.reasoning.effort);
+      console.log('Request timestamp:', new Date().toISOString());
+    }
     
     const startTime = Date.now();
     const completion = await openai.responses.create(requestParams);
     const endTime = Date.now();
     
-    console.log('=== OpenAI 응답 정보 ===');
-    console.log('Response time:', endTime - startTime, 'ms');
-    console.log('Response timestamp:', new Date().toISOString());
-    console.log('Usage:', completion.usage);
-    console.log('Full OpenAI response object:', JSON.stringify(completion, null, 2));
+    if (DEBUG) {
+      console.log('=== OpenAI 응답 정보 ===');
+      console.log('Response time:', endTime - startTime, 'ms');
+      console.log('Response timestamp:', new Date().toISOString());
+      console.log('Usage:', completion.usage);
+      console.log('Full OpenAI response object:', JSON.stringify(completion, null, 2));
+    }
     const response = completion.output_text?.trim();
     
     if (!response) {
@@ -88,12 +95,14 @@ ${categoryList}
 
     // 따옴표 제거 및 정리
     const cleanedResponse = response.replace(/^["']|["']$/g, '').trim();
-    console.log('=== OpenAI 응답 처리 ===');
-    console.log('원본 응답:', `"${response}"`);
-    console.log('정리된 응답:', `"${cleanedResponse}"`);
+    if (DEBUG) {
+      console.log('=== OpenAI 응답 처리 ===');
+      console.log('원본 응답:', `"${response}"`);
+      console.log('정리된 응답:', `"${cleanedResponse}"`);
+    }
 
     if (cleanedResponse.toLowerCase() === 'null' || cleanedResponse === '기타') {
-      console.log(`OpenAI returned "${cleanedResponse}" - using default category "기타"`);
+      if (DEBUG) console.log(`OpenAI returned "${cleanedResponse}" - using default category "기타"`);
       return '기타';
     }
 
@@ -128,18 +137,20 @@ ${categoryList}
     });
 
     if (keywordMatch) {
-      console.log(`✓ 키워드 매칭 발견: "${cleanedResponse}" -> "${keywordMatch.name}"`);
+      if (DEBUG) console.log(`✓ 키워드 매칭 발견: "${cleanedResponse}" -> "${keywordMatch.name}"`);
       return keywordMatch.name;
     }
-    console.log('✗ 키워드 매칭 없음');
+    if (DEBUG) console.log('✗ 키워드 매칭 없음');
 
-    console.log('=== 매칭 실패: 기본 카테고리 사용 ===');
-    console.log(`No valid category match found for: "${cleanedResponse}"`);
-    console.log('Using default category "기타"');
+    if (DEBUG) {
+      console.log('=== 매칭 실패: 기본 카테고리 사용 ===');
+      console.log(`No valid category match found for: "${cleanedResponse}"`);
+      console.log('Using default category "기타"');
+    }
     return '기타';
   } catch (error) {
     console.error('Error categorizing content:', error);
-    console.log('Using default category "기타" due to error');
+    if (process.env.NODE_ENV !== 'production') console.log('Using default category "기타" due to error');
     return '기타';
   }
 }

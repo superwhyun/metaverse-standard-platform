@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createToken, createSessionCookie } from '@/lib/edge-auth';
 import { verifyPassword } from '@/lib/crypto-utils';
-import { getRequestContext } from '@cloudflare/next-on-pages';
 
 export const runtime = 'edge';
 
@@ -22,11 +21,12 @@ export async function POST(request: NextRequest) {
     const userQuery = db.prepare('SELECT * FROM users WHERE username = ?');
     const user = await userQuery.get(username);
 
-    console.log('Login attempt for username:', username);
-    console.log('User found in DB:', !!user);
-    if (user) {
-      console.log('User ID:', user.id, 'Role:', user.role);
-      console.log('Stored hash:', user.password_hash);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Login attempt for username:', username);
+      console.log('User found in DB:', !!user);
+      if (user) {
+        console.log('User ID:', user.id, 'Role:', user.role);
+      }
     }
 
     if (!user) {
@@ -38,12 +38,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 비밀번호 검증
-    console.log('Verifying password...');
+    if (process.env.NODE_ENV !== 'production') console.log('Verifying password...');
     const isValidPassword = await verifyPassword(password, user.password_hash);
-    console.log('Password verification result:', isValidPassword);
+    if (process.env.NODE_ENV !== 'production') console.log('Password verification result:', isValidPassword);
     
     if (!isValidPassword) {
-      console.log('Password verification failed');
+      if (process.env.NODE_ENV !== 'production') console.log('Password verification failed');
       return NextResponse.json(
         { success: false, error: 'Invalid credentials' },
         { status: 401 }

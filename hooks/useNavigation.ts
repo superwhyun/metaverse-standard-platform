@@ -64,22 +64,18 @@ export const useKeyboardNavigation = ({
         case "ArrowLeft":
           event.preventDefault()
           targetPageId = getNavigationTarget(currentView, 'left')
-          console.log('ArrowLeft pressed:', currentView, '->', targetPageId)
           break
         case "ArrowRight":
           event.preventDefault()
           targetPageId = getNavigationTarget(currentView, 'right')
-          console.log('ArrowRight pressed:', currentView, '->', targetPageId)
           break
         case "ArrowDown":
           event.preventDefault()
           targetPageId = getNavigationTarget(currentView, 'down')
-          console.log('ArrowDown pressed:', currentView, '->', targetPageId)
           break
         case "ArrowUp":
           event.preventDefault()
           targetPageId = getNavigationTarget(currentView, 'up')
-          console.log('ArrowUp pressed:', currentView, '->', targetPageId)
           break
         case "Escape":
           event.preventDefault()
@@ -115,7 +111,7 @@ export const useKeyboardNavigation = ({
               "5": "standard-search"
             }
             targetPageId = shortcuts[event.key as keyof typeof shortcuts]
-            console.log('Number key pressed:', event.key, '->', targetPageId)
+            // number key shortcut handled
           }
           break
       }
