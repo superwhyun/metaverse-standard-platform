@@ -153,7 +153,7 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
             >
               {activeStat && (
                 <Card className="py-0 gap-0 mt-4">
-                  <CardContent className="pt-4">
+                  <CardContent className="p-4">
                     {(() => {
                       const key = getKey(activeStat)
                       const isLoadingGroup = loadingKeys.includes(key)
