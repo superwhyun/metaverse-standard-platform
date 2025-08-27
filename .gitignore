@@ -64,6 +64,8 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+remote-backup.sql
+insert-only.sql
 
 # Temporary files
 *.tmp
