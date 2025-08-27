@@ -134,6 +134,10 @@
 /* Added smooth scroll behavior and custom scrollbar styles */
 html {
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
 }
 
 .smooth-scroll-container {
@@ -158,6 +162,14 @@ html {
 
 .smooth-scroll-container::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
+}
+
+/* Ensure consistent fonts across platforms (Korean + Latin) */
+.font-playfair {
+  font-family: var(--font-playfair), var(--font-noto-serif-kr), Georgia, Cambria, "Times New Roman", Times, serif !important;
+}
+.font-sans {
+  font-family: var(--font-noto-sans-kr), var(--font-source-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
 /* Added sliding page transition styles */
