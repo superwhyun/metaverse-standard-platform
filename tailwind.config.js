@@ -8,8 +8,18 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        'playfair': ['var(--font-playfair)', 'Georgia', 'Cambria', '"Times New Roman"', 'Times', 'serif'],
-        'sans': ['var(--font-source-sans)', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        // Headings: Playfair for Latin, Noto Serif KR for Korean glyphs
+        'playfair': [
+          'var(--font-playfair)',
+          'var(--font-noto-serif-kr)',
+          'Georgia', 'Cambria', '"Times New Roman"', 'Times', 'serif'
+        ],
+        // Body: Prefer Noto Sans KR for consistent Korean, then Source Sans 3
+        'sans': [
+          'var(--font-noto-sans-kr)',
+          'var(--font-source-sans)',
+          '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'
+        ],
       },
     },
   },
