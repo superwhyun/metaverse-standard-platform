@@ -138,7 +138,11 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
                   </CardTitle>
                 </CardHeader>
 
-                {isExpanded && (
+                <div 
+                  className={`overflow-hidden transition-all duration-500 ease-in-out ${
+                    isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
                   <CardContent className="pt-0">
                     {isLoadingCategory ? (
                       <div className="text-center py-6">
@@ -150,7 +154,7 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
                         {reports.map((report) => (
                           <Card
                             key={report.id}
-                            className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group"
+                            className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group bg-card/80 dark:bg-card/60 border-2 border-border/80 dark:border-gray-500/80 hover:border-primary/70 dark:hover:border-primary/80 hover:bg-card dark:hover:bg-card/80"
                             onClick={() => onReportClick(report)}
                           >
                             <CardHeader className="pb-3">
@@ -194,7 +198,7 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
                       </div>
                     )}
                   </CardContent>
-                )}
+                </div>
               </Card>
             )
           })}

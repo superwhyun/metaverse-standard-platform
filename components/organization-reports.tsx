@@ -129,7 +129,11 @@ export function OrganizationReports({ onReportClick }: OrganizationReportsProps)
                   </div>
                 </CardHeader>
 
-                {isExpanded && (
+                <div 
+                  className={`overflow-hidden transition-all duration-500 ease-in-out ${
+                    isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
                   <CardContent className="pt-0">
                     {isLoadingOrg ? (
                       <div className="text-center py-6">
@@ -141,7 +145,7 @@ export function OrganizationReports({ onReportClick }: OrganizationReportsProps)
                         {reports.slice(0, 6).map((report) => (
                           <div
                             key={report.id}
-                            className="border rounded-lg p-4 hover:bg-muted/30 cursor-pointer transition-colors"
+                            className="bg-card/80 dark:bg-card/60 border-2 border-border/80 dark:border-gray-500/80 rounded-lg p-4 hover:bg-card dark:hover:bg-card/80 hover:border-primary/70 dark:hover:border-primary/80 cursor-pointer transition-all duration-200"
                             onClick={() => onReportClick(report)}
                           >
                             <div className="flex items-start justify-between mb-2">
@@ -188,7 +192,7 @@ export function OrganizationReports({ onReportClick }: OrganizationReportsProps)
                       </div>
                     )}
                   </CardContent>
-                )}
+                </div>
               </Card>
             )
           })}
