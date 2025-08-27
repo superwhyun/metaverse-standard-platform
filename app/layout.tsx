@@ -1,22 +1,23 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Playfair_Display, Source_Sans_3, Noto_Sans_KR, Noto_Serif_KR } from "next/font/google"
+import { Source_Sans_3, Noto_Sans_KR, Noto_Serif_KR, Inter } from "next/font/google"
 import "./globals.css"
 import ClientSessionProvider from "@/components/providers/session-provider"
 import { ThemeProvider } from "@/components/theme-provider"
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-playfair",
-  weight: ["400", "700"],
-})
 
 const sourceSans = Source_Sans_3({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-source-sans",
   weight: ["400", "500", "600"],
+})
+
+// Heading font (Latin): Inter — clean, modern
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-heading",
+  weight: ["400", "500", "600", "700"],
 })
 
 // Korean fonts for consistent rendering across platforms
@@ -46,7 +47,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className={`${playfair.variable} ${sourceSans.variable} ${notoSansKR.variable} ${notoSerifKR.variable}`} suppressHydrationWarning>
+    <html lang="ko" className={`${inter.variable} ${sourceSans.variable} ${notoSansKR.variable} ${notoSerifKR.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased">
         <ThemeProvider
           attribute="class"

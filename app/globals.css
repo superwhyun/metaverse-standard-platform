@@ -166,7 +166,8 @@ html {
 
 /* Ensure consistent fonts across platforms (Korean + Latin) */
 .font-playfair {
-  font-family: var(--font-playfair), var(--font-noto-serif-kr), Georgia, Cambria, "Times New Roman", Times, serif !important;
+  /* Map heading utility to Inter for Latin + Noto Sans KR for Korean */
+  font-family: var(--font-heading), var(--font-noto-sans-kr), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 .font-sans {
   font-family: var(--font-noto-sans-kr), var(--font-source-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;

@@ -60,7 +60,7 @@ export const navigationConfig: PageConfig[] = [
   {
     id: "reports",
     component: "ReportList",
-    title: "동향 보고서", 
+    title: "최신 동향 보고서", 
     icon: FileText,
     position: { x: 100, y: 0 },
     navigation: { left: "calendar", right: "tech-analysis", down: "monthly-reports" },
@@ -100,7 +100,7 @@ export const navigationConfig: PageConfig[] = [
   {
     id: "monthly-reports",
     component: "MonthlyReports",
-    title: "월별 동향",
+    title: "월별 표준화 동향",
     position: { x: 100, y: 100 },
     parent: "reports",
     navigation: { up: "reports", down: "organization-reports" },
@@ -109,7 +109,7 @@ export const navigationConfig: PageConfig[] = [
   {
     id: "organization-reports", 
     component: "OrganizationReports",
-    title: "표준화기구별 동향",
+    title: "표준 기구별 동향",
     position: { x: 100, y: 200 },
     parent: "reports",
     navigation: { up: "monthly-reports", down: "category-reports" },
@@ -118,7 +118,7 @@ export const navigationConfig: PageConfig[] = [
   {
     id: "category-reports",
     component: "CategoryReports", 
-    title: "분야별 표준화 동향",
+    title: "분야별 표준 동향",
     position: { x: 100, y: 300 },
     parent: "reports",
     navigation: { up: "organization-reports" },
