@@ -60,6 +60,8 @@ interface AdminDashboardProps {
   onMonthChange?: (year: number, month: number) => void
   session?: any
   onLogout?: () => void
+  activeTab?: string
+  onTabChange?: (tab: string) => void
 }
 
 export function AdminDashboard({
@@ -79,6 +81,8 @@ export function AdminDashboard({
   onMonthChange,
   session,
   onLogout,
+  activeTab = "conferences",
+  onTabChange,
 }: AdminDashboardProps) {
   const [currentDate, setCurrentDate] = useState(() => {
     const now = new Date()
@@ -397,7 +401,7 @@ export function AdminDashboard({
         </Card>
       )}
 
-      <Tabs defaultValue="conferences" className="w-full">
+      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="conferences" className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />

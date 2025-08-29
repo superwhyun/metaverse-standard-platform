@@ -41,6 +41,7 @@ pids
 coverage
 *.lcov
 .nyc_output
+utils/auto-report/
 
 # Editor directories and files
 .idea

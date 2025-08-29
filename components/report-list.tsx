@@ -159,7 +159,7 @@ export function ReportList({ onReportClick }: ReportListProps) {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="보고서 제목, 내용, 태그로 검색..."
+              placeholder="보고서 제목, 요약, 태그로 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"

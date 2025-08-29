@@ -12,6 +12,7 @@ import {
   Tag,
   X,
   Copy,
+  Edit,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,9 +35,11 @@ interface Report {
 interface ReportViewerProps {
   report: Report
   onBack: () => void
+  isAdmin?: boolean
+  onEdit?: (report: Report) => void
 }
 
-export function ReportViewer({ report, onBack }: ReportViewerProps) {
+export function ReportViewer({ report, onBack, isAdmin = false, onEdit }: ReportViewerProps) {
   const [copySuccess, setCopySuccess] = useState(false)
 
   // 마크다운 복사 함수
@@ -116,6 +119,17 @@ ${report.content}`
           {/* Header with close button */}
           <div className="flex items-center justify-between p-4 border-b bg-card sticky top-0 z-10 rounded-t-lg">
             <div className="flex gap-2">
+              {isAdmin && onEdit && (
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={() => onEdit(report)}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  수정
+                </Button>
+              )}
               <Button variant="outline" size="sm">
                 <Bookmark className="w-4 h-4 mr-2" />
                 북마크

@@ -23,13 +23,53 @@ import { ThemeToggle } from "@/components/ui/theme-toggle"
 // Configuration 기반 imports
 import { getTopLevelPages, getAllPageIds, getNavigationTarget, getPageById } from "@/config/navigation"
 import { useKeyboardNavigation, usePageTransition } from "@/hooks/useNavigation"
-import { getPageClasses } from "@/utils/navigationUtils"
 import { cn } from "@/lib/utils"
 
 
 
 // Configuration에서 자동으로 ViewType 생성
 type ViewType = string
+
+// Local: page CSS class generator (inlined from utils/navigationUtils)
+const getPageClasses = (pageType: string, currentView: string): string => {
+  const baseClass = `page-slide ${pageType}`
+
+  if (currentView === pageType) {
+    return `${baseClass} active`
+  }
+
+  if (pageType === "admin" && currentView.startsWith("admin")) {
+    return `${baseClass} active`
+  }
+
+  if (pageType === "reports" && currentView === "report-detail") {
+    return `${baseClass} active`
+  }
+
+  const currentPage = getPageById(currentView)
+  const targetPage = getPageById(pageType)
+
+  if (!currentPage || !targetPage) {
+    return `${baseClass} hidden`
+  }
+
+  const relativeX = targetPage.position.x - currentPage.position.x
+  const relativeY = targetPage.position.y - currentPage.position.y
+
+  let positionClass = ''
+  if (relativeX > 0) {
+    positionClass += ' slide-from-right'
+  } else if (relativeX < 0) {
+    positionClass += ' slide-from-left'
+  }
+  if (relativeY > 0) {
+    positionClass += ' slide-from-bottom'
+  } else if (relativeY < 0) {
+    positionClass += ' slide-from-top'
+  }
+
+  return `${baseClass}${positionClass}`
+}
 
 export default function HomePage() {
   const { session, status, signOut } = useAuth()
@@ -49,6 +89,8 @@ export default function HomePage() {
   const [organizationReportViewer, setOrganizationReportViewer] = useState<any>(null) // 기구별 동향에서 보는 보고서
   const [categoryReportViewer, setCategoryReportViewer] = useState<any>(null) // 분야별 동향에서 보는 보고서
   const [calendarReportViewer, setCalendarReportViewer] = useState<any>(null) // 캘린더에서 보는 보고서
+  const [adminActiveTab, setAdminActiveTab] = useState("conferences") // 관리자 탭 상태 관리
+  const [previousView, setPreviousView] = useState<string | null>(null) // 수정 전 이전 페이지 저장
   
   // 더보기 기능을 위한 state
   const [currentOffset, setCurrentOffset] = useState(0)
@@ -450,11 +492,71 @@ export default function HomePage() {
         // TODO: Display error message to the user
       }
 
-      setCurrentView("admin");
-      setSelectedReport(null);
+      // 이전 뷰가 있으면 해당 뷰로 복귀, 없으면 관리자 대시보드로
+      if (previousView) {
+        setCurrentView(previousView);
+        setPreviousView(null);
+        // 보고서 뷰어를 다시 열어주기 (수정된 내용으로)
+        const savedReport = { ...data, id: selectedReport?.id || data.id };
+        switch (previousView) {
+          case "admin":
+            setAdminReportViewer(savedReport);
+            break;
+          case "monthly-reports":
+            setMonthlyReportViewer(savedReport);
+            break;
+          case "organization-reports":
+            setOrganizationReportViewer(savedReport);
+            break;
+          case "category-reports":
+            setCategoryReportViewer(savedReport);
+            break;
+          case "calendar":
+            setCalendarReportViewer(savedReport);
+            break;
+          case "report-detail":
+            // report-detail 뷰의 경우 selectedReport를 업데이트
+            setSelectedReport(savedReport);
+            setCurrentView("report-detail");
+            return; // early return to avoid clearing selectedReport
+          default:
+            setCurrentView("admin");
+            setAdminActiveTab("reports");
+        }
+        setSelectedReport(null); // 다른 뷰들은 selectedReport를 초기화
+      } else {
+        setCurrentView("admin");
+        setAdminActiveTab("reports");
+        setSelectedReport(null);
+      }
     } catch (error) {
       console.error('Error saving report:', error);
     }
+  };
+
+  // 보고서 수정을 위한 공통 함수
+  const handleEditReportFromViewer = async (report: any) => {
+    // 현재 뷰를 이전 뷰로 저장
+    setPreviousView(currentView);
+    
+    // content를 포함한 상세 데이터 로딩 (기존 onEditReport와 동일한 방식)
+    const detailReport = await loadReportDetail(report.id);
+    if (detailReport) {
+      setSelectedReport(detailReport);
+    } else {
+      setSelectedReport(report);
+    }
+    
+    // 관리자 편집 화면으로 이동
+    setCurrentView("admin-edit-report");
+    setAdminActiveTab("reports");
+    
+    // 현재 열린 모든 뷰어 닫기
+    setAdminReportViewer(null);
+    setMonthlyReportViewer(null);
+    setOrganizationReportViewer(null);
+    setCategoryReportViewer(null);
+    setCalendarReportViewer(null);
   };
 
   const handleDeleteConference = async (id: number) => {
@@ -669,6 +771,8 @@ export default function HomePage() {
               onLogout={async () => {
                 await signOut()
               }}
+              activeTab={adminActiveTab}
+              onTabChange={setAdminActiveTab}
             />
           </div>
         )
@@ -781,6 +885,8 @@ export default function HomePage() {
                   navigateToPage("reports")
                   setSelectedReport(null)
                 }}
+                isAdmin={!!session}
+                onEdit={handleEditReportFromViewer}
               />
             </div>
           </div>
@@ -850,6 +956,8 @@ export default function HomePage() {
         <ReportViewer
           report={adminReportViewer}
           onBack={() => setAdminReportViewer(null)}
+          isAdmin={!!session}
+          onEdit={handleEditReportFromViewer}
         />
       )}
 
@@ -858,6 +966,8 @@ export default function HomePage() {
         <ReportViewer
           report={monthlyReportViewer}
           onBack={() => setMonthlyReportViewer(null)}
+          isAdmin={!!session}
+          onEdit={handleEditReportFromViewer}
         />
       )}
 
@@ -866,6 +976,8 @@ export default function HomePage() {
         <ReportViewer
           report={organizationReportViewer}
           onBack={() => setOrganizationReportViewer(null)}
+          isAdmin={!!session}
+          onEdit={handleEditReportFromViewer}
         />
       )}
 
@@ -874,6 +986,8 @@ export default function HomePage() {
         <ReportViewer
           report={categoryReportViewer}
           onBack={() => setCategoryReportViewer(null)}
+          isAdmin={!!session}
+          onEdit={handleEditReportFromViewer}
         />
       )}
 
@@ -882,6 +996,8 @@ export default function HomePage() {
         <ReportViewer
           report={calendarReportViewer}
           onBack={() => setCalendarReportViewer(null)}
+          isAdmin={!!session}
+          onEdit={handleEditReportFromViewer}
         />
       )}
     </div>
