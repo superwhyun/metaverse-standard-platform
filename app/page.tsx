@@ -794,9 +794,10 @@ export default function HomePage() {
       </header>
 
       {/* Configuration 기반 자동 생성 네비게이션 */}
-      <nav className="border-b border-border bg-muted/30 relative z-10" role="navigation" aria-label="주요 네비게이션">
-        <div className="container mx-auto px-4 py-3 pt-7 pb-7">
-          <div className="flex items-center gap-6">
+      <nav className="border-b border-border bg-muted/30 relative z-30" role="navigation" aria-label="주요 네비게이션">
+        <div className="container mx-auto px-4 py-3 pt-8 pb-8">
+          <div className="flex items-center gap-3 md:gap-6 overflow-x-auto overflow-y-visible md:justify-center scroll-smooth scrollbar-hide min-w-0"
+               style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
             {getTopLevelPages().map((page) => {
               const Icon = page.icon
               const shortcut = page.shortcuts?.[0]
@@ -815,12 +816,19 @@ export default function HomePage() {
               const canGoDown = getNavigationTarget(currentView, 'down') !== undefined && isInPageTree
               
               return (
-                <div key={page.id} className="relative flex items-center">
-                  {/* 위쪽 방향 표시 - 절대 위치로 버튼 높이에 영향 없음 */}
+                <div key={page.id} className="relative flex items-center flex-shrink-0 py-3">
+                  {/* 위쪽 방향 표시 - 클릭 가능한 버튼 */}
                   {canGoUp && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-sm text-primary font-bold pointer-events-none z-20">
+                    <button
+                      onClick={() => {
+                        const upTarget = getNavigationTarget(currentView, 'up')
+                        if (upTarget) navigateToPage(upTarget)
+                      }}
+                      className="absolute top-0 left-1/2 -translate-x-1/2 text-sm text-primary font-bold z-40 hover:text-primary/80 cursor-pointer bg-background/80 rounded px-1 leading-none"
+                      aria-label="상위 페이지로 이동"
+                    >
                       ▲
-                    </div>
+                    </button>
                   )}
                   
                   <Button
@@ -828,21 +836,29 @@ export default function HomePage() {
                     size="sm"
                     onClick={() => navigateToPage(page.id)}
                     className={cn(
-                      "flex items-center gap-2 relative",
+                      "flex items-center gap-1 md:gap-2 relative text-xs md:text-sm whitespace-nowrap",
                       isInPageTree && "font-semibold shadow-md"
                     )}
                     aria-label={shortcut ? `${page.title} 페이지로 이동 (단축키: ${shortcut.key})` : `${page.title} 페이지로 이동`}
                     accessKey={shortcut?.key}
                   >
-                    {Icon && <Icon className="w-4 h-4" />}
-                    {displayPage?.title || page.title}
+                    {Icon && <Icon className="w-3 h-3 md:w-4 md:h-4" />}
+                    <span className="hidden sm:inline">{displayPage?.title || page.title}</span>
+                    <span className="sm:hidden">{(displayPage?.title || page.title).split(' ')[0]}</span>
                   </Button>
                   
-                  {/* 아래쪽 방향 표시 - 절대 위치로 버튼 높이에 영향 없음 */}
+                  {/* 아래쪽 방향 표시 - 클릭 가능한 버튼 */}
                   {canGoDown && (
-                    <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-sm text-primary font-bold pointer-events-none z-20">
+                    <button
+                      onClick={() => {
+                        const downTarget = getNavigationTarget(currentView, 'down')
+                        if (downTarget) navigateToPage(downTarget)
+                      }}
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 text-sm text-primary font-bold z-40 hover:text-primary/80 cursor-pointer bg-background/80 rounded px-1 leading-none"
+                      aria-label="하위 페이지로 이동"
+                    >
                       ▼
-                    </div>
+                    </button>
                   )}
                 </div>
               )
