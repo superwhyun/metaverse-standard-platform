@@ -27,6 +27,8 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
       getCount={(s) => s.count}
       buildReportsUrl={(s) => `/api/reports/by-category/${encodeURIComponent(s.name)}`}
       onReportClick={onReportClick}
+      showPagination={true}
+      itemsPerPage={6}
       loadingStatsText="분야별 통계를 불러오는 중..."
       loadingReportsText="보고서를 불러오는 중..."
       emptyReportsText="이 분야의 보고서가 없습니다."

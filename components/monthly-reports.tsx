@@ -28,7 +28,8 @@ export function MonthlyReports({ onReportClick }: MonthlyReportsProps) {
         getCount={(s) => s.count}
         buildReportsUrl={(s) => `/api/reports/by-month/${s.year}/${s.month}`}
         onReportClick={onReportClick}
-        limit={6}
+        showPagination={true}
+        itemsPerPage={6}
         loadingStatsText="월별 통계를 불러오는 중..."
         loadingReportsText="보고서를 불러오는 중..."
         emptyReportsText="이 달에 등록된 보고서가 없습니다."

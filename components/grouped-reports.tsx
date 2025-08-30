@@ -1,9 +1,10 @@
 "use client"
 
-import React from "react"
-import { ChevronDown, ChevronUp, Calendar, Tag as TagIcon } from "lucide-react"
+import React, { useState } from "react"
+import { ChevronDown, ChevronUp, Calendar, Tag as TagIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { useGroupedReports, Report } from "@/hooks/useGroupedReports"
 
 type ReactNode = React.ReactNode
@@ -26,6 +27,8 @@ interface GroupedReportsProps<S extends BaseStat> {
   buildReportsUrl: (stat: S) => string
   onReportClick: (report: Report) => void
   limit?: number
+  itemsPerPage?: number
+  showPagination?: boolean
   loadingStatsText?: string
   loadingReportsText?: string
   emptyReportsText?: string
@@ -46,6 +49,8 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
     buildReportsUrl,
     onReportClick,
     limit,
+    itemsPerPage = 6,
+    showPagination = true,
     loadingStatsText = "통계를 불러오는 중...",
     loadingReportsText = "보고서를 불러오는 중...",
     emptyReportsText = "해당 항목의 보고서가 없습니다.",
@@ -53,6 +58,9 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
     emptyStatsDescription = "보고서가 등록되면 여기에 표시됩니다.",
     renderReportCard,
   } = props
+
+  // Pagination state for each expanded group
+  const [paginationState, setPaginationState] = useState<Record<string, number>>({})
 
   const {
     isLoading,
@@ -66,6 +74,27 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
   const activeStat = selectedKey
     ? organizedStats.find((s) => getKey(s) === selectedKey)
     : undefined
+
+  const getCurrentPage = (key: string) => paginationState[key] || 1
+  
+  const setCurrentPage = (key: string, page: number) => {
+    setPaginationState(prev => ({ ...prev, [key]: page }))
+  }
+
+  const getPaginatedReports = (reports: Report[], key: string) => {
+    if (!showPagination) {
+      return typeof limit === 'number' ? reports.slice(0, limit) : reports
+    }
+    
+    const currentPage = getCurrentPage(key)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return reports.slice(startIndex, endIndex)
+  }
+
+  const getTotalPages = (totalItems: number) => {
+    return Math.ceil(totalItems / itemsPerPage)
+  }
 
   const DefaultCard = (report: Report) => (
     <Card
@@ -157,7 +186,9 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
                     {(() => {
                       const key = getKey(activeStat)
                       const isLoadingGroup = loadingKeys.includes(key)
-                      const reports = loadedReports[key] || []
+                      const allReports = loadedReports[key] || []
+                      const currentPage = getCurrentPage(key)
+                      const totalPages = getTotalPages(allReports.length)
 
                       if (isLoadingGroup) {
                         return (
@@ -166,12 +197,85 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
                             <div className="text-sm text-muted-foreground">{loadingReportsText}</div>
                           </div>
                         )
-                      } else if (reports.length > 0) {
+                      } else if (allReports.length > 0) {
                         const render = renderReportCard || DefaultCard
-                        const items = typeof limit === 'number' ? reports.slice(0, limit) : reports
+                        const paginatedReports = getPaginatedReports(allReports, key)
+                        
                         return (
-                          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {items.map((r) => render(r))}
+                          <div className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                              {paginatedReports.map((r) => render(r))}
+                            </div>
+                            
+                            {showPagination && totalPages > 1 && (
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+                                <div className="text-sm text-muted-foreground order-2 sm:order-1">
+                                  {Math.min((currentPage - 1) * itemsPerPage + 1, allReports.length)}-{Math.min(currentPage * itemsPerPage, allReports.length)} / {allReports.length}개
+                                </div>
+                                
+                                <div className="flex items-center gap-2 order-1 sm:order-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(key, Math.max(1, currentPage - 1))}
+                                    disabled={currentPage <= 1}
+                                    className="h-8 px-2 sm:px-3"
+                                  >
+                                    <ChevronLeft className="w-4 h-4" />
+                                    <span className="hidden sm:inline ml-1">이전</span>
+                                  </Button>
+                                  
+                                  <div className="flex items-center gap-1">
+                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                      const pageNum = i + 1
+                                      if (totalPages <= 5) {
+                                        return (
+                                          <Button
+                                            key={pageNum}
+                                            variant={currentPage === pageNum ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setCurrentPage(key, pageNum)}
+                                            className="h-8 w-8 text-sm"
+                                          >
+                                            {pageNum}
+                                          </Button>
+                                        )
+                                      } else {
+                                        // More complex pagination logic for many pages
+                                        let displayPage = pageNum
+                                        if (currentPage > 3 && totalPages > 5) {
+                                          displayPage = currentPage - 2 + i
+                                        }
+                                        if (displayPage > totalPages) return null
+                                        
+                                        return (
+                                          <Button
+                                            key={displayPage}
+                                            variant={currentPage === displayPage ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setCurrentPage(key, displayPage)}
+                                            className="h-8 w-8 text-sm"
+                                          >
+                                            {displayPage}
+                                          </Button>
+                                        )
+                                      }
+                                    })}
+                                  </div>
+                                  
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(key, Math.min(totalPages, currentPage + 1))}
+                                    disabled={currentPage >= totalPages}
+                                    className="h-8 px-2 sm:px-3"
+                                  >
+                                    <span className="hidden sm:inline mr-1">다음</span>
+                                    <ChevronRight className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )
                       }

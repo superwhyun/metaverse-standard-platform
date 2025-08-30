@@ -26,7 +26,8 @@ export function OrganizationReports({ onReportClick }: OrganizationReportsProps)
       getCount={(s) => s.count}
       buildReportsUrl={(s) => `/api/reports/by-organization/${encodeURIComponent(s.name)}`}
       onReportClick={onReportClick}
-      limit={6}
+      showPagination={true}
+      itemsPerPage={6}
       loadingStatsText="기구별 통계를 불러오는 중..."
       loadingReportsText="보고서를 불러오는 중..."
       emptyReportsText="이 기구의 보고서가 없습니다."
