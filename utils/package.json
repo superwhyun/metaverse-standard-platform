@@ -1,0 +1,27 @@
+{
+  "name": "metaverse-platform-utils",
+  "version": "1.0.0",
+  "description": "메타버스 국제표준화 플랫폼 유틸리티 도구",
+  "main": "md-to-report.js",
+  "scripts": {
+    "import": "node md-to-report.js",
+    "example": "node md-to-report.js --file example-report.md --dry-run"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "node-fetch": "^2.7.0",
+    "commander": "^12.0.0",
+    "cli-progress": "^3.12.0",
+    "chalk": "^4.1.2",
+    "glob": "^11.0.0"
+  },
+  "keywords": [
+    "metaverse",
+    "markdown",
+    "import",
+    "report",
+    "cli"
+  ],
+  "author": "Metaverse Platform Team",
+  "license": "MIT"
+}

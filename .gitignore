@@ -13,6 +13,7 @@ node_modules/
 .pnp.js
 .wrangler/
 .vercel/
+.venv
 
 # Next.js
 .next/
@@ -41,7 +42,10 @@ pids
 coverage
 *.lcov
 .nyc_output
-utils/auto-report/
+utils/auto-report/data/
+utils/auto-report/done/
+utils/auto-report/result/
+utils/auto-report/.tmp_uploads/
 
 # Editor directories and files
 .idea

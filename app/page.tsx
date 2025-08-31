@@ -597,6 +597,8 @@ export default function HomePage() {
         const targetMonth = reportDate.getMonth() + 1;
         await loadAdminReports(targetYear, targetMonth);
         await loadConferences(targetYear, targetMonth);
+        // 전체 보고서 목록도 새로고침
+        await loadAllReports();
       } else {
         console.error('Failed to delete report');
       }
