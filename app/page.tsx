@@ -786,10 +786,10 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card relative z-10">
-        <div className="container mx-auto px-4 py-6 flex justify-between items-center">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold font-playfair text-primary">메타버스 국제표준화 플랫폼</h1>
-            <p className="text-muted-foreground mt-2">메타버스 관련 국제표준화 동향과 표준 검색 서비스</p>
+            <h1 className="text-2xl font-bold font-playfair text-primary">메타버스 국제표준화 플랫폼</h1>
+            <p className="text-muted-foreground mt-1 text-sm">메타버스 관련 국제표준화 동향과 표준 검색 서비스</p>
           </div>
           <ThemeToggle />
         </div>
@@ -797,7 +797,7 @@ export default function HomePage() {
 
       {/* Configuration 기반 자동 생성 네비게이션 */}
       <nav className="border-b border-border bg-muted/30 relative z-30" role="navigation" aria-label="주요 네비게이션">
-        <div className="container mx-auto px-4 py-3 pt-8 pb-8">
+        <div className="container mx-auto px-4 py-2 pt-2 pb-2">
           <div className="flex items-center gap-3 md:gap-6 overflow-x-auto overflow-y-visible md:justify-center scroll-smooth scrollbar-hide min-w-0"
                style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
             {getTopLevelPages().map((page) => {
@@ -873,11 +873,11 @@ export default function HomePage() {
       <div className="page-container">
         {/* Calendar page */}
         <div className={`${getPageClasses("calendar", currentView)} bg-pattern-grid`}>
-          <div className="container mx-auto px-4 py-6 pb-20">
-            <CalendarComponent 
-              conferences={conferences} 
-              reports={reports} 
-              onViewReport={handleCalendarReportSelect} 
+          <div className="container mx-auto px-4 py-2 pb-20">
+            <CalendarComponent
+              conferences={conferences}
+              reports={reports}
+              onViewReport={handleCalendarReportSelect}
               onMonthChange={handleCalendarMonthChange}
               isLoading={isLoadingConferences}
             />
@@ -886,8 +886,8 @@ export default function HomePage() {
 
         {/* Report list page */}
         <div className={`${getPageClasses("reports", currentView)} bg-pattern-circuit`}>
-          <div className="container mx-auto px-4 py-6 pb-20">
-            <ReportList 
+          <div className="container mx-auto px-4 py-2 pb-20">
+            <ReportList
               onReportClick={handleReportSelect}
             />
           </div>
@@ -896,7 +896,7 @@ export default function HomePage() {
         {/* Report detail page */}
         {selectedReport && (
           <div className={`${getPageClasses("report-detail", currentView)} bg-pattern-constellation`}>
-            <div className="container mx-auto px-4 py-6 pb-20">
+            <div className="container mx-auto px-4 py-2 pb-20">
               <ReportViewer
                 report={selectedReport}
                 onBack={() => {
@@ -912,47 +912,47 @@ export default function HomePage() {
 
         {/* Admin page */}
         <div className={`${getPageClasses("admin", currentView)} bg-admin-custom`}>
-          <div className="container mx-auto px-4 py-6 pb-20">{renderAdmin()}</div>
+          <div className="container mx-auto px-4 py-2 pb-20">{renderAdmin()}</div>
         </div>
 
         {/* Monthly reports page */}
         <div className={`${getPageClasses("monthly-reports", currentView)} bg-pattern-grid`}>
-          <div className="container mx-auto px-4 py-6 pb-20">
+          <div className="container mx-auto px-4 py-2 pb-20">
             <MonthlyReports onReportClick={handleMonthlyReportSelect} />
           </div>
         </div>
 
         {/* Organization reports page */}
         <div className={`${getPageClasses("organization-reports", currentView)} bg-pattern-circuit`}>
-          <div className="container mx-auto px-4 py-6 pb-20">
+          <div className="container mx-auto px-4 py-2 pb-20">
             <OrganizationReports onReportClick={handleOrganizationReportSelect} />
           </div>
         </div>
 
         {/* Category reports page */}
         <div className={`${getPageClasses("category-reports", currentView)} bg-pattern-constellation`}>
-          <div className="container mx-auto px-4 py-6 pb-20">
+          <div className="container mx-auto px-4 py-2 pb-20">
             <CategoryReports onReportClick={handleCategoryReportSelect} />
           </div>
         </div>
 
         {/* Tech analysis page */}
         <div className={`${getPageClasses("tech-analysis", currentView)} bg-pattern-hex`}>
-          <div className="container mx-auto px-4 py-6 pb-20">
+          <div className="container mx-auto px-4 py-2 pb-20">
             <TechAnalysis session={session} />
           </div>
         </div>
 
         {/* Standard search page */}
         <div className={`${getPageClasses("standard-search", currentView)} bg-pattern-grid`}>
-          <div className="container mx-auto px-4 py-6 pb-20">
+          <div className="container mx-auto px-4 py-2 pb-20">
             <StandardSearch />
           </div>
         </div>
 
         {/* Standard tools page */}
         <div className={`${getPageClasses("standard-tools", currentView)} bg-pattern-circuit`}>
-          <div className="container mx-auto px-4 py-6 pb-20">
+          <div className="container mx-auto px-4 py-2 pb-20">
             <StandardTools />
           </div>
         </div>
