@@ -164,7 +164,7 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
                         }
                       }}
                     >
-                      <div className="text-xs font-medium truncate leading-none flex-1">
+                      <div className="text-sm font-medium truncate leading-none flex-1">
                         {conference.title}
                       </div>
                       {conference.reports && conference.reports.length > 0 && <FileText className="w-2 h-2 ml-1 flex-shrink-0" />}
@@ -204,7 +204,7 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
                             </div>
                             <div className="text-xs space-y-1">
                               {conference.reports.map((report, index) => (
-                                <div key={report.id} className="text-muted-foreground">
+                                <div key={report.id} className="text-foreground">
                                   {index + 1}. {report.title}
                                 </div>
                               ))}

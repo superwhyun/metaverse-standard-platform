@@ -526,7 +526,7 @@ export function AdminDashboard({
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{report.title}</p>
+                                  <p className="text-foreground">{report.title}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>

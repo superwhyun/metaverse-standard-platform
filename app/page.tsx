@@ -477,12 +477,35 @@ export default function HomePage() {
       });
 
       if (response.ok) {
-        // BUG FIX: Reload the month of the saved report
+        const result = await response.json();
         const reportDate = new Date(data.date);
         const targetYear = reportDate.getFullYear();
         const targetMonth = reportDate.getMonth() + 1;
 
-        // Reload reports and conferences for the specific month
+        if (isEdit) {
+          // 수정의 경우: allReports 배열에서 해당 보고서 업데이트
+          setAllReports(prev => prev.map(report => 
+            report.id === selectedReport.id 
+              ? { ...report, ...data, id: selectedReport.id }
+              : report
+          ));
+        } else {
+          // 새로 등록의 경우: allReports 배열 맨 앞에 새 보고서 추가
+          const newReport = {
+            id: result.data?.id || Date.now(), // API에서 ID를 반환하지 않는 경우 임시 ID
+            title: data.title,
+            date: data.date,
+            summary: data.summary,
+            category: data.category,
+            organization: data.organization,
+            tags: data.tags || [],
+            downloadUrl: data.downloadUrl,
+            conferenceId: data.conferenceId
+          };
+          setAllReports(prev => [newReport, ...prev]);
+        }
+
+        // 월별 데이터만 재조회 (기존 방식 유지)
         await loadAdminReports(targetYear, targetMonth);
         await loadConferences(targetYear, targetMonth);
 
@@ -593,12 +616,13 @@ export default function HomePage() {
       });
 
       if (response.ok) {
+        // allReports 배열에서 해당 보고서만 제거
+        setAllReports(prev => prev.filter(report => report.id !== id));
+        
         const targetYear = reportDate.getFullYear();
         const targetMonth = reportDate.getMonth() + 1;
         await loadAdminReports(targetYear, targetMonth);
         await loadConferences(targetYear, targetMonth);
-        // 전체 보고서 목록도 새로고침
-        await loadAllReports();
       } else {
         console.error('Failed to delete report');
       }
