@@ -34,7 +34,7 @@ echo "✅ Extracted $INSERT_COUNT INSERT statements"
 echo "🧹 Clearing local database tables..."
 
 # 모든 테이블의 데이터 삭제 (스키마는 유지)
-tables=("users" "conferences" "reports" "organizations" "categories" "tech_analysis_reports")
+tables=("users" "conferences" "reports" "organizations" "categories" "tech_analysis_reports" "wordcloud_stopwords")
 
 for table in "${tables[@]}"; do
     echo "  - Clearing $table table..."

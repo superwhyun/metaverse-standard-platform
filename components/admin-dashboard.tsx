@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminOrganizationForm } from '@/components/admin-organization-form'
 import { AdminCategoryForm } from '@/components/admin-category-form'
 import { AdminEnvSettings } from '@/components/admin-env-settings'
+import { AdminWordcloudStopwords } from '@/components/admin-wordcloud-stopwords'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -681,7 +682,18 @@ export function AdminDashboard({
             <AdminCategoryForm />
         </TabsContent>
         <TabsContent value="system">
-            <AdminEnvSettings />
+            <Tabs defaultValue="env" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="env">환경변수 설정</TabsTrigger>
+                <TabsTrigger value="wordcloud">워드클라우드 설정</TabsTrigger>
+              </TabsList>
+              <TabsContent value="env">
+                <AdminEnvSettings />
+              </TabsContent>
+              <TabsContent value="wordcloud">
+                <AdminWordcloudStopwords />
+              </TabsContent>
+            </Tabs>
         </TabsContent>
       </Tabs>
     </div>

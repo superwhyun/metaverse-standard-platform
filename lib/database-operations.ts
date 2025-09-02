@@ -363,3 +363,31 @@ export const createReportOperations = (db: DatabaseAdapter) => ({
     return (result.changes || 0) > 0;
   }
 });
+
+// WordCloud Stopwords operations
+export const createWordcloudStopwordsOperations = (db: DatabaseAdapter) => ({
+  getByLanguage: async (language: 'korean' | 'english') => {
+    const stmt = db.prepare('SELECT * FROM wordcloud_stopwords WHERE language = ?');
+    const result = await stmt.get([language]);
+    return result;
+  },
+  getAll: async () => {
+    const stmt = db.prepare('SELECT * FROM wordcloud_stopwords ORDER BY language');
+    return await stmt.all();
+  },
+  updateWords: async (language: 'korean' | 'english', words: string) => {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO wordcloud_stopwords (language, words, created_at, updated_at) 
+      VALUES (?, ?, COALESCE((SELECT created_at FROM wordcloud_stopwords WHERE language = ?), CURRENT_TIMESTAMP), CURRENT_TIMESTAMP)
+    `);
+    const result = await stmt.run([language, words, language]);
+    return result.changes && result.changes > 0;
+  },
+  getWordsArray: async (language: 'korean' | 'english') => {
+    const record = await db.prepare('SELECT words FROM wordcloud_stopwords WHERE language = ?').get([language]);
+    if (record && record.words) {
+      return (record.words as string).split(',').map(word => word.trim()).filter(word => word.length > 0);
+    }
+    return [];
+  }
+});
