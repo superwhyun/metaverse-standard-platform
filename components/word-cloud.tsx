@@ -73,11 +73,22 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
       .map(report => `${report.title} ${report.summary}`)
       .join(' ')
 
+    // 텍스트 전처리: 특수문자를 공백으로 변환하여 단어 분리 개선
+    const cleanedText = allText.replace(/[×·•]/g, ' ').replace(/\s+/g, ' ')
+
     // 한글과 영어 단어 모두 추출
-    const rawKoreanWords = allText.match(/[가-힣]{2,}/g) || [] // 한글 2글자 이상
-    const englishWords = allText
-      .toLowerCase()
-      .match(/[a-z]{3,}/g) || [] // 영어 3글자 이상
+    const rawKoreanWords = cleanedText.match(/[가-힣]{2,}/g) || [] // 한글 2글자 이상
+    const englishWords = cleanedText
+      .match(/[a-zA-Z]{2,}/g) || [] // 영어 2글자 이상, 대소문자 보존 (AI, AR, VR 등)
+    
+    // 디버깅: 원본 텍스트와 추출된 영어 단어 확인
+    console.log('텍스트 디버깅:', {
+      originalText: allText.substring(0, 200) + '...',
+      cleanedText: cleanedText.substring(0, 200) + '...',
+      extractedEnglish: englishWords,
+      englishCount: englishWords.length,
+      englishStopWords: dynamicStopWords.english
+    })
 
     // 한글 명사 추출 함수 (배제어 적용 포함)
     const extractKoreanNouns = (words: string[]): string[] => {
@@ -129,8 +140,8 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
     // 영어 단어 필터링 함수 (배제어 적용 포함)
     const filterEnglishWords = (words: string[]): string[] => {
       return words.filter(word => {
-        // 배제어 필터링을 여기서 적용 (빈도수 계산 전에)
-        return word.length >= 3 && !dynamicStopWords.english.includes(word)
+        // 대소문자 무시하고 배제어 필터링 적용
+        return word.length >= 2 && !dynamicStopWords.english.includes(word.toLowerCase())
       })
     }
 
@@ -139,6 +150,13 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
 
     // 영어 단어 필터링 (이미 배제어 필터링 적용됨)
     const filteredEnglishWords = filterEnglishWords(englishWords)
+    
+    // 영어 단어 필터링 과정 디버깅
+    console.log('영어 단어 필터링 과정:', {
+      원본영어단어들: englishWords,
+      필터링후: filteredEnglishWords,
+      제거된단어들: englishWords.filter(word => !filteredEnglishWords.includes(word))
+    })
 
     // 빈도수 계산 (배제어 필터링 후)
     const frequency: Record<string, number> = {}
@@ -160,26 +178,45 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
         if (b !== a) return b - a
         return wordA.localeCompare(wordB)
       })
-    
-    console.log('워드클라우드 단어 추출 결과:', {
-      totalWords: allWords.length,
-      top10: allWords.slice(0, 10),
-      koreanStopWords: dynamicStopWords.korean.slice(0, 5) + '...',
-      englishStopWords: dynamicStopWords.english.slice(0, 5) + '...'
-    })
 
-    // 빈도수 정규화를 위한 계산
-    const top10Words = allWords.slice(0, 10)
-    const frequencies = top10Words.map(([, freq]) => freq)
-    const avgFreq = frequencies.reduce((sum, freq) => sum + freq, 0) / frequencies.length
-    const maxFreq = Math.max(...frequencies)
+    // 언어별로 분리
+    const koreanWordList = allWords.filter(([word]) => /[가-힣]/.test(word))
+    const englishWordList = allWords.filter(([word]) => /[a-z]/i.test(word))
     
-    // 정규화: 평균을 기준으로 스케일링하여 일관된 크기 확보
-    return top10Words.map(([word, freq]) => {
+    // 5:5 비율로 선택, 영어 부족시 한글로 채움
+    const targetEnglish = Math.min(5, englishWordList.length)
+    const targetKorean = 10 - targetEnglish
+    
+    const selectedEnglish = englishWordList.slice(0, targetEnglish)
+    const selectedKorean = koreanWordList.slice(0, targetKorean)
+    
+    // 합치고 빈도수 순으로 정렬
+    const selectedWords = [...selectedEnglish, ...selectedKorean]
+      .sort(([, a], [, b]) => {
+        if (b !== a) return b - a
+        return 0
+      })
+    
+    // 빈도수 정규화
+    const frequencies = selectedWords.map(([, freq]) => freq)
+    const avgFreq = frequencies.reduce((sum, freq) => sum + freq, 0) / frequencies.length
+    
+    const finalWords = selectedWords.map(([word, freq]) => {
       // 평균 기준 정규화 후 적절한 범위로 매핑 (20-60)
       const normalizedScore = (freq / avgFreq) * 40 + 20
       return [word, normalizedScore]
     })
+
+    // 실제 선택된 단어들 로그
+    console.log('최종 워드클라우드 단어:', {
+      totalAllWords: allWords.length,
+      koreanAvailable: koreanWordList.length,
+      englishAvailable: englishWordList.length,
+      finalSelected: finalWords,
+      ratio: `영어${selectedEnglish.length}:한글${selectedKorean.length}`
+    })
+
+    return finalWords
   }, [reportsKey, dynamicStopWords, stopWordsLoaded])
 
   // 단어에 기반한 일관된 색상 생성 함수
@@ -217,14 +254,15 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
       ctx.clearRect(0, 0, width, height)
     }
 
-    // WordCloud 생성 - 뷰티파이 버전
+    // WordCloud 생성 - 10개 모두 배치되도록 최적화
     WordCloud(canvas, {
       list: wordData,
       fontFamily: '"Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif',
       backgroundColor: 'transparent',
-      rotateRatio: 0.3, // 약간의 회전
-      shape: 'circle', // 원형 배치
-      gridSize: 8 // 조밀한 배치
+      // rotateRatio: 0.5, // 회전 늘려서 공간 활용
+      shape: 'circle',
+      gridSize: 8, // 더 세밀한 배치
+      ellipticity: 0.7 // 타원형으로 더 넓은 배치 공간
     })
   }, [wordData, width, height, WordCloud])
 
