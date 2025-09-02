@@ -217,10 +217,16 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
       ctx.clearRect(0, 0, width, height)
     }
 
-    // WordCloud 생성 - 폰트만 추가
+    // WordCloud 생성 - 뷰티파이 버전
     WordCloud(canvas, {
       list: wordData,
-      fontFamily: '"Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif'
+      fontFamily: '"Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif',
+      // color: (word: string) => getConsistentColor(word),
+      backgroundColor: 'transparent',
+      rotateRatio: 0.3, // 약간의 회전
+      shape: 'circle', // 원형 배치
+      gridSize: 8, // 조밀한 배치 8
+      // weightFactor: 4 // 적당한 크기
     })
   }, [wordData, width, height, WordCloud])
 
