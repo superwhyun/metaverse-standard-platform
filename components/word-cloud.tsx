@@ -34,18 +34,78 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
       .map(report => `${report.title} ${report.summary}`)
       .join(' ')
 
-    // 영어 단어만 추출 (3글자 이상)
+    // 한글과 영어 단어 모두 추출
+    const rawKoreanWords = allText.match(/[가-힣]{2,}/g) || [] // 한글 2글자 이상
     const englishWords = allText
       .toLowerCase()
-      .match(/[a-z]{3,}/g) || []
+      .match(/[a-z]{3,}/g) || [] // 영어 3글자 이상
+
+    // 한글 명사 추출 함수
+    const extractKoreanNouns = (words: string[]): string[] => {
+      return words.map(word => {
+        // 동사 어미 제거 (했다, 했습니다, 하고, 하는, 한다 등)
+        const verbEndings = [
+          '했다', '했습니다', '하였다', '하였습니다', '하고', '하며', '하여', '하면서', '한다', '합니다', 
+          '되었다', '되었습니다', '되어', '되고', '된다', '됩니다', '시켰다', '시켰습니다', '시키고', '시킨다',
+          '받았다', '받았습니다', '받고', '받으며', '받는다', '받습니다', '주었다', '주었습니다', '준다', '줍니다',
+          '갔다', '갔습니다', '가고', '간다', '갑니다', '왔다', '왔습니다', '오고', '온다', '옵니다',
+          '보았다', '보았습니다', '보고', '본다', '봅니다', '들었다', '들었습니다', '듣고', '듣는다',
+          '말했다', '말했습니다', '말하고', '말한다', '말합니다', '점검했다', '점검하고', '점검한다', '점검합니다',
+          '공유했다', '공유하고', '공유한다', '공유합니다', '개발했다', '개발하고', '개발한다', '개발합니다',
+          '제공했다', '제공하고', '제공한다', '제공합니다', '구현했다', '구현하고', '구현한다', '구현합니다',
+          '분석했다', '분석하고', '분석한다', '분석합니다', '설계했다', '설계하고', '설계한다', '설계합니다',
+          '지원했다', '지원하고', '지원한다', '지원합니다', '활용했다', '활용하고', '활용한다', '활용합니다'
+        ]
+        
+        // 조사 제거 (을/를, 이/가, 은/는, 의, 에, 으로/로, 와/과, 도, 만 등)
+        const particles = ['을', '를', '이', '가', '은', '는', '의', '에', '으로', '로', '와', '과', '도', '만', '부터', '까지', '에서', '에게', '한테', '께', '보다', '처럼', '같이']
+        
+        // 어미 제거
+        for (const ending of verbEndings) {
+          if (word.endsWith(ending)) {
+            const stem = word.slice(0, -ending.length)
+            if (stem.length >= 2) {
+              return stem
+            }
+          }
+        }
+        
+        // 조사 제거
+        for (const particle of particles) {
+          if (word.endsWith(particle)) {
+            const stem = word.slice(0, -particle.length)
+            if (stem.length >= 2) {
+              return stem
+            }
+          }
+        }
+        
+        return word
+      }).filter(word => word.length >= 2)
+    }
+
+    // 한글 명사 추출
+    const koreanNouns = extractKoreanNouns(rawKoreanWords)
 
     // 빈도수 계산
     const frequency: Record<string, number> = {}
-    englishWords.forEach(word => {
-      // 불용어 제거
-      const stopWords = ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use']
+    
+    // 한글 명사 처리
+    koreanNouns.forEach(word => {
+      // 한글 불용어 제거 (의미 없는 명사들)
+      const koreanStopWords = ['것', '때', '곳', '데', '바', '수', '중', '간', '쪽', '뒤', '앞', '위', '아래', '옆', '내', '외', '밖', '안', '등', '등등', '기타', '일부', '전체', '부분', '상황', '경우', '때문', '결과', '과정', '방법', '방식', '형태', '모습', '상태', '종류', '유형', '특성', '성격', '내용', '구조', '체계', '시스템', '이용', '사용', '활용', '적용', '구현', '개발', '제공', '지원', '관련', '연관', '해당', '관계', '대상', '목적', '목표', '계획', '예정', '준비', '진행', '완료', '시작', '종료', '마지막', '최종', '다음', '이전', '현재', '미래', '과거']
       
-      if (!stopWords.includes(word) && word.length >= 3) {
+      if (!koreanStopWords.includes(word) && word.length >= 2) {
+        frequency[word] = (frequency[word] || 0) + 1
+      }
+    })
+    
+    // 영어 단어 처리
+    englishWords.forEach(word => {
+      // 영어 불용어 제거
+      const englishStopWords = ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use', 'this', 'that', 'with', 'have', 'they', 'been', 'from', 'will', 'would', 'there', 'their', 'what', 'were', 'said', 'each', 'which', 'your', 'time', 'may', 'into', 'than', 'only', 'other', 'after', 'first', 'well', 'also', 'through', 'being', 'where', 'work', 'much', 'such', 'over', 'during', 'before', 'must', 'years', 'used', 'using', 'provide', 'based', 'through', 'should', 'could', 'development', 'system', 'standard', 'standards', 'technology', 'technologies', 'implementation', 'specification', 'specifications', 'application', 'applications', 'requirements', 'framework', 'frameworks']
+      
+      if (!englishStopWords.includes(word) && word.length >= 3) {
         frequency[word] = (frequency[word] || 0) + 1
       }
     })
@@ -75,8 +135,8 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
     WordCloud(canvas, {
       list: wordData,
       gridSize: Math.round(16 * width / 1024),
-      weightFactor: (size: number) => Math.pow(size, 0.8) * width / 1024 * 15,
-      fontFamily: 'Times, serif',
+      weightFactor: (size: number) => Math.pow(size, 0.8) * width / 1024 * 12,
+      fontFamily: '"Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", Arial, sans-serif',
       color: () => {
         // 다양한 색상 배열
         const colors = [
@@ -91,9 +151,10 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
         return colors[Math.floor(Math.random() * colors.length)]
       },
       backgroundColor: 'transparent',
-      rotateRatio: 0.3,
+      rotateRatio: 0.2,
       rotationSteps: 2,
-      shape: 'square'
+      shape: 'square',
+      minSize: 12
     })
   }, [wordData, width, height, WordCloud])
 

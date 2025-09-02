@@ -210,7 +210,7 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
                               <div className="flex flex-col lg:flex-row gap-6">
                                 <div className="lg:w-1/3 flex-shrink-0">
                                   <ReportWordCloud 
-                                    reports={allReports}
+                                    reports={paginatedReports}
                                     width={350}
                                     height={280}
                                   />
