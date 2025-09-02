@@ -29,6 +29,7 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
       onReportClick={onReportClick}
       showPagination={true}
       itemsPerPage={6}
+      showWordCloud={true}
       loadingStatsText="분야별 통계를 불러오는 중..."
       loadingReportsText="보고서를 불러오는 중..."
       emptyReportsText="이 분야의 보고서가 없습니다."

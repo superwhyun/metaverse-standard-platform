@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useGroupedReports, Report } from "@/hooks/useGroupedReports"
+import { ReportWordCloud } from "@/components/word-cloud"
 
 type ReactNode = React.ReactNode
 
@@ -35,6 +36,7 @@ interface GroupedReportsProps<S extends BaseStat> {
   emptyStatsTitle?: string
   emptyStatsDescription?: string
   renderReportCard?: (report: Report) => ReactNode
+  showWordCloud?: boolean
 }
 
 export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>) {
@@ -57,6 +59,7 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
     emptyStatsTitle = "보고서가 없습니다",
     emptyStatsDescription = "보고서가 등록되면 여기에 표시됩니다.",
     renderReportCard,
+    showWordCloud = false,
   } = props
 
   // Pagination state for each expanded group
@@ -203,9 +206,26 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
                         
                         return (
                           <div className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                              {paginatedReports.map((r) => render(r))}
-                            </div>
+                            {showWordCloud ? (
+                              <div className="flex flex-col lg:flex-row gap-6">
+                                <div className="lg:w-1/3 flex-shrink-0">
+                                  <ReportWordCloud 
+                                    reports={allReports}
+                                    width={350}
+                                    height={280}
+                                  />
+                                </div>
+                                <div className="lg:w-2/3">
+                                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
+                                    {paginatedReports.map((r) => render(r))}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {paginatedReports.map((r) => render(r))}
+                              </div>
+                            )}
                             
                             {showPagination && totalPages > 1 && (
                               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
