@@ -79,7 +79,8 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
     // 한글과 영어 단어 모두 추출
     const rawKoreanWords = cleanedText.match(/[가-힣]{2,}/g) || [] // 한글 2글자 이상
     const englishWords = cleanedText
-      .match(/[a-zA-Z]{2,}/g) || [] // 영어 2글자 이상, 대소문자 보존 (AI, AR, VR 등)
+      .match(/[a-zA-Z]+(?:-[a-zA-Z]+)*(?:-?\d+)?(?:\s+\d+)?/g) || [] // 복합 패턴 지원
+      .filter(word => word.length >= 2) // 2글자 이상 필터링
     
     // 디버깅: 원본 텍스트와 추출된 영어 단어 확인
     console.log('텍스트 디버깅:', {
