@@ -254,15 +254,50 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
       ctx.clearRect(0, 0, width, height)
     }
 
-    // WordCloud 생성 - 10개 모두 배치되도록 최적화
+    // 테마별 색상 팔레트
+    const getThemeColor = (word: string) => {
+      // 단어별 고정 해시
+      let hash = 0;
+      for (let i = 0; i < word.length; i++) {
+        hash = word.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      
+      // 다크모드 감지 (document.documentElement의 class 확인)
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      
+      const lightColors = [
+        '#2563eb', // blue-600
+        '#dc2626', // red-600  
+        '#059669', // emerald-600
+        '#7c3aed', // violet-600
+        '#ea580c', // orange-600
+        '#0891b2', // cyan-600
+        '#be123c', // rose-600
+      ];
+      
+      const darkColors = [
+        '#60a5fa', // blue-400
+        '#f87171', // red-400
+        '#34d399', // emerald-400  
+        '#a78bfa', // violet-400
+        '#fb923c', // orange-400
+        '#22d3ee', // cyan-400
+        '#fb7185', // rose-400
+      ];
+      
+      const colors = isDarkMode ? darkColors : lightColors;
+      return colors[Math.abs(hash) % colors.length];
+    };
+
+    // WordCloud 생성 - 테마별 색상 적용
     WordCloud(canvas, {
       list: wordData,
       fontFamily: '"Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif',
       backgroundColor: 'transparent',
-      // rotateRatio: 0.5, // 회전 늘려서 공간 활용
+      color: (word: string) => getThemeColor(word),
       shape: 'circle',
-      gridSize: 8, // 더 세밀한 배치
-      ellipticity: 0.7 // 타원형으로 더 넓은 배치 공간
+      gridSize: 8,
+      ellipticity: 0.7
     })
   }, [wordData, width, height, WordCloud])
 
