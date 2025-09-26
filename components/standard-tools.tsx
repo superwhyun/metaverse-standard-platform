@@ -75,6 +75,16 @@ const GltfViewerIcon = () => (
   </svg>
 );
 
+const DocumentAnalysisIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="2" width="16" height="20" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+    <path d="M8 7h8M8 11h8M8 15h6" stroke="currentColor" strokeWidth="1.5"/>
+    <circle cx="18" cy="18" r="4" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+    <path d="M16.5 17.5l2 2M17.5 16.5v3" stroke="currentColor" strokeWidth="1"/>
+    <path d="M15 19l1.5-1.5L18 19" stroke="currentColor" strokeWidth="1" fill="none"/>
+  </svg>
+);
+
 const tools: ToolItem[] = [
   {
     id: 'markdown-printer',
@@ -117,6 +127,13 @@ const tools: ToolItem[] = [
     description: '3D 모델 파일(glTF)을 웹에서 미리보기할 수 있는 뷰어입니다.',
     url: 'https://gltf-viewer-seven.vercel.app/',
     icon: <GltfViewerIcon />
+  },
+  {
+    id: 'document-analysis',
+    name: '기고서 분석도구',
+    description: '기고서 문서를 분석하고 처리하는 도구입니다.',
+    url: 'https://doca-9yqh.vercel.app/',
+    icon: <DocumentAnalysisIcon />
   }
 ];
 
