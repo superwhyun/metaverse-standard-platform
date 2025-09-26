@@ -35,7 +35,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   
-  // 무한 스크롤 관련 상태
+  // 페이지네이션 관련 상태
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [offset, setOffset] = useState(0)
@@ -70,26 +70,26 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
     } else {
       setIsLoadingMore(true)
     }
-    
+
     try {
       const currentOffset = reset ? 0 : offset
       const params = new URLSearchParams({
         limit: '8',
         offset: currentOffset.toString(),
       })
-      
+
       if (search.trim()) {
         params.append('search', search.trim())
       }
-      
+
       if (categoryName && categoryName !== 'all') {
         params.append('category', categoryName)
       }
-      
+
       const response = await fetch(`/api/tech-analysis?${params}`)
       if (!response.ok) throw new Error('Failed to fetch reports')
       const data = await response.json()
-      
+
       if (reset) {
         setReports(data)
         setOffset(8)
@@ -102,7 +102,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         })
         setOffset(prev => prev + 8)
       }
-      
+
       // 가져온 데이터가 8개 미만이면 더 이상 로드할 데이터가 없음
       setHasMore(data.length === 8)
       
@@ -192,22 +192,6 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
     if (!hasMore || isLoadingMore) return
     fetchReports(false, searchTerm, selectedCategoryName)
   }
-
-  // 무한 스크롤 구현
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        !isLoadingMore && 
-        hasMore && 
-        window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000
-      ) {
-        handleLoadMore()
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [hasMore, isLoadingMore, searchTerm, selectedCategoryName, offset])
 
   const validateForm = () => {
     if (!newUrl.trim()) {
@@ -544,11 +528,24 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
           </div>
         )}
         
-        {/* 무한 스크롤 로딩 */}
-        {isLoadingMore && (
+        {/* 더 보기 버튼 */}
+        {!isLoading && hasMore && (
           <div className="text-center py-8">
-            <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto mb-2"></div>
-            <p className="text-sm text-muted-foreground">더 많은 소식을 불러오는 중...</p>
+            <Button
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
+              variant="outline"
+              size="lg"
+            >
+              {isLoadingMore ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mr-2"></div>
+                  더 불러오는 중...
+                </>
+              ) : (
+                '더 보기'
+              )}
+            </Button>
           </div>
         )}
         
