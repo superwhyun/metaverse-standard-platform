@@ -20,12 +20,14 @@
 
 ## 🛠 기술 스택
 
-- 프레임워크: Next.js 13 (App Router)
+- 프레임워크: Next.js 15 (App Router)
 - 언어: TypeScript, React
 - 스타일: Tailwind CSS, shadcn UI
-- 데이터베이스: Cloudflare D1 / Supabase (추상화 레이어)
-- 인증: NextAuth.js / Edge functions
-- 배포: Vercel, Cloudflare Workers 등
+- 데이터베이스: Cloudflare D1 (추상화 레이어 지원)
+- 캐시: Cloudflare KV (표준 검색 캐시)
+- 인증: NextAuth.js
+- 배포: Cloudflare Pages
+- 빌드: @cloudflare/next-on-pages
 
 ## 📂 디렉터리 구조
 
@@ -45,36 +47,210 @@
 
 ## 🔧 로컬 개발 환경 설정
 
-1. 리포지토리 클론 및 의존성 설치
-   ```bash
-   git clone <repo-url>
-   cd <repo-dir>
-   npm install
-   ```
-2. 환경 변수 설정
-   ```bash
-   cp .env.example .env
-   # .env 파일에 DATABASE_URL, OPENAI_API_KEY 등 값 입력
-   ```
-3. 데이터베이스 마이그레이션
-   ```bash
-   # DB-SYNC.md 가이드 참고
-   npm run migrate
-   ```
-4. 개발 서버 실행
-   ```bash
-   npm run dev
-   ```
+### 1. 리포지토리 클론 및 의존성 설치
+```bash
+git clone https://github.com/superwhyun/metaverse-standard-platform.git
+cd metaverse-standard-platform
+npm install
+```
 
-## ⚙️ 환경 변수
+### 2. 환경 변수 설정
+```bash
+cp .env.example .env
+```
+
+`.env` 파일에 OpenAI API 키를 입력하세요:
 
 ```ini
-# .env 예시
-DATABASE_URL=
-NEXTAUTH_URL=
-OPENAI_API_KEY=
-...
+# OpenAI API Key (필수)
+# 기술 소식 자동 카테고리화 및 표준 검색 AI 분석에 사용됩니다.
+OPENAI_API_KEY="sk-proj-..."
 ```
+
+> **참고**: D1 데이터베이스(`MSP`)와 KV 캐시(`STANDARD_SEARCH_CACHE`)는 Cloudflare 바인딩으로 `wrangler.toml`에서 관리되므로 환경변수로 설정할 필요가 없습니다.
+
+### 3. Wrangler 로그인 (Cloudflare Pages 로컬 개발 시)
+
+Cloudflare Pages 로컬 환경을 사용하려면 wrangler 인증이 필요합니다:
+```bash
+npx wrangler login
+# 브라우저가 열리며 Cloudflare 계정으로 로그인
+```
+
+### 4. 데이터베이스 마이그레이션
+
+**로컬 SQLite 데이터베이스를 사용하는 경우:**
+```bash
+# DB-SYNC.md 가이드 참고
+npm run sync-db
+```
+
+**Cloudflare D1을 사용하는 경우:**
+```bash
+# 1. D1 데이터베이스 생성 (최초 1회)
+npx wrangler d1 create metaverse-standards-dev
+
+# 2. wrangler.toml 파일에서 database_id 업데이트
+# 생성된 database_id를 복사하여 wrangler.toml의 [[d1_databases]] 섹션에 입력
+
+# 3. KV namespace 생성 (최초 1회)
+npx wrangler kv:namespace create "STANDARD_SEARCH_CACHE"
+
+# 4. wrangler.toml 파일에서 KV namespace id 업데이트
+# 생성된 id를 복사하여 wrangler.toml의 [[kv_namespaces]] 섹션에 입력
+
+# 5. migrations 디렉터리의 SQL 파일들을 순서대로 실행
+npx wrangler d1 execute metaverse-standards-dev --file=./migrations/001_initial_schema.sql
+# 추가 마이그레이션 파일이 있다면 순서대로 실행
+```
+
+> `wrangler.toml` 파일에는 이미 프로젝트 설정이 포함되어 있습니다. 새로운 D1/KV를 생성한 경우 해당 ID만 업데이트하면 됩니다.
+
+### 5. 개발 서버 실행
+
+**옵션 A: 표준 Next.js 개발 서버 (빠른 개발)**
+```bash
+npm run dev
+# http://localhost:3000 에서 확인
+```
+
+**옵션 B: Cloudflare Pages 로컬 환경 (프로덕션과 동일한 환경)**
+```bash
+# 1단계: Cloudflare Pages용 빌드
+npm run build:cloudflare
+
+# 2단계: Cloudflare Pages 로컬 서버 실행
+npm run dev:cloudflare
+# http://localhost:3001 에서 확인
+```
+
+**옵션 C: Cloudflare Pages 자동 재빌드 (파일 변경 감지)**
+```bash
+npm run dev:cloudflare-auto
+# 파일 변경 시 자동으로 재빌드 및 재시작
+```
+
+**옵션 D: 프리뷰 환경 (D1 데이터베이스 포함)**
+```bash
+npm run preview
+# http://localhost:3002 에서 확인
+# Cloudflare D1 바인딩 포함
+```
+
+## ⚙️ 환경 변수 상세 설명
+
+### 필수 환경 변수
+| 변수명 | 설명 | 용도 |
+|--------|------|------|
+| `OPENAI_API_KEY` | OpenAI API 키 | 기술 소식 자동 카테고리화 및 표준 검색 AI 분석 |
+
+### Cloudflare 바인딩 (wrangler.toml에서 설정)
+| 바인딩명 | 타입 | 용도 |
+|---------|------|------|
+| `MSP` | D1 Database | 메인 데이터베이스 (회의, 보고서, 카테고리 등) |
+| `STANDARD_SEARCH_CACHE` | KV Namespace | 표준 검색 결과 캐싱 |
+
+## 🚀 Cloudflare Pages 프로덕션 배포
+
+이 프로젝트는 Cloudflare Pages에 최적화되어 있으며, D1 데이터베이스와 KV namespace를 활용합니다.
+
+### Cloudflare Pages 프로젝트 설정
+
+#### 1. Cloudflare Dashboard에서 새 Pages 프로젝트 생성
+
+1. [Cloudflare Dashboard](https://dash.cloudflare.com) 로그인
+2. **Workers & Pages** > **Create application** > **Pages** 선택
+3. GitHub 리포지토리 연결
+4. 빌드 설정:
+   ```
+   프레임워크 프리셋: Next.js
+   빌드 명령어: npm run build:cloudflare
+   빌드 출력 디렉터리: .vercel/output/static
+   ```
+
+#### 2. D1 데이터베이스 생성 및 바인딩
+
+```bash
+# D1 데이터베이스 생성
+npx wrangler d1 create metaverse-standards-prod
+
+# 마이그레이션 실행
+npx wrangler d1 execute metaverse-standards-prod --file=./migrations/001_initial_schema.sql
+# 추가 마이그레이션 파일이 있다면 순서대로 실행
+```
+
+**Cloudflare Dashboard에서 바인딩 설정:**
+1. Pages 프로젝트 > **Settings** > **Functions** > **D1 database bindings**
+2. **Add binding** 클릭
+   - Variable name: `MSP`
+   - D1 database: 생성한 데이터베이스 선택
+
+#### 3. KV Namespace 생성 및 바인딩
+
+```bash
+# KV namespace 생성
+npx wrangler kv:namespace create "STANDARD_SEARCH_CACHE"
+```
+
+**Cloudflare Dashboard에서 바인딩 설정:**
+1. Pages 프로젝트 > **Settings** > **Functions** > **KV namespace bindings**
+2. **Add binding** 클릭
+   - Variable name: `STANDARD_SEARCH_CACHE`
+   - KV namespace: 생성한 namespace 선택
+
+#### 4. 환경 변수 설정
+
+Pages 프로젝트 > **Settings** > **Environment variables**에서 다음 변수를 설정:
+
+**프로덕션 환경 변수:**
+```ini
+# OpenAI API Key (필수)
+OPENAI_API_KEY=sk-proj-...
+```
+
+> 프로덕션과 프리뷰 환경에 대해 각각 다른 값을 설정할 수 있습니다.
+
+#### 5. 배포
+
+**자동 배포 (권장):**
+- `main` 브랜치에 푸시하면 자동으로 프로덕션 배포
+- 다른 브랜치에 푸시하면 프리뷰 배포 생성
+
+**수동 배포:**
+```bash
+# 로컬에서 빌드
+npm run build:cloudflare
+
+# wrangler로 배포
+npx wrangler pages deploy .vercel/output/static --project-name=your-project-name
+```
+
+### 배포 후 확인사항
+
+1. **D1 데이터베이스 연결 확인**
+   - 애플리케이션에서 데이터 조회가 정상 작동하는지 확인
+   - 캘린더 및 보고서 페이지가 정상 로드되는지 확인
+
+2. **관리자 로그인 테스트**
+   - `/admin` 경로로 이동
+   - 관리자 계정으로 로그인 (계정은 데이터베이스에서 관리)
+   - 로그인 정보는 `DB-SYNC.md` 참조
+
+3. **OpenAI API 기능 테스트**
+   - 기술 소식 자동 카테고리화 기능 확인
+   - 표준 검색 AI 분석 기능 확인
+
+### 커스텀 도메인 연결 (선택)
+
+1. Pages 프로젝트 > **Custom domains** > **Set up a custom domain**
+2. 도메인 입력 후 DNS 레코드 설정
+3. SSL/TLS 인증서 자동 발급 대기 (보통 수 분 소요)
+
+### 모니터링 및 로그
+
+- **로그 확인**: Pages 프로젝트 > **Functions** > **Real-time Logs**
+- **분석**: Pages 프로젝트 > **Analytics**
+- **D1 쿼리 모니터링**: D1 데이터베이스 > **Metrics**
 
 ## 📄 주요 문서
 
