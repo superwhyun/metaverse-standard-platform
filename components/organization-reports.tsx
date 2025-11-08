@@ -1,8 +1,9 @@
 "use client"
 
 import React from "react"
-import { Building, FileText, Tag as TagIcon } from "lucide-react"
+import { Building, FileText, Tag as TagIcon, Edit } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { GroupedReports } from "@/components/grouped-reports"
 
 interface OrganizationStats {
@@ -12,9 +13,11 @@ interface OrganizationStats {
 
 interface OrganizationReportsProps {
   onReportClick: (report: any) => void
+  isAdmin?: boolean
+  onEdit?: (report: any) => void
 }
 
-export function OrganizationReports({ onReportClick }: OrganizationReportsProps) {
+export function OrganizationReports({ onReportClick, isAdmin = false, onEdit }: OrganizationReportsProps) {
   return (
     <GroupedReports<OrganizationStats>
       title="표준화 기구별 동향 보고서"
@@ -26,6 +29,8 @@ export function OrganizationReports({ onReportClick }: OrganizationReportsProps)
       getCount={(s) => s.count}
       buildReportsUrl={(s) => `/api/reports/by-organization/${encodeURIComponent(s.name)}`}
       onReportClick={onReportClick}
+      isAdmin={isAdmin}
+      onEdit={onEdit}
       showPagination={true}
       itemsPerPage={6}
       loadingStatsText="기구별 통계를 불러오는 중..."
@@ -40,9 +45,25 @@ export function OrganizationReports({ onReportClick }: OrganizationReportsProps)
           onClick={() => onReportClick(report)}
         >
           <div className="flex items-start justify-between mb-2">
-            <h3 className="font-semibold text-lg hover:text-primary transition-colors">
-              {report.title}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-lg hover:text-primary transition-colors">
+                {report.title}
+              </h3>
+              {isAdmin && onEdit && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEdit(report)
+                  }}
+                >
+                  <Edit className="w-3 h-3 mr-1" />
+                  수정
+                </Button>
+              )}
+            </div>
             <Badge variant="outline" className="ml-2 shrink-0">
               {new Date(report.date).toLocaleDateString("ko-KR")}
             </Badge>

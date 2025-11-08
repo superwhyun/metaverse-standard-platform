@@ -1,9 +1,10 @@
 "use client"
 
 import React from "react"
-import { Tag as TagIcon, Calendar } from "lucide-react"
+import { Tag as TagIcon, Calendar, Edit } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { GroupedReports } from "@/components/grouped-reports"
 
 interface CategoryStats {
@@ -13,9 +14,11 @@ interface CategoryStats {
 
 interface CategoryReportsProps {
   onReportClick: (report: any) => void
+  isAdmin?: boolean
+  onEdit?: (report: any) => void
 }
 
-export function CategoryReports({ onReportClick }: CategoryReportsProps) {
+export function CategoryReports({ onReportClick, isAdmin = false, onEdit }: CategoryReportsProps) {
   return (
     <GroupedReports<CategoryStats>
       title="분야별 표준화 동향"
@@ -27,6 +30,8 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
       getCount={(s) => s.count}
       buildReportsUrl={(s) => `/api/reports/by-category/${encodeURIComponent(s.name)}`}
       onReportClick={onReportClick}
+      isAdmin={isAdmin}
+      onEdit={onEdit}
       showPagination={true}
       itemsPerPage={6}
       showWordCloud={true}
@@ -43,9 +48,25 @@ export function CategoryReports({ onReportClick }: CategoryReportsProps) {
         >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-2">
-              <Badge variant="outline" className="text-xs">
-                {report.organization}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {report.organization}
+                </Badge>
+                {isAdmin && onEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit(report)
+                    }}
+                  >
+                    <Edit className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                )}
+              </div>
               <div className="text-xs text-muted-foreground flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
                 {report.date}
