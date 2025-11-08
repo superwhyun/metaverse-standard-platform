@@ -59,20 +59,15 @@ npm install
 cp .env.example .env
 ```
 
-`.env` 파일에 다음 값들을 입력하세요:
+`.env` 파일에 OpenAI API 키를 입력하세요:
 
 ```ini
-# 필수 환경 변수
-NEXTAUTH_SECRET="임의의_긴_랜덤_문자열"  # openssl rand -base64 32 명령으로 생성 가능
-NEXTAUTH_URL="http://localhost:3000"
-ADMIN_USERNAME="admin"
-ADMIN_PASSWORD="원하는_관리자_비밀번호"
-
-# 선택 환경 변수 (AI 기능 사용 시)
-ANTHROPIC_API_KEY="sk-ant-api03-..."
+# OpenAI API Key (필수)
+# 기술 소식 자동 카테고리화 및 표준 검색 AI 분석에 사용됩니다.
 OPENAI_API_KEY="sk-proj-..."
-PERPLEXITY_API_KEY="pplx-..."
 ```
+
+> **참고**: D1 데이터베이스(`MSP`)와 KV 캐시(`STANDARD_SEARCH_CACHE`)는 Cloudflare 바인딩으로 `wrangler.toml`에서 관리되므로 환경변수로 설정할 필요가 없습니다.
 
 ### 3. Wrangler 로그인 (Cloudflare Pages 로컬 개발 시)
 
@@ -145,19 +140,15 @@ npm run preview
 ## ⚙️ 환경 변수 상세 설명
 
 ### 필수 환경 변수
-| 변수명 | 설명 | 예시 |
-|--------|------|------|
-| `NEXTAUTH_SECRET` | JWT 서명용 비밀키 | `openssl rand -base64 32`로 생성 |
-| `NEXTAUTH_URL` | 애플리케이션 URL | 로컬: `http://localhost:3000`<br/>프로덕션: `https://your-domain.pages.dev` |
-| `ADMIN_USERNAME` | 관리자 계정 사용자명 | `admin` |
-| `ADMIN_PASSWORD` | 관리자 계정 비밀번호 | 강력한 비밀번호 설정 필요 |
-
-### 선택 환경 변수 (AI 기능)
 | 변수명 | 설명 | 용도 |
 |--------|------|------|
-| `ANTHROPIC_API_KEY` | Anthropic Claude API 키 | AI 분석 및 태깅 |
-| `OPENAI_API_KEY` | OpenAI API 키 | GPT 기반 분석 |
-| `PERPLEXITY_API_KEY` | Perplexity API 키 | 리서치 기능 |
+| `OPENAI_API_KEY` | OpenAI API 키 | 기술 소식 자동 카테고리화 및 표준 검색 AI 분석 |
+
+### Cloudflare 바인딩 (wrangler.toml에서 설정)
+| 바인딩명 | 타입 | 용도 |
+|---------|------|------|
+| `MSP` | D1 Database | 메인 데이터베이스 (회의, 보고서, 카테고리 등) |
+| `STANDARD_SEARCH_CACHE` | KV Namespace | 표준 검색 결과 캐싱 |
 
 ## 🚀 Cloudflare Pages 프로덕션 배포
 
@@ -209,20 +200,12 @@ npx wrangler kv:namespace create "STANDARD_SEARCH_CACHE"
 
 #### 4. 환경 변수 설정
 
-Pages 프로젝트 > **Settings** > **Environment variables**에서 다음 변수들을 설정:
+Pages 프로젝트 > **Settings** > **Environment variables**에서 다음 변수를 설정:
 
 **프로덕션 환경 변수:**
 ```ini
-# 필수
-NEXTAUTH_SECRET=프로덕션용_긴_랜덤_문자열
-NEXTAUTH_URL=https://your-project.pages.dev
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=강력한_비밀번호
-
-# AI 기능 (선택)
-ANTHROPIC_API_KEY=sk-ant-api03-...
+# OpenAI API Key (필수)
 OPENAI_API_KEY=sk-proj-...
-PERPLEXITY_API_KEY=pplx-...
 ```
 
 > 프로덕션과 프리뷰 환경에 대해 각각 다른 값을 설정할 수 있습니다.
@@ -246,13 +229,16 @@ npx wrangler pages deploy .vercel/output/static --project-name=your-project-name
 
 1. **D1 데이터베이스 연결 확인**
    - 애플리케이션에서 데이터 조회가 정상 작동하는지 확인
+   - 캘린더 및 보고서 페이지가 정상 로드되는지 확인
 
 2. **관리자 로그인 테스트**
    - `/admin` 경로로 이동
-   - 설정한 ADMIN_USERNAME/ADMIN_PASSWORD로 로그인
+   - 관리자 계정으로 로그인 (계정은 데이터베이스에서 관리)
+   - 로그인 정보는 `DB-SYNC.md` 참조
 
-3. **AI 기능 테스트** (API 키 설정 시)
-   - 보고서 분석 및 태깅 기능 확인
+3. **OpenAI API 기능 테스트**
+   - 기술 소식 자동 카테고리화 기능 확인
+   - 표준 검색 AI 분석 기능 확인
 
 ### 커스텀 도메인 연결 (선택)
 
