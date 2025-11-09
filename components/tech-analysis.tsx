@@ -476,51 +476,49 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                     </div>
                 </a>
                 <CardHeader className="p-3 flex-grow">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-sm font-semibold leading-snug tracking-tight line-clamp-2 flex-1">
-                      <a href={report.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                          {report.title}
-                      </a>
-                    </CardTitle>
-                    {session && (
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            handleEdit(report)
-                          }}
-                          title="편집"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            handleDeleteClick(report.id)
-                          }}
-                          title="삭제"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                  <CardTitle className="text-sm font-semibold leading-snug tracking-tight line-clamp-2">
+                    <a href={report.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        {report.title}
+                    </a>
+                  </CardTitle>
                   {report.summary && (
                     <CardDescription className="text-xs mt-1 line-clamp-3">
                         {report.summary}
                     </CardDescription>
                   )}
                 </CardHeader>
-                <CardFooter className="p-3 pt-0 mt-auto">
+                <CardFooter className="p-3 pt-0 mt-auto flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">
                     {new Date(report.created_at).toLocaleDateString()}
                   </p>
+                  {session && (
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleEdit(report)
+                        }}
+                        title="편집"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleDeleteClick(report.id)
+                        }}
+                        title="삭제"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
                 </CardFooter>
                 </Card>
               </div>
