@@ -39,6 +39,9 @@ export const metadata: Metadata = {
   title: "메타버스 국제표준화 동향",
   description: "메타버스 국제표준화 동향과 표준 검색 사이트",
   generator: "v0.app",
+  icons: {
+    icon: '/icon.svg',
+  },
 }
 
 export default function RootLayout({
