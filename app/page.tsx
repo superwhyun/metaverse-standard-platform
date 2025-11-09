@@ -913,6 +913,8 @@ export default function HomePage() {
           <div className="container mx-auto px-4 py-2 pb-20">
             <ReportList
               onReportClick={handleReportSelect}
+              isAdmin={!!session}
+              onEdit={handleEditReportFromViewer}
             />
           </div>
         </div>
@@ -942,21 +944,33 @@ export default function HomePage() {
         {/* Monthly reports page */}
         <div className={`${getPageClasses("monthly-reports", currentView)} bg-pattern-grid`}>
           <div className="container mx-auto px-4 py-2 pb-20">
-            <MonthlyReports onReportClick={handleMonthlyReportSelect} />
+            <MonthlyReports
+              onReportClick={handleMonthlyReportSelect}
+              isAdmin={!!session}
+              onEdit={handleEditReportFromViewer}
+            />
           </div>
         </div>
 
         {/* Organization reports page */}
         <div className={`${getPageClasses("organization-reports", currentView)} bg-pattern-circuit`}>
           <div className="container mx-auto px-4 py-2 pb-20">
-            <OrganizationReports onReportClick={handleOrganizationReportSelect} />
+            <OrganizationReports
+              onReportClick={handleOrganizationReportSelect}
+              isAdmin={!!session}
+              onEdit={handleEditReportFromViewer}
+            />
           </div>
         </div>
 
         {/* Category reports page */}
         <div className={`${getPageClasses("category-reports", currentView)} bg-pattern-constellation`}>
           <div className="container mx-auto px-4 py-2 pb-20">
-            <CategoryReports onReportClick={handleCategoryReportSelect} />
+            <CategoryReports
+              onReportClick={handleCategoryReportSelect}
+              isAdmin={!!session}
+              onEdit={handleEditReportFromViewer}
+            />
           </div>
         </div>
 

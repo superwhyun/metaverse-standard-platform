@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Download, Calendar, Tag, ChevronRight, Filter } from "lucide-react"
+import { Search, Download, Calendar, Tag, ChevronRight, Filter, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -22,9 +22,11 @@ interface Report {
 
 interface ReportListProps {
   onReportClick: (report: Report) => void
+  isAdmin?: boolean
+  onEdit?: (report: Report) => void
 }
 
-export function ReportList({ onReportClick }: ReportListProps) {
+export function ReportList({ onReportClick, isAdmin = false, onEdit }: ReportListProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [selectedOrganization, setSelectedOrganization] = useState<string>("all")
@@ -244,9 +246,25 @@ export function ReportList({ onReportClick }: ReportListProps) {
           >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {report.category}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {report.category}
+                  </Badge>
+                  {isAdmin && onEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEdit(report)
+                      }}
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      수정
+                    </Button>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   {report.date}

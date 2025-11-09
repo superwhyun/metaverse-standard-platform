@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { ChevronDown, ChevronUp, Calendar, Tag as TagIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronUp, Calendar, Tag as TagIcon, ChevronLeft, ChevronRight, Edit } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,8 @@ interface GroupedReportsProps<S extends BaseStat> {
   getCount: (stat: S) => number
   buildReportsUrl: (stat: S) => string
   onReportClick: (report: Report) => void
+  isAdmin?: boolean
+  onEdit?: (report: Report) => void
   limit?: number
   itemsPerPage?: number
   showPagination?: boolean
@@ -50,6 +52,8 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
     getCount,
     buildReportsUrl,
     onReportClick,
+    isAdmin = false,
+    onEdit,
     limit,
     itemsPerPage = 6,
     showPagination = true,
@@ -107,9 +111,25 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
-          <Badge variant="secondary" className="text-xs">
-            {report.category}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              {report.category}
+            </Badge>
+            {isAdmin && onEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(report)
+                }}
+              >
+                <Edit className="w-3 h-3 mr-1" />
+                수정
+              </Button>
+            )}
+          </div>
           <div className="text-xs text-muted-foreground">
             {report.organization}
           </div>

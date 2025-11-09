@@ -14,9 +14,11 @@ interface MonthlyStats {
 
 interface MonthlyReportsProps {
   onReportClick: (report: any) => void
+  isAdmin?: boolean
+  onEdit?: (report: any) => void
 }
 
-export function MonthlyReports({ onReportClick }: MonthlyReportsProps) {
+export function MonthlyReports({ onReportClick, isAdmin = false, onEdit }: MonthlyReportsProps) {
   const [availableYears, setAvailableYears] = useState<number[]>([])
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -91,6 +93,8 @@ export function MonthlyReports({ onReportClick }: MonthlyReportsProps) {
             getCount={(s) => s.count}
             buildReportsUrl={(s) => `/api/reports/by-month/${s.year}/${s.month}`}
             onReportClick={onReportClick}
+            isAdmin={isAdmin}
+            onEdit={onEdit}
             showPagination={true}
             itemsPerPage={6}
             loadingStatsText="월별 통계를 불러오는 중..."
