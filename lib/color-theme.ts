@@ -4,11 +4,37 @@ export interface ColorThemeConfig {
   light: {
     cardBackground: string;
     cardBorder: string;
+    cardForeground?: string; // 자동 계산됨
   };
   dark: {
     cardBackground: string;
     cardBorder: string;
+    cardForeground?: string; // 자동 계산됨
   };
+}
+
+// 색상의 밝기를 계산하여 적절한 텍스트 색상 반환
+export function getContrastColor(hexColor: string): string {
+  // # 제거
+  const hex = hexColor.replace('#', '');
+
+  // RGB 값 추출
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // 상대적 밝기 계산 (WCAG 공식)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // 밝기가 0.5 이상이면 검은색, 미만이면 흰색
+  // 더 부드러운 그라데이션을 위해 회색 톤 사용
+  if (luminance > 0.5) {
+    // 밝은 배경 -> 어두운 텍스트
+    return '#1f2937'; // gray-800
+  } else {
+    // 어두운 배경 -> 밝은 텍스트
+    return '#f9fafb'; // gray-50
+  }
 }
 
 // 깔끔하고 모던하며 대비가 명확한 디폴트 색상
@@ -74,8 +100,13 @@ export function applyColorTheme(config: ColorThemeConfig, theme: 'light' | 'dark
   const root = document.documentElement;
   const colors = config[theme];
 
+  // 배경색과 테두리색 적용
   root.style.setProperty('--card', colors.cardBackground);
   root.style.setProperty('--border', colors.cardBorder);
+
+  // 텍스트 색상 자동 계산 및 적용
+  const foregroundColor = colors.cardForeground || getContrastColor(colors.cardBackground);
+  root.style.setProperty('--card-foreground', foregroundColor);
 }
 
 // 디폴트 색상으로 리셋

@@ -12,6 +12,7 @@ import {
   saveColorTheme,
   applyColorTheme,
   resetColorTheme,
+  getContrastColor,
   DEFAULT_COLOR_THEME,
   type ColorThemeConfig,
 } from '@/lib/color-theme';
@@ -134,11 +135,12 @@ export function AdminColorTheme({ currentTheme }: AdminColorThemeProps) {
                   style={{
                     backgroundColor: colorConfig.light.cardBackground,
                     border: `1px solid ${colorConfig.light.cardBorder}`,
+                    color: getContrastColor(colorConfig.light.cardBackground),
                   }}
                 >
                   <h3 className="font-semibold mb-2">샘플 카드</h3>
-                  <p className="text-sm text-muted-foreground">
-                    이것은 라이트 모드에서의 카드 미리보기입니다.
+                  <p className="text-sm" style={{ opacity: 0.7 }}>
+                    이것은 라이트 모드에서의 카드 미리보기입니다. 배경색에 따라 텍스트 색상이 자동으로 조정됩니다.
                   </p>
                 </div>
               </div>
@@ -195,12 +197,12 @@ export function AdminColorTheme({ currentTheme }: AdminColorThemeProps) {
                   style={{
                     backgroundColor: colorConfig.dark.cardBackground,
                     border: `1px solid ${colorConfig.dark.cardBorder}`,
-                    color: '#e2e8f0',
+                    color: getContrastColor(colorConfig.dark.cardBackground),
                   }}
                 >
                   <h3 className="font-semibold mb-2">샘플 카드</h3>
-                  <p className="text-sm" style={{ color: '#94a3b8' }}>
-                    이것은 다크 모드에서의 카드 미리보기입니다.
+                  <p className="text-sm" style={{ opacity: 0.7 }}>
+                    이것은 다크 모드에서의 카드 미리보기입니다. 배경색에 따라 텍스트 색상이 자동으로 조정됩니다.
                   </p>
                 </div>
               </div>

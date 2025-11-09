@@ -460,9 +460,9 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                     </span>
                   </div>
                 )}
-                <Card className={`flex flex-col overflow-hidden relative ${report.status === 'pending' ? 'opacity-70' : ''}`}>
+                <Card className={`flex flex-col overflow-hidden relative h-[320px] ${report.status === 'pending' ? 'opacity-70' : ''}`}>
                 <a href={report.url} target="_blank" rel="noopener noreferrer" className="block bg-muted">
-                    <div className="w-full h-32 flex items-center justify-center">
+                    <div className="w-full h-32 flex items-center justify-center flex-shrink-0">
                     {report.status === 'pending' ? (
                         <div className="flex flex-col items-center gap-2">
                           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -475,7 +475,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                     )}
                     </div>
                 </a>
-                <CardHeader className="p-3 flex-grow">
+                <CardHeader className="p-3 flex-grow overflow-hidden">
                   <CardTitle className="text-sm font-semibold leading-snug tracking-tight line-clamp-2">
                     <a href={report.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
                         {report.title}
@@ -487,7 +487,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                     </CardDescription>
                   )}
                 </CardHeader>
-                <CardFooter className="p-3 pt-0 mt-auto flex items-center justify-between">
+                <CardFooter className="p-3 pt-0 mt-auto flex items-center justify-between flex-shrink-0">
                   <p className="text-xs text-muted-foreground">
                     {new Date(report.created_at).toLocaleDateString()}
                   </p>

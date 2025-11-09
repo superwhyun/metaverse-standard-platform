@@ -193,7 +193,13 @@ export default function AdminSettingsPage() {
         <div className="mt-6">
           <Button
             variant="outline"
-            onClick={() => router.back()}
+            onClick={() => {
+              // 세션 스토리지에 관리자 뷰로 돌아갈 것을 표시
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem('returnView', 'admin');
+              }
+              router.push('/');
+            }}
             className="w-full"
           >
             관리자 대시보드로 돌아가기
