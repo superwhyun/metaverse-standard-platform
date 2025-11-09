@@ -67,7 +67,7 @@ export function CategoryReports({ onReportClick, isAdmin = false, onEdit }: Cate
                   </Button>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <div className="text-xs text-card-foreground opacity-60 flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
                 {report.date}
               </div>
@@ -77,7 +77,7 @@ export function CategoryReports({ onReportClick, isAdmin = false, onEdit }: Cate
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
+            <p className="text-sm text-card-foreground opacity-70 mb-3 line-clamp-3">
               {report.summary}
             </p>
             <div className="flex flex-wrap gap-1">

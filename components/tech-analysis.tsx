@@ -460,7 +460,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                     </span>
                   </div>
                 )}
-                <Card className={`flex flex-col overflow-hidden relative h-[320px] ${report.status === 'pending' ? 'opacity-70' : ''}`}>
+                <Card className={`flex flex-col overflow-hidden relative h-[384px] ${report.status === 'pending' ? 'opacity-70' : ''}`}>
                 <a href={report.url} target="_blank" rel="noopener noreferrer" className="block bg-muted">
                     <div className="w-full h-32 flex items-center justify-center flex-shrink-0">
                     {report.status === 'pending' ? (

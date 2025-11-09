@@ -68,7 +68,7 @@ export function OrganizationReports({ onReportClick, isAdmin = false, onEdit }: 
               {new Date(report.date).toLocaleDateString("ko-KR")}
             </Badge>
           </div>
-          <p className="text-muted-foreground text-sm mb-3 line-clamp-2">{report.summary}</p>
+          <p className="text-card-foreground opacity-70 text-sm mb-3 line-clamp-2">{report.summary}</p>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-muted-foreground" />
