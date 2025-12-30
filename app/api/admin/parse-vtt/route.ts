@@ -4,6 +4,16 @@ import { VTT_PROMPT } from '@/config/vtt-prompt';
 
 export const runtime = 'edge';
 
+// Cloudflare Pages/Workers 환경 호환을 위한 환경변수 접근 헬퍼
+function getEnv(name: string): string | undefined {
+    // @ts-ignore
+    return (typeof process !== 'undefined' && process?.env?.[name])
+        // @ts-ignore
+        || (globalThis as any)?.[name]
+        // @ts-ignore
+        || (globalThis as any)?.__env__?.[name];
+}
+
 export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
@@ -23,7 +33,7 @@ export async function POST(req: NextRequest) {
         // Read System Prompt from config (imported constant)
         const systemPrompt = VTT_PROMPT;
 
-        const apiKey = process.env.OPENAI_API_KEY;
+        const apiKey = getEnv('OPENAI_API_KEY');
         if (!apiKey) {
             return NextResponse.json({ error: 'OpenAI API Key not configured' }, { status: 500 });
         }
