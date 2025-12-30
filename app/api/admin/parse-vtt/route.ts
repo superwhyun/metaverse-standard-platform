@@ -41,18 +41,20 @@ export async function POST(req: NextRequest) {
         const openai = new OpenAI({ apiKey });
 
         // Construct the full prompt
-        const userPrompt = `다음은 회의 녹취록(VTT)에서 추출한 텍스트입니다. 이 내용을 바탕으로 보고서를 작성해주세요:\n\n${transcript}`;
+        const userPrompt = `다음은 회의 녹취록(VTT)에서 추출한 텍스트이다. 이 내용을 바탕으로 양식에 맞춰 보고서를 작성할 것:\n\n${transcript}`;
 
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o', // Or use an environment variable if preferred
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
+        // Combine system and user prompts for the unified input model
+        const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+
+        const completion = await openai.responses.create({
+            model: 'gpt-5-nano',
+            reasoning: { effort: 'low' },
+            input: fullPrompt,
+            max_output_tokens: 2048, // Allocate enough tokens for a full report
         });
 
-        const generatedText = completion.choices[0]?.message?.content || '';
+        // @ts-ignore
+        const generatedText = completion.output_text || '';
 
         // Simple parsing of the markdown result to extract title, summary, and content
         // We assume the model follows instructions, but we need to fit it into our form fields.
@@ -91,24 +93,30 @@ export async function POST(req: NextRequest) {
         // And PERHAPS generate a title/summary separately.
         // Let's do a parallel    // Extract metadata using a lightweight second call
         const metadataPrompt = `Based on the following transcript, provide:
-    1. A concise TITLE in the format "Group Name - [Ordinal] Round" (e.g., "MPEG - 145th", "Immersive Media WG - 3rd"). Detect the group name and meeting number.
-    2. A SUMMARY (under 200 chars) in KOREAN.
+    1. A concise TITLE in the format "Group Name - #[Ordinal]" (e.g., "MPEG - #145", "Immersive Media WG - #3"). Detect the group name and meeting number.
+    2. A SUMMARY in KOREAN. 경어체 사용금지. 의례적인 절차설명은 제외하고 주요 핵심 논의 내용을 한글로 500자 내외로 요약할것.
     3. The DATE of the meeting in "YYYY-MM-DD" format. If not found, return null. 
     
     Return as JSON: { "title": "...", "summary": "...", "date": "..." }.
     
     Transcript start: ${transcript.substring(0, 3000)}`;
 
-        // Note: 'response_format: { type: "json_object" }' is supported by gpt-4o and gpt-3.5-turbo-0125
-        const metadataCompletion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: metadataPrompt }],
-            response_format: { type: "json_object" }
+        // Note: Using 'gpt-5-nano' as requested, following lib/openai-categorizer.ts pattern
+        // The 'responses' API is used instead of 'chat.completions'
+        const metadataResponse = await openai.responses.create({
+            model: 'gpt-5-nano',
+            reasoning: { effort: 'low' },
+            input: metadataPrompt,
+            max_output_tokens: 1024,
         });
 
         let metadata = { title: '', summary: '', date: '' };
         try {
-            metadata = JSON.parse(metadataCompletion.choices[0]?.message?.content || '{}');
+            // @ts-ignore - output_text might be missing in older types
+            const jsonText = metadataResponse.output_text || '{}';
+            // Clean up potentially wrapped JSON (e.g. ```json ... ```)
+            const cleanJson = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+            metadata = JSON.parse(cleanJson);
         } catch (e) {
             console.error('Failed to parse metadata JSON', e);
         }
