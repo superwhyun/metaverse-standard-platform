@@ -57,9 +57,9 @@ Output must be valid JSON only.
 
         const fullPrompt = `${usageInstructions}\n\nTranscript:\n${transcript}`;
 
-        // Single API call using gpt-5-mini
+        // Single API call using gpt-5-nano (proven stable model)
         const completion = await openai.responses.create({
-            model: 'gpt-5-mini', // User requested model
+            model: 'gpt-5-nano', // Reverting to nano as mini might be causing 500 errors
             reasoning: { effort: 'medium' }, // Increased effort for complex single-shot task
             input: fullPrompt,
             max_output_tokens: 4096,

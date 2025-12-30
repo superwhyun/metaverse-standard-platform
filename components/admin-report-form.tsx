@@ -82,7 +82,7 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
 
     return {
       title: "",
-      date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+      date: "", // Initialize empty to avoid hydration mismatch (SSG build time vs Client runtime)
       summary: "",
       content: "",
       category: "",
@@ -92,6 +92,16 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
       conferenceId: undefined,
     };
   })
+
+  // Hydration mismatch fix: Set default date on client mount only
+  useEffect(() => {
+    if (!initialData && !formData.date) {
+      setFormData(prev => ({
+        ...prev,
+        date: new Date().toISOString().split('T')[0]
+      }));
+    }
+  }, []);
 
   const [errors, setErrors] = useState<Partial<ReportFormData>>({})
   const [newTag, setNewTag] = useState("")
