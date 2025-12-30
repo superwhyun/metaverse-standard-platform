@@ -12,6 +12,69 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { AdminColorTheme } from '@/components/admin-color-theme';
+import { useEffect } from 'react';
+
+function ApiSettings() {
+  const [apiKey, setApiKey] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+
+  useEffect(() => {
+    const key = localStorage.getItem('openai_api_key');
+    if (key) setApiKey(key);
+  }, []);
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('openai_api_key', apiKey);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>API 설정</CardTitle>
+        <CardDescription>
+          외부 서비스 연동을 위한 API 키를 설정합니다. 이 키는 브라우저에만 저장됩니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="apiKey">OpenAI API Key</Label>
+            <div className="flex gap-2">
+              <Input
+                id="apiKey"
+                type={showKey ? "text" : "password"}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="flex-1"
+              />
+              <Button type="button" variant="outline" onClick={() => setShowKey(!showKey)}>
+                {showKey ? "숨기기" : "보기"}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              보고서 자동 생성을 위해 필요합니다.
+            </p>
+          </div>
+          <Button type="submit" disabled={saved}>
+            {saved ? (
+              <>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                저장됨
+              </>
+            ) : (
+              '저장'
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminSettingsPage() {
   const { session, status } = useAuth();
@@ -103,9 +166,10 @@ export default function AdminSettingsPage() {
         <h1 className="text-3xl font-bold mb-6">관리자 설정</h1>
 
         <Tabs defaultValue="password" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="password">비밀번호 변경</TabsTrigger>
             <TabsTrigger value="theme">색상 테마</TabsTrigger>
+            <TabsTrigger value="api">API 설정</TabsTrigger>
           </TabsList>
 
           <TabsContent value="password">
@@ -187,6 +251,10 @@ export default function AdminSettingsPage() {
 
           <TabsContent value="theme">
             <AdminColorTheme currentTheme={(theme as 'light' | 'dark') || 'light'} />
+          </TabsContent>
+
+          <TabsContent value="api">
+            <ApiSettings />
           </TabsContent>
         </Tabs>
 

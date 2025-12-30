@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "./ui/use-toast"
+import { VTT_PROMPT } from "@/config/vtt-prompt"
 
 interface Conference {
   id: number
@@ -302,42 +303,145 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
       return
     }
 
+    const apiKey = localStorage.getItem('openai_api_key');
+    if (!apiKey) {
+      toast({
+        title: "API 키 필요",
+        description: "설정 메뉴에서 OpenAI API 키를 먼저 등록해주세요.",
+        variant: "destructive",
+      })
+      // Redirect to settings or let user know where to go
+      return;
+    }
+
     setIsUploading(true)
-    const formData = new FormData()
-    formData.append('file', file)
 
     try {
-      const response = await fetch('/api/admin/parse-vtt', {
+      const text = await file.text();
+      const usageInstructions = `
+You act as a professional meeting minutes writer.
+Analyze the provided VTT transcript and output a JSON object with the following fields:
+1. "title": A concise title (format: "Group Name - #[Ordinal]").
+2. "date": Meeting date in "YYYY-MM-DD" format. Infer from the filename first if possible, otherwise look in the transcript.
+3. "summary": 1000자 이내의 문장으로 주요 표준화 논의내용을 작성.
+4. "content": The main meeting report in Markdown format.
+
+For the "content" field, strictly follow these style rules:
+${VTT_PROMPT}
+
+CRITICAL:
+- Output MUST be valid, parseable JSON.
+- Do NOT wrap the JSON in markdown code blocks like \`\`\`json ... \`\`\`. Just output the raw JSON string.
+- Escape all double quotes within string values properly.
+`;
+      const fullPrompt = `${usageInstructions}\n\nFilename: ${file.name}\n\nTranscript:\n${text}`;
+
+      // Use Responses API for GPT-5 models
+      // console.log('Sending request to generic Responses API with gpt-5-mini');
+      const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
-        body: formData,
-      })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-5-mini',
+          reasoning: { effort: 'medium' },
+          input: [
+            { role: 'user', content: fullPrompt }
+          ],
+          max_output_tokens: 4096
+        })
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to process file')
+        const errData = await response.json();
+        console.error('OpenAI Error Response:', errData);
+        throw new Error(errData.error?.message || 'OpenAI API Error');
       }
 
-      const data = await response.json()
+      const data = await response.json();
+      // console.log('Full OpenAI Response Data:', JSON.stringify(data, null, 2));
+
+      // Responses API output handling - Aligned with standard-search/route.ts logic
+      let content = '';
+      if (typeof data.output_text === 'string' && data.output_text.trim()) {
+        content = data.output_text.trim();
+      } else if (Array.isArray(data.output)) {
+        for (const item of data.output) {
+          if (item && item.type === 'message' && Array.isArray(item.content)) {
+            for (const part of item.content) {
+              // Check for both 'text' and 'output_text' types as observed in logs
+              if ((part.type === 'text' || part.type === 'output_text') && part.text) {
+                content += part.text;
+              }
+            }
+          } else if (item.text) {
+            content += item.text;
+          } else if (item.content && typeof item.content === 'string') {
+            content += item.content;
+          }
+        }
+      }
+
+      if (!content) {
+        // Fallback for different response structures
+        content = data.choices?.[0]?.message?.content || '';
+      }
+
+      if (!content) {
+        console.error("Content extraction failed. Data:", data);
+        throw new Error(`응답 내용이 비어있습니다. 응답 데이터: ${JSON.stringify(data).substring(0, 200)}...`);
+      }
+
+      // Clean up code blocks if present (in case the model ignores the instruction)
+      let cleanJson = content.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      // Attempt to extract JSON if it's buried in text
+      const jsonStart = cleanJson.indexOf('{');
+      const jsonEnd = cleanJson.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        cleanJson = cleanJson.substring(jsonStart, jsonEnd + 1);
+      }
+
+      let result = { title: '', date: '', summary: '', content: '' };
+
+      try {
+        result = JSON.parse(cleanJson);
+      } catch (e) {
+        console.error('Failed to parse JSON:', e);
+        // console.log('Raw content for debugging:', content);
+        // Fallback: If parsing fails, use the raw text as content
+        result.content = content;
+
+        // Try to heuristics to extract title/summary if possible or leave empty
+        toast({
+          title: "부분 성공",
+          description: "응답을 받았으나 JSON 형식 변환에 실패하여 원본 내용을 Content에 저장했습니다.",
+          variant: "default",
+        })
+      }
 
       setFormData(prev => ({
         ...prev,
-        title: data.title || prev.title,
-        summary: data.summary || prev.summary,
-        content: data.content || prev.content,
-        // Use extracted date or keep existing. If date is not found, keep existing/today.
-        date: data.date || prev.date,
-        // Default organization to MSF as requested by user
+        title: result.title || prev.title,
+        summary: result.summary || prev.summary,
+        content: result.content || prev.content,
+        // Use extracted date or keep existing
+        date: result.date || prev.date,
         organization: "MSF",
       }))
 
       toast({
         title: "성공",
-        description: "VTT 파일이 성공적으로 처리되었습니다. 내용이 자동으로 입력되었습니다.",
+        description: "VTT 파일이 성공적으로 처리되었습니다.",
       })
-    } catch (error) {
-      console.error('Upload error:', error)
+
+    } catch (error: any) {
+      console.error('Processing error:', error);
       toast({
         title: "오류",
-        description: "파일 처리 중 오류가 발생했습니다.",
+        description: `처리 중 오류가 발생했습니다: ${error.message}`,
         variant: "destructive",
       })
     } finally {
