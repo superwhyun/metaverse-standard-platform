@@ -43,7 +43,7 @@
 .dark {
   --background: hsl(224 71% 4% / 1);
   --foreground: hsl(213 31% 91% / 1);
-  --card: #1e293b;  /* 진한 청회색 배경으로 변경 (slate-800) */
+  --card: hsl(224 60% 9% / 1);  /* 진한 청회색 배경에서 이전의 더 어두운 톤으로 복원 */
   --card-foreground: hsl(213 31% 91% / 1);
   --popover: hsl(224 71% 4% / 1);
   --popover-foreground: hsl(213 31% 91% / 1);
@@ -57,7 +57,7 @@
   --accent-foreground: hsl(213 31% 91% / 1);
   --destructive: hsl(0 63% 31% / 1);
   --destructive-foreground: hsl(213 31% 91% / 1);
-  --border: #475569;  /* 밝은 회색 테두리로 변경 (slate-600) */
+  --border: hsl(216 34% 17% / 1);  /* 밝은 회색 테두리에서 이전의 어두운 테두리로 복원 */
   --input: hsl(216 34% 17% / 1);
   --ring: hsl(262 88% 66% / 1);
   --chart-1: hsl(262 88% 66% / 1);

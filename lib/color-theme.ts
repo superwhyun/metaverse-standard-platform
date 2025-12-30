@@ -44,12 +44,12 @@ export const DEFAULT_COLOR_THEME: ColorThemeConfig = {
     cardBorder: '#d1d5db',         // 명확한 회색 테두리 (gray-300)
   },
   dark: {
-    cardBackground: '#1e293b',     // 진한 청회색 배경 (slate-800)
-    cardBorder: '#475569',         // 밝은 회색 테두리 (slate-600)
+    cardBackground: 'hsl(224 60% 9%)',     // 원래의 아주 어두운 네이비 배경 (Original Dark)
+    cardBorder: 'hsl(216 34% 17%)',         // 원래의 어두운 테두리
   },
 };
 
-const STORAGE_KEY = 'color-theme-config';
+const STORAGE_KEY = 'color-theme-config-v2'; // Key changed to force reset user cache
 
 // 로컬 스토리지에서 색상 테마 설정 로드
 export function loadColorTheme(): ColorThemeConfig {

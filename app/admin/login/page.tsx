@@ -57,7 +57,7 @@ export default function AdminLoginPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">사용자명</label>
               <div className="relative">
@@ -72,7 +72,7 @@ export default function AdminLoginPage() {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">비밀번호</label>
               <div className="relative">
@@ -87,19 +87,19 @@ export default function AdminLoginPage() {
                 />
               </div>
             </div>
-            
-            <Button 
-              type="submit" 
-              className="w-full" 
+
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading}
             >
               {isLoading ? '로그인 중...' : '로그인'}
             </Button>
           </form>
-          
+
           <div className="mt-6 pt-4 border-t text-center">
             <p className="text-sm text-muted-foreground">
-              기본 계정: admin / admin123
+              shame
             </p>
           </div>
         </CardContent>
