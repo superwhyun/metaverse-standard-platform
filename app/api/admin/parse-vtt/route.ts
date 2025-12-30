@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
         // Let's do a parallel    // Extract metadata using a lightweight second call
         const metadataPrompt = `Based on the following transcript, provide:
     1. A concise TITLE in the format "Group Name - [Ordinal] Round" (e.g., "MPEG - 145th", "Immersive Media WG - 3rd"). Detect the group name and meeting number.
-    2. A SUMMARY (under 200 chars).
+    2. A SUMMARY (under 200 chars) in KOREAN.
     3. The DATE of the meeting in "YYYY-MM-DD" format. If not found, return null. 
     
     Return as JSON: { "title": "...", "summary": "...", "date": "..." }.
