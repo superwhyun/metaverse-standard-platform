@@ -78,3 +78,6 @@ insert-only.sql
 
 # Debug files
 debug.log
+
+# TypeScript
+*.tsbuildinfo

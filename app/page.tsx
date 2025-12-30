@@ -285,6 +285,15 @@ export default function HomePage() {
     loadConferences(currentYear, currentMonth);
     // 보고서는 전체 로드 (일반 사용자 페이지들이 전체 데이터를 사용)
     loadReports();
+
+    // 세션 스토리지에서 returnView 확인
+    if (typeof window !== 'undefined') {
+      const returnView = sessionStorage.getItem('returnView');
+      if (returnView) {
+        setCurrentView(returnView);
+        sessionStorage.removeItem('returnView'); // 한 번만 사용하고 제거
+      }
+    }
   }, []);
 
   // Configuration 기반 키보드 네비게이션 사용

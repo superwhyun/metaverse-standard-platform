@@ -265,7 +265,7 @@ export function ReportList({ onReportClick, isAdmin = false, onEdit }: ReportLis
                     </Button>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <div className="text-xs text-card-foreground opacity-60 flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   {report.date}
                 </div>
@@ -273,10 +273,10 @@ export function ReportList({ onReportClick, isAdmin = false, onEdit }: ReportLis
               <CardTitle className="font-playfair text-lg leading-tight group-hover:text-primary transition-colors">
                 {report.title}
               </CardTitle>
-              <div className="text-sm text-muted-foreground">{report.organization}</div>
+              <div className="text-sm text-card-foreground opacity-60">{report.organization}</div>
             </CardHeader>
             <CardContent className="pt-0">
-              <p className="text-sm text-muted-foreground mb-4 line-clamp-3">{report.summary}</p>
+              <p className="text-sm text-card-foreground opacity-70 mb-4 line-clamp-3">{report.summary}</p>
 
               <div className="flex flex-wrap gap-1 mb-4">
                 {(Array.isArray(report.tags) ? report.tags : []).map((tag) => (

@@ -2,17 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { AdminColorTheme } from '@/components/admin-color-theme';
 
 export default function AdminSettingsPage() {
   const { session, status } = useAuth();
   const router = useRouter();
+  const { theme } = useTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [formData, setFormData] = useState({
@@ -95,91 +99,112 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="max-w-md mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>관리자 설정</CardTitle>
-            <CardDescription>
-              관리자 계정 설정을 변경할 수 있습니다.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">현재 비밀번호</Label>
-                <Input
-                  id="currentPassword"
-                  name="currentPassword"
-                  type="password"
-                  value={formData.currentPassword}
-                  onChange={handleInputChange}
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">새 비밀번호</Label>
-                <Input
-                  id="newPassword"
-                  name="newPassword"
-                  type="password"
-                  value={formData.newPassword}
-                  onChange={handleInputChange}
-                  required
-                  disabled={isSubmitting}
-                  minLength={8}
-                />
-                <p className="text-sm text-muted-foreground">최소 8자 이상 입력하세요.</p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">새 비밀번호 확인</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-3xl font-bold mb-6">관리자 설정</h1>
 
-              {message && (
-                <Alert className={message.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
-                  {message.type === 'error' ? (
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+        <Tabs defaultValue="password" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="password">비밀번호 변경</TabsTrigger>
+            <TabsTrigger value="theme">색상 테마</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="password">
+            <Card>
+              <CardHeader>
+                <CardTitle>비밀번호 변경</CardTitle>
+                <CardDescription>
+                  관리자 계정 비밀번호를 변경할 수 있습니다.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword">현재 비밀번호</Label>
+                    <Input
+                      id="currentPassword"
+                      name="currentPassword"
+                      type="password"
+                      value={formData.currentPassword}
+                      onChange={handleInputChange}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">새 비밀번호</Label>
+                    <Input
+                      id="newPassword"
+                      name="newPassword"
+                      type="password"
+                      value={formData.newPassword}
+                      onChange={handleInputChange}
+                      required
+                      disabled={isSubmitting}
+                      minLength={8}
+                    />
+                    <p className="text-sm text-muted-foreground">최소 8자 이상 입력하세요.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">새 비밀번호 확인</Label>
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  {message && (
+                    <Alert className={message.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
+                      {message.type === 'error' ? (
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      )}
+                      <AlertDescription className={message.type === 'error' ? 'text-red-800' : 'text-green-800'}>
+                        {message.text}
+                      </AlertDescription>
+                    </Alert>
                   )}
-                  <AlertDescription className={message.type === 'error' ? 'text-red-800' : 'text-green-800'}>
-                    {message.text}
-                  </AlertDescription>
-                </Alert>
-              )}
 
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isSubmitting}
-              >
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSubmitting ? '변경 중...' : '비밀번호 변경'}
-              </Button>
-            </form>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isSubmitting ? '변경 중...' : '비밀번호 변경'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <div className="mt-6 pt-6 border-t">
-              <Button 
-                variant="outline" 
-                onClick={() => router.back()}
-                className="w-full"
-              >
-                관리자 대시보드로 돌아가기
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          <TabsContent value="theme">
+            <AdminColorTheme currentTheme={(theme as 'light' | 'dark') || 'light'} />
+          </TabsContent>
+        </Tabs>
+
+        <div className="mt-6">
+          <Button
+            variant="outline"
+            onClick={() => {
+              // 세션 스토리지에 관리자 뷰로 돌아갈 것을 표시
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem('returnView', 'admin');
+              }
+              router.push('/');
+            }}
+            className="w-full"
+          >
+            관리자 대시보드로 돌아가기
+          </Button>
+        </div>
       </div>
     </div>
   );

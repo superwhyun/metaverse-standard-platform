@@ -7,7 +7,7 @@
   /* Updated color tokens to match design brief */
   --background: #ffffff;
   --foreground: #4b5563;
-  --card: #f9fafb;
+  --card: #ffffff;  /* 순수 흰색 배경으로 변경 */
   --card-foreground: #4b5563;
   --popover: #ffffff;
   --popover-foreground: #4b5563;
@@ -21,7 +21,7 @@
   --accent-foreground: #4b5563;
   --destructive: #ea580c;
   --destructive-foreground: #ffffff;
-  --border: #e5e7eb;
+  --border: #d1d5db;  /* 더 명확한 회색 테두리로 변경 (gray-300) */
   --input: #f9fafb;
   --ring: rgba(8, 145, 178, 0.5);
   --chart-1: #0891b2;
@@ -43,7 +43,7 @@
 .dark {
   --background: hsl(224 71% 4% / 1);
   --foreground: hsl(213 31% 91% / 1);
-  --card: hsl(224 60% 9% / 1);
+  --card: hsl(224 60% 9% / 1);  /* 진한 청회색 배경에서 이전의 더 어두운 톤으로 복원 */
   --card-foreground: hsl(213 31% 91% / 1);
   --popover: hsl(224 71% 4% / 1);
   --popover-foreground: hsl(213 31% 91% / 1);
@@ -57,7 +57,7 @@
   --accent-foreground: hsl(213 31% 91% / 1);
   --destructive: hsl(0 63% 31% / 1);
   --destructive-foreground: hsl(213 31% 91% / 1);
-  --border: hsl(216 34% 17% / 1);
+  --border: hsl(216 34% 17% / 1);  /* 밝은 회색 테두리에서 이전의 어두운 테두리로 복원 */
   --input: hsl(216 34% 17% / 1);
   --ring: hsl(262 88% 66% / 1);
   --chart-1: hsl(262 88% 66% / 1);

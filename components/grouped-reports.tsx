@@ -130,20 +130,20 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
               </Button>
             )}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-card-foreground opacity-60">
             {report.organization}
           </div>
         </div>
         <CardTitle className="font-playfair text-lg leading-tight group-hover:text-primary transition-colors line-clamp-2">
           {report.title}
         </CardTitle>
-        <div className="text-sm text-muted-foreground flex items-center gap-1">
+        <div className="text-sm text-card-foreground opacity-60 flex items-center gap-1">
           <Calendar className="w-3 h-3" />
           {new Date(report.date).toLocaleDateString("ko-KR")}
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{report.summary}</p>
+        <p className="text-sm text-card-foreground opacity-70 mb-3 line-clamp-2">{report.summary}</p>
         <div className="flex flex-wrap gap-1">
           {(Array.isArray(report.tags) ? report.tags : []).slice(0, 3).map((tag) => (
             <Badge key={tag} variant="outline" className="text-xs">

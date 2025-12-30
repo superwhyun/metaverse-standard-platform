@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { FileText, Save, X, Tag, Plus } from "lucide-react"
+import { FileText, Save, X, Tag, Plus, Upload, Loader2, FileType } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -46,8 +46,8 @@ interface Organization {
 }
 
 interface Category {
-    id: number;
-    name: string;
+  id: number;
+  name: string;
 }
 
 export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false, conferences = [] }: AdminReportFormProps) {
@@ -66,7 +66,7 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
           }
         }
       }
-      
+
       return {
         title: initialData.title || "",
         date: initialData.date || "",
@@ -79,7 +79,7 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
         conferenceId: initialData.conferenceId,
       };
     }
-    
+
     return {
       title: "",
       date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
@@ -97,6 +97,8 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
   const [newTag, setNewTag] = useState("")
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -116,21 +118,21 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
       }
     };
     const fetchCategories = async () => {
-        try {
-          const response = await fetch('/api/categories');
-          if (!response.ok) {
-            throw new Error('Failed to fetch categories');
-          }
-          const data = await response.json();
-          setCategories(data);
-        } catch (error) {
-          toast({
-            title: "오류",
-            description: "카테고리 목록을 불러오는 데 실패했습니다.",
-            variant: "destructive",
-          });
+      try {
+        const response = await fetch('/api/categories');
+        if (!response.ok) {
+          throw new Error('Failed to fetch categories');
         }
-      };
+        const data = await response.json();
+        setCategories(data);
+      } catch (error) {
+        toast({
+          title: "오류",
+          description: "카테고리 목록을 불러오는 데 실패했습니다.",
+          variant: "destructive",
+        });
+      }
+    };
 
     fetchOrganizations();
     fetchCategories();
@@ -140,7 +142,7 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
   const getRecentEndedConferences = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     return conferences
       .filter(conf => {
         const endDate = new Date(conf.endDate);
@@ -254,6 +256,85 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [formData, onSave, onCancel])
 
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      await processFile(e.dataTransfer.files[0])
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      await processFile(e.target.files[0])
+    }
+  }
+
+  const processFile = async (file: File) => {
+    if (!file.name.endsWith('.vtt')) {
+      toast({
+        title: "잘못된 파일 형식",
+        description: "VTT 파일만 지원됩니다.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsUploading(true)
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await fetch('/api/admin/parse-vtt', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to process file')
+      }
+
+      const data = await response.json()
+
+      setFormData(prev => ({
+        ...prev,
+        title: data.title || prev.title,
+        summary: data.summary || prev.summary,
+        content: data.content || prev.content,
+        // Use extracted date or keep existing. If date is not found, keep existing/today.
+        date: data.date || prev.date,
+        // Default organization to MSF as requested by user
+        organization: "MSF",
+      }))
+
+      toast({
+        title: "성공",
+        description: "VTT 파일이 성공적으로 처리되었습니다. 내용이 자동으로 입력되었습니다.",
+      })
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast({
+        title: "오류",
+        description: "파일 처리 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
@@ -269,12 +350,47 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
           role="form"
           aria-label={isEdit ? "보고서 수정 폼" : "새 보고서 등록 폼"}
         >
+          {/* VTT File Upload Drop Zone */}
+          <div
+            className={`relative border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center transition-colors ${dragActive ? "border-primary bg-primary/10" : "border-muted-foreground/25 hover:border-primary/50"
+              }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            {isUploading ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">VTT 파일 분석 및 보고서 생성 중...</p>
+              </div>
+            ) : (
+              <>
+                <FileText className="w-10 h-10 text-muted-foreground mb-2" />
+                <div className="text-center">
+                  <p className="text-sm font-medium">
+                    회의 녹취록(VTT) 파일을 드래그하여 놓으세요
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    또는 클릭하여 파일을 선택하세요
+                  </p>
+                </div>
+                <Input
+                  type="file"
+                  accept=".vtt"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  onChange={handleFileSelect}
+                  disabled={isUploading}
+                />
+              </>
+            )}
+          </div>
           {/* 관련 회의 선택 */}
           {recentEndedConferences.length > 0 && (
             <div className="space-y-2">
               <Label>관련 회의 (선택사항)</Label>
-              <Select 
-                value={formData.conferenceId ? formData.conferenceId.toString() : "none"} 
+              <Select
+                value={formData.conferenceId ? formData.conferenceId.toString() : "none"}
                 onValueChange={handleConferenceSelect}
               >
                 <SelectTrigger>
