@@ -52,6 +52,12 @@ interface Category {
 }
 
 export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false, conferences = [] }: AdminReportFormProps) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const [formData, setFormData] = useState<ReportFormData>(() => {
     if (initialData) {
       // Ensure tags is always an array
@@ -449,6 +455,10 @@ CRITICAL:
     } finally {
       setIsUploading(false)
     }
+  }
+
+  if (!mounted) {
+    return null
   }
 
   return (
