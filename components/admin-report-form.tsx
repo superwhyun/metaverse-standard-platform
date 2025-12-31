@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { FileText, Save, X, Tag, Plus, Upload, Loader2, FileType } from "lucide-react"
+import { useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -116,6 +117,7 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
   const [categories, setCategories] = useState<Category[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -278,6 +280,7 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    console.log("Drag event:", e.type)
     if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true)
     } else if (e.type === "dragleave") {
@@ -288,20 +291,27 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    console.log("Drop event triggered")
     setDragActive(false)
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      console.log("File dropped:", e.dataTransfer.files[0].name)
       await processFile(e.dataTransfer.files[0])
+    } else {
+      console.log("No files in drop event")
     }
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("File select triggered")
     if (e.target.files && e.target.files[0]) {
+      console.log("File selected:", e.target.files[0].name)
       await processFile(e.target.files[0])
     }
   }
 
   const processFile = async (file: File) => {
+    console.log("processFile started for:", file.name, file.size)
     if (!file.name.endsWith('.vtt')) {
       toast({
         title: "잘못된 파일 형식",
@@ -312,6 +322,7 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
     }
 
     const apiKey = localStorage.getItem('openai_api_key');
+    console.log("API Key found:", !!apiKey)
     if (!apiKey) {
       toast({
         title: "API 키 필요",
@@ -326,6 +337,7 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
 
     try {
       const text = await file.text();
+      console.log("File text read successfully, length:", text.length)
       const usageInstructions = `
 You act as a professional meeting minutes writer.
 Analyze the provided VTT transcript and output a JSON object with the following fields:
@@ -345,7 +357,7 @@ CRITICAL:
       const fullPrompt = `${usageInstructions}\n\nFilename: ${file.name}\n\nTranscript:\n${text}`;
 
       // Use Responses API for GPT-5 models
-      // console.log('Sending request to generic Responses API with gpt-5-mini');
+      console.log('Sending request to Responses API...');
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
@@ -368,7 +380,9 @@ CRITICAL:
         throw new Error(errData.error?.message || 'OpenAI API Error');
       }
 
+      console.log('Response received, status:', response.status);
       const data = await response.json();
+      console.log('Response JSON parsed');
       // console.log('Full OpenAI Response Data:', JSON.stringify(data, null, 2));
 
       // Responses API output handling - Aligned with standard-search/route.ts logic
@@ -478,12 +492,13 @@ CRITICAL:
         >
           {/* VTT File Upload Drop Zone */}
           <div
-            className={`relative border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center transition-colors ${dragActive ? "border-primary bg-primary/10" : "border-muted-foreground/25 hover:border-primary/50"
+            className={`relative border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center transition-colors cursor-pointer ${dragActive ? "border-primary bg-primary/10" : "border-muted-foreground/25 hover:border-primary/50"
               }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
           >
             {isUploading ? (
               <div className="flex flex-col items-center gap-2">
@@ -502,9 +517,10 @@ CRITICAL:
                   </p>
                 </div>
                 <Input
+                  ref={fileInputRef}
                   type="file"
                   accept=".vtt"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  className="hidden"
                   onChange={handleFileSelect}
                   disabled={isUploading}
                 />

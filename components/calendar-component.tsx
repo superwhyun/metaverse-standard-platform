@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ChevronLeft, ChevronRight, FileText, Clock, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -31,7 +31,12 @@ interface CalendarComponentProps {
 }
 
 export function CalendarComponent({ conferences, reports = [], onViewReport, onMonthChange, isLoading = false }: CalendarComponentProps) {
+  const [mounted, setMounted] = useState(false)
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -49,7 +54,7 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
   // Organization color mapping
   const organizationColors = {
     "ISO/IEC": "bg-blue-500 text-white hover:bg-blue-600",
-    "ITU-T": "bg-green-500 text-white hover:bg-green-600", 
+    "ITU-T": "bg-green-500 text-white hover:bg-green-600",
     "IEEE": "bg-purple-500 text-white hover:bg-purple-600",
     "W3C": "bg-orange-500 text-white hover:bg-orange-600",
     "ETSI": "bg-red-500 text-white hover:bg-red-600",
@@ -69,16 +74,16 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
       if (conf.date === dateStr) {
         return true;
       }
-      
+
       // Check if date falls within conference date range
       if (conf.startDate && conf.endDate) {
         const currentDate = new Date(dateStr);
         const startDate = new Date(conf.startDate);
         const endDate = new Date(conf.endDate);
-        
+
         return currentDate >= startDate && currentDate <= endDate;
       }
-      
+
       return false;
     });
   }
@@ -86,19 +91,19 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
   // Helper function to determine conference display style for multi-day events
   const getConferenceDisplayInfo = (conf: Conference, day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-    
+
     if (!conf.startDate || !conf.endDate) {
       return { isStart: true, isEnd: true, isContinuation: false };
     }
-    
+
     const currentDate = new Date(dateStr);
     const startDate = new Date(conf.startDate);
     const endDate = new Date(conf.endDate);
-    
+
     const isStart = currentDate.toDateString() === startDate.toDateString();
     const isEnd = currentDate.toDateString() === endDate.toDateString();
     const isContinuation = !isStart && !isEnd;
-    
+
     return { isStart, isEnd, isContinuation };
   }
 
@@ -112,14 +117,13 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
 
   const renderCalendarDay = (day: number) => {
     const dayConferences = getConferencesForDate(day)
-    const isToday = isCurrentMonth && day === todayDate
+    const isToday = mounted && isCurrentMonth && day === todayDate
 
     return (
       <div
         key={day}
-        className={`min-h-28 border border-border p-2 transition-all duration-200 hover:bg-muted/50 ${
-          isToday ? "bg-primary/10 border-primary" : ""
-        }`}
+        className={`min-h-28 border border-border p-2 transition-all duration-200 hover:bg-muted/50 ${isToday ? "bg-primary/10 border-primary" : ""
+          }`}
       >
         <div className={`text-sm font-medium mb-2 ${isToday ? "text-primary font-bold" : ""}`}>
           {day}
@@ -134,25 +138,23 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
           {dayConferences.map((conference, index) => {
             const displayInfo = getConferenceDisplayInfo(conference, day);
             const isMultiDay = conference.startDate && conference.endDate && conference.startDate !== conference.endDate;
-            
+
             return (
               <TooltipProvider key={`${conference.id}-${day}-${index}`}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-                      className={`cursor-pointer transition-all duration-200 hover:scale-105 relative h-4 flex items-center px-1 border ${
-                        getOrganizationColor(conference.organization)
-                      } ${
-                        isMultiDay ? (
-                          displayInfo.isContinuation 
-                            ? "rounded-none border-l-0 border-r-0" 
-                            : displayInfo.isStart 
-                              ? "rounded-r-none border-r-0" 
-                              : displayInfo.isEnd 
+                      className={`cursor-pointer transition-all duration-200 hover:scale-105 relative h-4 flex items-center px-1 border ${getOrganizationColor(conference.organization)
+                        } ${isMultiDay ? (
+                          displayInfo.isContinuation
+                            ? "rounded-none border-l-0 border-r-0"
+                            : displayInfo.isStart
+                              ? "rounded-r-none border-r-0"
+                              : displayInfo.isEnd
                                 ? "rounded-l-none border-l-0"
                                 : ""
                         ) : "rounded"
-                      }`}
+                        }`}
                       onClick={() => {
                         if (conference.reports && conference.reports.length > 0) {
                           // 첫 번째 보고서를 클릭 (나중에 선택 메뉴로 확장 가능)
@@ -279,9 +281,8 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
           {["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"].map((day, index) => (
             <div
               key={day}
-              className={`p-4 text-center font-semibold bg-muted/50 border-r border-border last:border-r-0 ${
-                index === 0 ? "text-red-600" : index === 6 ? "text-blue-600" : ""
-              }`}
+              className={`p-4 text-center font-semibold bg-muted/50 border-r border-border last:border-r-0 ${index === 0 ? "text-red-600" : index === 6 ? "text-blue-600" : ""
+                }`}
             >
               <div className="hidden sm:block">{day}</div>
               <div className="sm:hidden">{day.charAt(0)}</div>
