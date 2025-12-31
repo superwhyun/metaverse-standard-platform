@@ -149,12 +149,14 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
     fetchCategories();
   }, []);
 
-  // 오늘 기준으로 종료된 회의들 중 가장 가까운 10개 필터링
-  const getRecentEndedConferences = () => {
+  const [recentEndedConferences, setRecentEndedConferences] = useState<Conference[]>([]);
+
+  useEffect(() => {
+    // 오늘 기준으로 종료된 회의들 중 가장 가까운 10개 필터링
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return conferences
+    const filtered = conferences
       .filter(conf => {
         const endDate = new Date(conf.endDate);
         endDate.setHours(23, 59, 59, 999);
@@ -162,9 +164,9 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
       })
       .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())
       .slice(0, 10);
-  };
 
-  const recentEndedConferences = getRecentEndedConferences();
+    setRecentEndedConferences(filtered);
+  }, [conferences]);
 
   // 회의 선택 시 자동 입력 처리
   const handleConferenceSelect = (conferenceId: string) => {
@@ -345,8 +347,8 @@ CRITICAL:
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-5-mini',
-          reasoning: { effort: 'medium' },
+          model: 'gpt-5',
+          reasoning: { effort: 'low' },
           input: [
             { role: 'user', content: fullPrompt }
           ],
