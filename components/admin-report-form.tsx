@@ -280,7 +280,6 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    console.log("Drag event:", e.type)
     if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true)
     } else if (e.type === "dragleave") {
@@ -291,27 +290,21 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    console.log("Drop event triggered")
     setDragActive(false)
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      console.log("File dropped:", e.dataTransfer.files[0].name)
       await processFile(e.dataTransfer.files[0])
-    } else {
-      console.log("No files in drop event")
     }
   }
 
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("File select triggered")
     if (e.target.files && e.target.files[0]) {
-      console.log("File selected:", e.target.files[0].name)
       await processFile(e.target.files[0])
     }
   }
 
   const processFile = async (file: File) => {
-    console.log("processFile started for:", file.name, file.size)
     if (!file.name.endsWith('.vtt')) {
       toast({
         title: "잘못된 파일 형식",
@@ -322,7 +315,6 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
     }
 
     const apiKey = localStorage.getItem('openai_api_key');
-    console.log("API Key found:", !!apiKey)
     if (!apiKey) {
       toast({
         title: "API 키 필요",
@@ -337,7 +329,6 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
 
     try {
       const text = await file.text();
-      console.log("File text read successfully, length:", text.length)
       const usageInstructions = `
 You act as a professional meeting minutes writer.
 Analyze the provided VTT transcript and output a JSON object with the following fields:
@@ -357,7 +348,7 @@ CRITICAL:
       const fullPrompt = `${usageInstructions}\n\nFilename: ${file.name}\n\nTranscript:\n${text}`;
 
       // Use Responses API for GPT-5 models
-      console.log('Sending request to Responses API...');
+      // console.log('Sending request to generic Responses API with gpt-5-mini');
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
@@ -380,9 +371,7 @@ CRITICAL:
         throw new Error(errData.error?.message || 'OpenAI API Error');
       }
 
-      console.log('Response received, status:', response.status);
       const data = await response.json();
-      console.log('Response JSON parsed');
       // console.log('Full OpenAI Response Data:', JSON.stringify(data, null, 2));
 
       // Responses API output handling - Aligned with standard-search/route.ts logic

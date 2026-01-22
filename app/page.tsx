@@ -10,6 +10,7 @@ import { ReportViewer } from "@/components/report-viewer"
 import { AdminDashboard } from "@/components/admin-dashboard"
 import { AdminConferenceForm } from "@/components/admin-conference-form"
 import { AdminReportForm } from "@/components/admin-report-form"
+import { AdminBatchReportForm } from "@/components/admin-batch-report-form"
 import { KeyboardGuide } from "@/components/keyboard-guide"
 import { MonthlyReports } from "@/components/monthly-reports"
 import { OrganizationReports } from "@/components/organization-reports"
@@ -91,7 +92,7 @@ export default function HomePage() {
   const [calendarReportViewer, setCalendarReportViewer] = useState<any>(null) // 캘린더에서 보는 보고서
   const [adminActiveTab, setAdminActiveTab] = useState("conferences") // 관리자 탭 상태 관리
   const [previousView, setPreviousView] = useState<string | null>(null) // 수정 전 이전 페이지 저장
-  
+
   // 더보기 기능을 위한 state
   const [currentOffset, setCurrentOffset] = useState(0)
   const [hasMoreReports, setHasMoreReports] = useState(true)
@@ -130,7 +131,7 @@ export default function HomePage() {
             console.warn('Failed to parse tags for report', report.id, e);
             tags = [];
           }
-          
+
           return {
             id: report.id,
             title: report.title,
@@ -185,14 +186,14 @@ export default function HomePage() {
     try {
       const offset = reset ? 0 : currentOffset;
       const limit = 50;
-      
+
       let apiUrl = `/api/reports?limit=${limit}&offset=${offset}`;
-      
+
       // year와 month가 모두 제공된 경우에만 월별 필터링 적용
       if (year && month) {
         apiUrl += `&year=${year}&month=${month}`;
       }
-      
+
       // 리스트용 API - content 제외하고 빠른 로딩
       const response = await fetch(apiUrl);
       if (response.ok) {
@@ -207,7 +208,7 @@ export default function HomePage() {
             console.warn('Failed to parse tags for report', report.id, e);
             tags = [];
           }
-          
+
           return {
             id: report.id,
             title: report.title,
@@ -221,7 +222,7 @@ export default function HomePage() {
             conferenceId: report.conference_id
           };
         });
-        
+
         if (reset) {
           setReports(dbReports);
           setCurrentOffset(limit);
@@ -229,7 +230,7 @@ export default function HomePage() {
           setReports(prev => [...prev, ...dbReports]);
           setCurrentOffset(prev => prev + limit);
         }
-        
+
         // 더 가져올 데이터가 있는지 확인 (요청한 limit보다 적게 왔으면 끝)
         setHasMoreReports(dbReports.length === limit);
       } else {
@@ -256,7 +257,7 @@ export default function HomePage() {
           console.warn('Failed to parse tags for report', report.id, e);
           tags = [];
         }
-        
+
         return {
           id: report.id,
           title: report.title,
@@ -324,7 +325,7 @@ export default function HomePage() {
 
   // Configuration 기반 페이지 전환 효과 사용
   const { scrollToTop } = usePageTransition()
-  
+
   useEffect(() => {
     scrollToTop(currentView)
   }, [currentView, scrollToTop])
@@ -424,7 +425,7 @@ export default function HomePage() {
   // 더보기 버튼 핸들러 - DB에서 추가 보고서 로딩 (전체 데이터)
   const handleLoadMoreReports = async () => {
     if (isLoadingMore || !hasMoreReports) return
-    
+
     setIsLoadingMore(true)
     try {
       await loadReports(undefined, undefined, false) // 전체 데이터에서 추가 로딩
@@ -454,7 +455,7 @@ export default function HomePage() {
         const targetYear = conferenceDate.getFullYear();
         const targetMonth = conferenceDate.getMonth() + 1;
         await loadConferences(targetYear, targetMonth);
-        
+
         // Also refresh the main calendar if the view is different
         await handleAdminMonthChange(targetYear, targetMonth);
 
@@ -493,8 +494,8 @@ export default function HomePage() {
 
         if (isEdit) {
           // 수정의 경우: allReports 배열에서 해당 보고서 업데이트
-          setAllReports(prev => prev.map(report => 
-            report.id === selectedReport.id 
+          setAllReports(prev => prev.map(report =>
+            report.id === selectedReport.id
               ? { ...report, ...data, id: selectedReport.id }
               : report
           ));
@@ -570,7 +571,7 @@ export default function HomePage() {
   const handleEditReportFromViewer = async (report: any) => {
     // 현재 뷰를 이전 뷰로 저장
     setPreviousView(currentView);
-    
+
     // content를 포함한 상세 데이터 로딩 (기존 onEditReport와 동일한 방식)
     const detailReport = await loadReportDetail(report.id);
     if (detailReport) {
@@ -578,11 +579,11 @@ export default function HomePage() {
     } else {
       setSelectedReport(report);
     }
-    
+
     // 관리자 편집 화면으로 이동
     setCurrentView("admin-edit-report");
     setAdminActiveTab("reports");
-    
+
     // 현재 열린 모든 뷰어 닫기
     setAdminReportViewer(null);
     setMonthlyReportViewer(null);
@@ -596,7 +597,7 @@ export default function HomePage() {
       // Find the conference to get its date before deleting
       const conferenceToDelete = conferences.find(c => c.id === id) || allConferences.find(c => c.id === id);
       const conferenceDate = conferenceToDelete ? new Date(conferenceToDelete.startDate || conferenceToDelete.date) : new Date();
-      
+
       const response = await fetch(`/api/conferences/${id}`, {
         method: 'DELETE',
       });
@@ -627,7 +628,7 @@ export default function HomePage() {
       if (response.ok) {
         // allReports 배열에서 해당 보고서만 제거
         setAllReports(prev => prev.filter(report => report.id !== id));
-        
+
         const targetYear = reportDate.getFullYear();
         const targetMonth = reportDate.getMonth() + 1;
         await loadAdminReports(targetYear, targetMonth);
@@ -666,13 +667,13 @@ export default function HomePage() {
             <p className="text-muted-foreground mb-6">
               관리자 페이지에 접근하려면 로그인이 필요합니다.
             </p>
-            <Button 
+            <Button
               onClick={() => router.push('/admin/login')}
               className="mr-2"
             >
               로그인하기
             </Button>
-            <Button 
+            <Button
               variant="outline"
               onClick={() => setCurrentView('calendar')}
             >
@@ -726,6 +727,19 @@ export default function HomePage() {
             />
           </div>
         )
+      case "admin-batch-report":
+        return (
+          <div className="max-h-[80vh] overflow-y-auto pb-8">
+            <AdminBatchReportForm
+              onCancel={() => setCurrentView("admin")}
+              onSuccess={() => {
+                const now = new Date();
+                loadAdminReports(now.getFullYear(), now.getMonth() + 1);
+                loadConferences(now.getFullYear(), now.getMonth() + 1);
+              }}
+            />
+          </div>
+        )
       default:
         return (
           <div className="space-y-4">
@@ -766,6 +780,7 @@ export default function HomePage() {
                 setCurrentView("admin-edit-report")
               }}
               onDeleteReport={handleDeleteReport}
+              onAddBatchReport={() => setCurrentView("admin-batch-report")}
               onViewReport={async (report) => {
                 // content를 포함한 상세 데이터 로딩
                 const detailReport = await loadReportDetail(report.id)
@@ -832,24 +847,24 @@ export default function HomePage() {
       <nav className="border-b border-border bg-muted/30 relative z-30" role="navigation" aria-label="주요 네비게이션">
         <div className="container mx-auto px-4 py-2 pt-2 pb-2">
           <div className="flex items-center gap-3 md:gap-6 overflow-x-auto overflow-y-visible md:justify-center scroll-smooth scrollbar-hide min-w-0"
-               style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {getTopLevelPages().map((page) => {
               const Icon = page.icon
               const shortcut = page.shortcuts?.[0]
-              
+
               // 현재 뷰가 이 페이지나 이 페이지의 하위 페이지인지 확인
               const currentPage = getPageById(currentView)
-              const isInPageTree = page.id === "admin" 
-                ? currentView.startsWith("admin") 
+              const isInPageTree = page.id === "admin"
+                ? currentView.startsWith("admin")
                 : currentView === page.id || currentPage?.parent === page.id
-              
+
               // 현재 뷰에 해당하는 페이지 정보 (하위 페이지면 하위 페이지 정보 사용)
               const displayPage = isInPageTree && currentPage?.parent === page.id ? currentPage : page
-              
+
               // 방향별 이동 가능 여부는 현재 뷰 기준으로 확인
               const canGoUp = getNavigationTarget(currentView, 'up') !== undefined && isInPageTree
               const canGoDown = getNavigationTarget(currentView, 'down') !== undefined && isInPageTree
-              
+
               return (
                 <div key={page.id} className="relative flex items-center flex-shrink-0 py-3">
                   {/* 위쪽 방향 표시 - 클릭 가능한 버튼 */}
@@ -865,7 +880,7 @@ export default function HomePage() {
                       ▲
                     </button>
                   )}
-                  
+
                   <Button
                     variant={isInPageTree ? "default" : "ghost"}
                     size="sm"
@@ -881,7 +896,7 @@ export default function HomePage() {
                     <span className="hidden sm:inline">{displayPage?.title || page.title}</span>
                     <span className="sm:hidden">{(displayPage?.title || page.title).split(' ')[0]}</span>
                   </Button>
-                  
+
                   {/* 아래쪽 방향 표시 - 클릭 가능한 버튼 */}
                   {canGoDown && (
                     <button

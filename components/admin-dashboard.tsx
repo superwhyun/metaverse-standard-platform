@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from "react"
-import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User, Settings, Server, ChevronLeft, ChevronRight } from "lucide-react"
+import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User, Settings, Server, ChevronLeft, ChevronRight, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -58,6 +58,7 @@ interface AdminDashboardProps {
   onViewReport: (report: Report) => void
   onViewConferenceReport: (conferenceId: number) => void
   onViewSpecificReport: (reportId: number) => void
+  onAddBatchReport?: () => void
   onMonthChange?: (year: number, month: number) => void
   session?: any
   onLogout?: () => void
@@ -79,6 +80,7 @@ export function AdminDashboard({
   onViewReport,
   onViewConferenceReport,
   onViewSpecificReport,
+  onAddBatchReport,
   onMonthChange,
   session,
   onLogout,
@@ -89,12 +91,12 @@ export function AdminDashboard({
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() + 1 }
   })
-  
+
   const [showAllConferences, setShowAllConferences] = useState(false)
   const [showAllReports, setShowAllReports] = useState(false)
 
   const handlePrevMonth = () => {
-    const newDate = currentDate.month === 1 
+    const newDate = currentDate.month === 1
       ? { year: currentDate.year - 1, month: 12 }
       : { year: currentDate.year, month: currentDate.month - 1 }
     setCurrentDate(newDate)
@@ -102,7 +104,7 @@ export function AdminDashboard({
   }
 
   const handleNextMonth = () => {
-    const newDate = currentDate.month === 12 
+    const newDate = currentDate.month === 12
       ? { year: currentDate.year + 1, month: 1 }
       : { year: currentDate.year, month: currentDate.month + 1 }
     setCurrentDate(newDate)
@@ -138,8 +140,8 @@ export function AdminDashboard({
               <User className="w-4 h-4" />
               <span>{session.user.name || '관리자'}</span>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => window.location.href = '/admin/settings'}
               className="flex items-center gap-2"
@@ -148,8 +150,8 @@ export function AdminDashboard({
               설정
             </Button>
             {onLogout && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={onLogout}
                 className="flex items-center gap-2"
@@ -164,7 +166,7 @@ export function AdminDashboard({
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card 
+        <Card
           className={`cursor-pointer transition-all duration-200 ${showAllConferences ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
           onClick={() => setShowAllConferences(!showAllConferences)}
         >
@@ -191,7 +193,7 @@ export function AdminDashboard({
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className={`cursor-pointer transition-all duration-200 ${showAllReports ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
           onClick={() => setShowAllReports(!showAllReports)}
         >
@@ -227,9 +229,9 @@ export function AdminDashboard({
         <Card className="border-l-4 border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-lg font-semibold">전체 회의 목록 (최신순)</CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowAllConferences(false)}
               className="h-8 w-8 p-0"
             >
@@ -283,7 +285,7 @@ export function AdminDashboard({
                               <TooltipContent>수정</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                          
+
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -315,9 +317,9 @@ export function AdminDashboard({
         <Card className="border-l-4 border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-lg font-semibold">전체 보고서 목록 (최신순)</CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowAllReports(false)}
               className="h-8 w-8 p-0"
             >
@@ -425,7 +427,7 @@ export function AdminDashboard({
       )}
 
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="conferences" className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
             회의 관리
@@ -446,6 +448,10 @@ export function AdminDashboard({
             <Server className="w-4 h-4" />
             시스템 설정
           </TabsTrigger>
+          <TabsTrigger value="batch" className="flex items-center gap-2">
+            <Upload className="w-4 h-4" />
+            배치 등록
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="conferences">
           <Card>
@@ -454,9 +460,9 @@ export function AdminDashboard({
                 <CardTitle>회의 일정 관리</CardTitle>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handlePrevMonth}
                       className="flex items-center gap-1"
                     >
@@ -466,9 +472,9 @@ export function AdminDashboard({
                       <Calendar className="w-4 h-4" />
                       <span className="font-medium">{formatCurrentMonth()}</span>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handleNextMonth}
                       className="flex items-center gap-1"
                     >
@@ -496,71 +502,71 @@ export function AdminDashboard({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                  {conferences.map((conference) => (
-                    <TableRow key={conference.id}>
-                      <TableCell className="font-medium">{conference.title}</TableCell>
-                      <TableCell>{conference.date}</TableCell>
-                      <TableCell>{conference.time}</TableCell>
-                      <TableCell>{conference.location}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{conference.organization}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {conference.reports && conference.reports.length > 0 ? (
-                          <Badge variant="default">{conference.reports.length}개</Badge>
-                        ) : (
-                          <Badge variant="secondary">없음</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          {conference.reports && conference.reports.map((report) => (
-                            <TooltipProvider key={report.id}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    onClick={() => onViewSpecificReport(report.id)}
-                                  >
-                                    <FileText className="w-4 h-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="text-foreground">{report.title}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ))}
-                          <Button variant="ghost" size="sm" onClick={() => onEditConference(conference)}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>회의 삭제</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  이 회의를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>취소</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteConference(conference.id)}>
-                                  삭제
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                    {conferences.map((conference) => (
+                      <TableRow key={conference.id}>
+                        <TableCell className="font-medium">{conference.title}</TableCell>
+                        <TableCell>{conference.date}</TableCell>
+                        <TableCell>{conference.time}</TableCell>
+                        <TableCell>{conference.location}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{conference.organization}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {conference.reports && conference.reports.length > 0 ? (
+                            <Badge variant="default">{conference.reports.length}개</Badge>
+                          ) : (
+                            <Badge variant="secondary">없음</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            {conference.reports && conference.reports.map((report) => (
+                              <TooltipProvider key={report.id}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => onViewSpecificReport(report.id)}
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-foreground">{report.title}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ))}
+                            <Button variant="ghost" size="sm" onClick={() => onEditConference(conference)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>회의 삭제</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    이 회의를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>취소</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => onDeleteConference(conference.id)}>
+                                    삭제
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
                 </Table>
               </div>
             </CardContent>
@@ -573,9 +579,9 @@ export function AdminDashboard({
                 <CardTitle>{formatCurrentMonth()} 보고서 관리</CardTitle>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handlePrevMonth}
                       className="flex items-center gap-1"
                     >
@@ -585,9 +591,9 @@ export function AdminDashboard({
                       <Calendar className="w-4 h-4" />
                       <span className="font-medium">{formatCurrentMonth()}</span>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handleNextMonth}
                       className="flex items-center gap-1"
                     >
@@ -614,86 +620,103 @@ export function AdminDashboard({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                  {reports.map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell className="font-medium max-w-xs truncate">{report.title}</TableCell>
-                      <TableCell>{report.date}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{report.category}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{report.organization}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {(Array.isArray(report.tags) ? report.tags : []).slice(0, 2).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {(Array.isArray(report.tags) ? report.tags : []).length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{(Array.isArray(report.tags) ? report.tags : []).length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => onViewReport(report)}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => onEditReport(report)}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>보고서 삭제</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  이 보고서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>취소</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteReport(report.id)}>삭제</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                    {reports.map((report) => (
+                      <TableRow key={report.id}>
+                        <TableCell className="font-medium max-w-xs truncate">{report.title}</TableCell>
+                        <TableCell>{report.date}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{report.category}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{report.organization}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {(Array.isArray(report.tags) ? report.tags : []).slice(0, 2).map((tag) => (
+                              <Badge key={tag} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {(Array.isArray(report.tags) ? report.tags : []).length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{(Array.isArray(report.tags) ? report.tags : []).length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => onViewReport(report)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => onEditReport(report)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>보고서 삭제</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    이 보고서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>취소</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => onDeleteReport(report.id)}>삭제</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
                 </Table>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="organizations">
-            <AdminOrganizationForm />
+          <AdminOrganizationForm />
         </TabsContent>
         <TabsContent value="categories">
-            <AdminCategoryForm />
+          <AdminCategoryForm />
+        </TabsContent>
+        <TabsContent value="batch">
+          <Card>
+            <CardHeader>
+              <CardTitle>회의 및 보고서 배치 등록</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center py-10">
+              <Upload className="w-16 h-16 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-6 text-center">
+                여러 개의 VTT 파일을 한꺼번에 분석하여<br />
+                회의 일정과 보고서로 자동 등록할 수 있습니다.
+              </p>
+              <Button onClick={onAddBatchReport} size="lg" className="px-8">
+                배치 등록 시작하기
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
         <TabsContent value="system">
-            <Tabs defaultValue="env" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="env">환경변수 설정</TabsTrigger>
-                <TabsTrigger value="wordcloud">워드클라우드 설정</TabsTrigger>
-              </TabsList>
-              <TabsContent value="env">
-                <AdminEnvSettings />
-              </TabsContent>
-              <TabsContent value="wordcloud">
-                <AdminWordcloudStopwords />
-              </TabsContent>
-            </Tabs>
+          <Tabs defaultValue="env" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="env">환경변수 설정</TabsTrigger>
+              <TabsTrigger value="wordcloud">워드클라우드 설정</TabsTrigger>
+            </TabsList>
+            <TabsContent value="env">
+              <AdminEnvSettings />
+            </TabsContent>
+            <TabsContent value="wordcloud">
+              <AdminWordcloudStopwords />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>
