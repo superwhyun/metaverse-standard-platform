@@ -144,7 +144,7 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-                      className={`cursor-pointer transition-all duration-200 hover:scale-105 relative h-4 flex items-center px-1 border ${getOrganizationColor(conference.organization)
+                      className={`cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 relative h-6 flex items-center px-1.5 border shadow-sm ${getOrganizationColor(conference.organization)
                         } ${isMultiDay ? (
                           displayInfo.isContinuation
                             ? "rounded-none border-l-0 border-r-0"
@@ -154,22 +154,20 @@ export function CalendarComponent({ conferences, reports = [], onViewReport, onM
                                 ? "rounded-l-none border-l-0"
                                 : ""
                         ) : "rounded"
-                        }`}
+                        } ${conference.reports && conference.reports.length > 0 ? "ring-1 ring-white/30 brightness-110" : ""}`}
                       onClick={() => {
                         if (conference.reports && conference.reports.length > 0) {
-                          // 첫 번째 보고서를 클릭 (나중에 선택 메뉴로 확장 가능)
-                          const firstReportId = conference.reports[0].id
-                          const fullReport = reports.find(report => report.id === firstReportId)
-                          if (fullReport) {
-                            onViewReport(fullReport)
-                          }
+                          const firstReport = conference.reports[0]
+                          // 리스트에서 전체 객체를 찾거나, 없으면 최소 정보(id)만으로 onViewReport 호출
+                          const fullReport = reports.find(report => report.id === firstReport.id)
+                          onViewReport(fullReport || { id: firstReport.id })
                         }
                       }}
                     >
-                      <div className="text-sm font-medium truncate leading-none flex-1">
+                      <div className="text-xs font-semibold truncate leading-none flex-1">
                         {conference.title}
                       </div>
-                      {conference.reports && conference.reports.length > 0 && <FileText className="w-2 h-2 ml-1 flex-shrink-0" />}
+                      {conference.reports && conference.reports.length > 0 && <FileText className="w-3 h-3 ml-1 flex-shrink-0" />}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { CalendarComponent } from "@/components/calendar-component"
 import { ReportList } from "@/components/report-list"
@@ -75,7 +75,9 @@ const getPageClasses = (pageType: string, currentView: string): string => {
 export default function HomePage() {
   const { session, status, signOut } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentView, setCurrentView] = useState<ViewType>("calendar")
+
   const [selectedReport, setSelectedReport] = useState<any>(null)
   const [selectedConference, setSelectedConference] = useState<any>(null)
   const [conferences, setConferences] = useState<any[]>([])
@@ -333,19 +335,29 @@ export default function HomePage() {
   const handleReportClick = async (reportId: number) => {
     // 먼저 리스트에서 기본 정보 가져오기
     const basicReport = reports.find((r) => r.id === reportId)
-    if (basicReport) {
-      // 상세 내용 로딩
-      const detailReport = await loadReportDetail(reportId)
-      if (detailReport) {
-        setSelectedReport(detailReport)
-        setCurrentView("report-detail")
-      } else {
-        // 상세 로딩 실패 시 기본 정보로라도 표시
-        setSelectedReport(basicReport)
-        setCurrentView("report-detail")
-      }
+
+    // 리스트에 없더라도 (초기 로딩 시 등) 상세 정보를 직접 페치
+    const detailReport = await loadReportDetail(reportId)
+
+    if (detailReport) {
+      setSelectedReport(detailReport)
+      setCurrentView("report-detail")
+    } else if (basicReport) {
+      // 상세 로딩 실패 시 기본 정보로라도 표시
+      setSelectedReport(basicReport)
+      setCurrentView("report-detail")
+    } else {
+      console.error('Report not found even after fetching detail:', reportId)
     }
   }
+
+  useEffect(() => {
+    const reportId = searchParams.get('reportId')
+    console.log('Deep link check - reportId:', reportId)
+    if (reportId) {
+      handleReportClick(parseInt(reportId))
+    }
+  }, [searchParams])
 
   const handleReportSelect = async (report: any) => {
     // 이미 content가 있는지 확인
