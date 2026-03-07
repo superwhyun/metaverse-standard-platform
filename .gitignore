@@ -81,3 +81,6 @@ debug.log
 
 # TypeScript
 *.tsbuildinfo
+
+# Serena
+.serena/
