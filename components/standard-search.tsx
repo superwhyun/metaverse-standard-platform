@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Search, Sparkles, FileText, Tag, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,22 +26,29 @@ export function StandardSearch({}: StandardSearchProps) {
   const [results, setResults] = useState<StandardResult[]>([])
   const [hasSearched, setHasSearched] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const clearPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current)
+      pollingTimeoutRef.current = null
+    }
+  }
 
   // 컴포넌트 언마운트 시 폴링 정리
   useEffect(() => {
-    return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval)
-      }
-    }
-  }, [pollingInterval])
+    return clearPolling
+  }, [])
 
   // 폴링 시작 함수
   const startPolling = (searchId: string) => {
-    if (pollingInterval) {
-      clearInterval(pollingInterval)
-    }
+    clearPolling()
 
     const interval = setInterval(async () => {
       try {
@@ -54,14 +61,12 @@ export function StandardSearch({}: StandardSearchProps) {
             // 검색 완료
             setResults(data.results || [])
             setIsSearching(false)
-            clearInterval(interval)
-            setPollingInterval(null)
+            clearPolling()
           } else if (data.status === 'failed') {
             // 검색 실패
             setError(data.error || '검색 중 오류가 발생했습니다.')
             setIsSearching(false)
-            clearInterval(interval)
-            setPollingInterval(null)
+            clearPolling()
           }
           // pending 상태면 계속 폴링
         } else {
@@ -73,13 +78,12 @@ export function StandardSearch({}: StandardSearchProps) {
       }
     }, 3000) // 3초마다 확인
 
-    setPollingInterval(interval)
+    pollingIntervalRef.current = interval
 
     // 5분 후 타임아웃 처리
-    setTimeout(() => {
-      if (interval) {
-        clearInterval(interval)
-        setPollingInterval(null)
+    pollingTimeoutRef.current = setTimeout(() => {
+      if (pollingIntervalRef.current) {
+        clearPolling()
         setError('검색이 타임아웃되었습니다. 다시 시도해주세요.')
         setIsSearching(false)
       }
@@ -94,6 +98,7 @@ export function StandardSearch({}: StandardSearchProps) {
     setHasSearched(true)
     setResults([])
     setError(null)
+    clearPolling()
 
     try {
       const response = await fetch('/api/standard-search', {
