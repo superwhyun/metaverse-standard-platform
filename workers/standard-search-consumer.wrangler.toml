@@ -1,0 +1,34 @@
+name = "msp-standard-search-consumer"
+main = "standard-search-consumer.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
+
+[[kv_namespaces]]
+binding = "STANDARD_SEARCH_CACHE"
+id = "63990b85156e4e5eac3b2e94c49d6111"
+
+[[queues.consumers]]
+queue = "msp-standard-search-jobs-dev"
+max_batch_size = 1
+
+[env.preview]
+compatibility_date = "2024-09-23"
+
+[[env.preview.kv_namespaces]]
+binding = "STANDARD_SEARCH_CACHE"
+id = "63990b85156e4e5eac3b2e94c49d6111"
+
+[[env.preview.queues.consumers]]
+queue = "msp-standard-search-jobs-preview"
+max_batch_size = 1
+
+[env.production]
+compatibility_date = "2024-09-23"
+
+[[env.production.kv_namespaces]]
+binding = "STANDARD_SEARCH_CACHE"
+id = "63990b85156e4e5eac3b2e94c49d6111"
+
+[[env.production.queues.consumers]]
+queue = "msp-standard-search-jobs-production"
+max_batch_size = 1

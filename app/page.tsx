@@ -22,7 +22,7 @@ import { StandardTools } from "@/components/standard-tools"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 // Configuration 기반 imports
-import { getTopLevelPages, getAllPageIds, getNavigationTarget, getPageById } from "@/config/navigation"
+import { getTopLevelPages, getNavigationTarget, getPageById } from "@/config/navigation"
 import { useKeyboardNavigation, usePageTransition } from "@/hooks/useNavigation"
 import { cn } from "@/lib/utils"
 
@@ -30,6 +30,148 @@ import { cn } from "@/lib/utils"
 
 // Configuration에서 자동으로 ViewType 생성
 type ViewType = string
+type ReportViewerSource = "admin" | "monthly-reports" | "organization-reports" | "category-reports" | "calendar"
+
+interface ApiReportRecord {
+  id: number
+  title: string
+  date: string
+  summary: string
+  content?: string | null
+  category: string
+  organization: string
+  tags?: string[] | string | null
+  download_url?: string | null
+  conference_id?: number | null
+}
+
+interface AppReport {
+  id: number
+  title: string
+  date: string
+  summary: string
+  category: string
+  organization: string
+  tags: string[]
+  downloadUrl?: string
+  conferenceId?: number
+  content?: string
+}
+
+interface AppReportDetail extends AppReport {
+  content: string
+}
+
+interface AppConference {
+  id: number
+  title: string
+  date: string
+  startDate: string
+  endDate: string
+  time: string
+  startTime?: string
+  endTime?: string
+  location: string
+  organization: string
+  hasReport: boolean
+  reports?: { id: number; title: string }[]
+  isMultiDay?: boolean
+  description?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+interface ModalReportViewer {
+  source: ReportViewerSource
+  report: AppReportDetail
+}
+
+interface ConferenceFormData {
+  title: string
+  startDate: string
+  endDate: string
+  startTime: string
+  endTime: string
+  location: string
+  organization: string
+  hasReport: boolean
+  description: string
+}
+
+interface EditableConference extends ConferenceFormData {
+  id?: number
+}
+
+interface ReportFormData {
+  title: string
+  date: string
+  summary: string
+  content: string
+  category: string
+  organization: string
+  tags: string[]
+  downloadUrl: string
+  conferenceId?: number
+}
+
+const reportViewerSources = new Set<ReportViewerSource>([
+  "admin",
+  "monthly-reports",
+  "organization-reports",
+  "category-reports",
+  "calendar",
+])
+
+const parseReportTags = (tags: ApiReportRecord["tags"]): string[] => {
+  if (Array.isArray(tags)) {
+    return tags
+  }
+
+  if (typeof tags === "string") {
+    try {
+      const parsedTags = JSON.parse(tags)
+      return Array.isArray(parsedTags) ? parsedTags : []
+    } catch (error) {
+      console.warn("Failed to parse tags", error)
+    }
+  }
+
+  return []
+}
+
+const toAppReport = (report: ApiReportRecord): AppReport => ({
+  id: report.id,
+  title: report.title,
+  date: report.date,
+  summary: report.summary,
+  category: report.category,
+  organization: report.organization,
+  tags: parseReportTags(report.tags),
+  downloadUrl: report.download_url || undefined,
+  conferenceId: report.conference_id || undefined,
+})
+
+const toAppReportDetail = (report: ApiReportRecord): AppReportDetail => ({
+  ...toAppReport(report),
+  content: typeof report.content === "string" ? report.content : "",
+})
+
+const ensureReportDetail = (report: AppReport): AppReportDetail => ({
+  ...report,
+  content: typeof report.content === "string" ? report.content : "",
+})
+
+const buildReportsApiUrl = (year?: number, month?: number) => {
+  const searchParams = new URLSearchParams()
+
+  if (year && month) {
+    searchParams.set("year", String(year))
+    searchParams.set("month", String(month))
+  }
+
+  const query = searchParams.toString()
+  return query ? `/api/reports?${query}` : "/api/reports"
+}
 
 // Local: page CSS class generator (inlined from utils/navigationUtils)
 const getPageClasses = (pageType: string, currentView: string): string => {
@@ -78,27 +220,18 @@ export default function HomePage() {
   const searchParams = useSearchParams()
   const [currentView, setCurrentView] = useState<ViewType>("calendar")
 
-  const [selectedReport, setSelectedReport] = useState<any>(null)
-  const [selectedConference, setSelectedConference] = useState<any>(null)
-  const [conferences, setConferences] = useState<any[]>([])
-  const [reports, setReports] = useState<any[]>([])
-  const [allConferences, setAllConferences] = useState<any[]>([])
-  const [allReports, setAllReports] = useState<any[]>([])
+  const [selectedReport, setSelectedReport] = useState<AppReportDetail | null>(null)
+  const [selectedConference, setSelectedConference] = useState<EditableConference | null>(null)
+  const [conferences, setConferences] = useState<AppConference[]>([])
+  const [reports, setReports] = useState<AppReport[]>([])
+  const [allConferences, setAllConferences] = useState<AppConference[]>([])
+  const [allReports, setAllReports] = useState<AppReport[]>([])
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingConferences, setIsLoadingConferences] = useState(false)
-  const [adminReportViewer, setAdminReportViewer] = useState<any>(null) // 관리자에서 보는 보고서
-  const [monthlyReportViewer, setMonthlyReportViewer] = useState<any>(null) // 월별 동향에서 보는 보고서
-  const [organizationReportViewer, setOrganizationReportViewer] = useState<any>(null) // 기구별 동향에서 보는 보고서
-  const [categoryReportViewer, setCategoryReportViewer] = useState<any>(null) // 분야별 동향에서 보는 보고서
-  const [calendarReportViewer, setCalendarReportViewer] = useState<any>(null) // 캘린더에서 보는 보고서
+  const [modalReportViewer, setModalReportViewer] = useState<ModalReportViewer | null>(null)
   const [adminActiveTab, setAdminActiveTab] = useState("conferences") // 관리자 탭 상태 관리
-  const [previousView, setPreviousView] = useState<string | null>(null) // 수정 전 이전 페이지 저장
-
-  // 더보기 기능을 위한 state
-  const [currentOffset, setCurrentOffset] = useState(0)
-  const [hasMoreReports, setHasMoreReports] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [previousView, setPreviousView] = useState<ViewType | null>(null) // 수정 전 이전 페이지 저장
 
   // Load all conferences from database (for admin dashboard statistics)
   const loadAllConferences = async () => {
@@ -121,32 +254,10 @@ export default function HomePage() {
   // Load all reports from database (for admin dashboard statistics)
   const loadAllReports = async () => {
     try {
-      // Get a high limit to fetch all reports for statistics
-      const response = await fetch('/api/reports?limit=10000&offset=0');
+      const response = await fetch(buildReportsApiUrl());
       if (response.ok) {
         const result = await response.json();
-        const reportData = (result.data || []).map((report: any) => {
-          let tags = [];
-          try {
-            tags = typeof report.tags === 'string' ? JSON.parse(report.tags || '[]') : (report.tags || []);
-          } catch (e) {
-            console.warn('Failed to parse tags for report', report.id, e);
-            tags = [];
-          }
-
-          return {
-            id: report.id,
-            title: report.title,
-            date: report.date,
-            summary: report.summary,
-            category: report.category,
-            organization: report.organization,
-            tags: tags,
-            downloadUrl: report.download_url,
-            conferenceId: report.conference_id
-          };
-        });
-        setAllReports(reportData);
+        setAllReports((result.data || []).map(toAppReport));
       } else {
         console.error('Failed to load all reports');
         setAllReports([]);
@@ -184,64 +295,19 @@ export default function HomePage() {
   };
 
   // Load reports from database - 전체 또는 월별 로딩 (content 제외)
-  const loadReports = async (year?: number, month?: number, reset = true) => {
+  const loadReports = async (year?: number, month?: number) => {
     try {
-      const offset = reset ? 0 : currentOffset;
-      const limit = 50;
-
-      let apiUrl = `/api/reports?limit=${limit}&offset=${offset}`;
-
-      // year와 month가 모두 제공된 경우에만 월별 필터링 적용
-      if (year && month) {
-        apiUrl += `&year=${year}&month=${month}`;
-      }
-
-      // 리스트용 API - content 제외하고 빠른 로딩
-      const response = await fetch(apiUrl);
+      const response = await fetch(buildReportsApiUrl(year, month));
       if (response.ok) {
         const result = await response.json();
-        // Transform database data to frontend format
-        const dbReports = (result.data || []).map((report: any) => {
-          let tags = [];
-          try {
-            // Handle both string and already-parsed array cases
-            tags = typeof report.tags === 'string' ? JSON.parse(report.tags || '[]') : (report.tags || []);
-          } catch (e) {
-            console.warn('Failed to parse tags for report', report.id, e);
-            tags = [];
-          }
-
-          return {
-            id: report.id,
-            title: report.title,
-            date: report.date,
-            summary: report.summary,
-            // content는 리스트에서 제외 - 필요할 때만 개별 로딩
-            category: report.category,
-            organization: report.organization,
-            tags: tags,
-            downloadUrl: report.download_url,
-            conferenceId: report.conference_id
-          };
-        });
-
-        if (reset) {
-          setReports(dbReports);
-          setCurrentOffset(limit);
-        } else {
-          setReports(prev => [...prev, ...dbReports]);
-          setCurrentOffset(prev => prev + limit);
-        }
-
-        // 더 가져올 데이터가 있는지 확인 (요청한 limit보다 적게 왔으면 끝)
-        setHasMoreReports(dbReports.length === limit);
+        setReports((result.data || []).map(toAppReport));
       } else {
         console.error('Failed to load reports');
-        if (reset) setReports([]);
+        setReports([]);
       }
     } catch (error) {
       console.error('Error loading reports:', error);
-      if (reset) setReports([]);
+      setReports([]);
     }
   };
 
@@ -251,27 +317,7 @@ export default function HomePage() {
       const response = await fetch(`/api/reports/${reportId}`);
       if (response.ok) {
         const result = await response.json();
-        const report = result.data;
-        let tags = [];
-        try {
-          tags = typeof report.tags === 'string' ? JSON.parse(report.tags || '[]') : (report.tags || []);
-        } catch (e) {
-          console.warn('Failed to parse tags for report', report.id, e);
-          tags = [];
-        }
-
-        return {
-          id: report.id,
-          title: report.title,
-          date: report.date,
-          summary: report.summary,
-          content: report.content, // 상세 로딩 시에만 포함
-          category: report.category,
-          organization: report.organization,
-          tags: tags,
-          downloadUrl: report.download_url,
-          conferenceId: report.conference_id
-        };
+        return toAppReportDetail(result.data);
       }
       return null;
     } catch (error) {
@@ -332,90 +378,83 @@ export default function HomePage() {
     scrollToTop(currentView)
   }, [currentView, scrollToTop])
 
-  const handleReportClick = async (reportId: number) => {
-    // 먼저 리스트에서 기본 정보 가져오기
-    const basicReport = reports.find((r) => r.id === reportId)
-
-    // 리스트에 없더라도 (초기 로딩 시 등) 상세 정보를 직접 페치
+  const loadDetailedReportWithFallback = async (reportId: number, fallbackReport?: AppReport) => {
     const detailReport = await loadReportDetail(reportId)
-
     if (detailReport) {
-      setSelectedReport(detailReport)
-      setCurrentView("report-detail")
-    } else if (basicReport) {
-      // 상세 로딩 실패 시 기본 정보로라도 표시
-      setSelectedReport(basicReport)
-      setCurrentView("report-detail")
-    } else {
-      console.error('Report not found even after fetching detail:', reportId)
+      return detailReport
     }
+
+    if (fallbackReport) {
+      return ensureReportDetail(fallbackReport)
+    }
+
+    return null
+  }
+
+  const openReportDetailPage = async (report: AppReport) => {
+    const detailReport = await loadDetailedReportWithFallback(report.id, report)
+    if (!detailReport) {
+      console.error('Report not found even after fetching detail:', report.id)
+      return
+    }
+
+    setSelectedReport(detailReport)
+    setCurrentView("report-detail")
+  }
+
+  const openModalReportViewer = async (source: ReportViewerSource, report: AppReport) => {
+    const detailReport = await loadDetailedReportWithFallback(report.id, report)
+    if (!detailReport) {
+      console.error('Failed to open report viewer:', report.id)
+      return
+    }
+
+    setModalReportViewer({ source, report: detailReport })
+  }
+
+  const restorePreviousReportView = (view: ViewType, report: AppReportDetail) => {
+    if (view === "report-detail") {
+      setSelectedReport(report)
+      setCurrentView("report-detail")
+      return true
+    }
+
+    if (reportViewerSources.has(view as ReportViewerSource)) {
+      setModalReportViewer({ source: view as ReportViewerSource, report })
+      return true
+    }
+
+    return false
+  }
+
+  const handleReportClick = async (reportId: number) => {
+    const basicReport = reports.find((r) => r.id === reportId)
+    const detailReport = await loadDetailedReportWithFallback(reportId, basicReport)
+    if (!detailReport) {
+      console.error('Report not found even after fetching detail:', reportId)
+      return
+    }
+
+    setSelectedReport(detailReport)
+    setCurrentView("report-detail")
   }
 
   useEffect(() => {
     const reportId = searchParams.get('reportId')
-    console.log('Deep link check - reportId:', reportId)
     if (reportId) {
       handleReportClick(parseInt(reportId))
     }
   }, [searchParams])
 
-  const handleReportSelect = async (report: any) => {
-    // 이미 content가 있는지 확인
-    if (report.content) {
-      setSelectedReport(report)
-      setCurrentView("report-detail")
-    } else {
-      // content가 없으면 상세 로딩
-      const detailReport = await loadReportDetail(report.id)
-      if (detailReport) {
-        setSelectedReport(detailReport)
-        setCurrentView("report-detail")
-      } else {
-        setSelectedReport(report)
-        setCurrentView("report-detail")
-      }
-    }
-  }
+  const handleReportSelect = async (report: AppReport) => openReportDetailPage(report)
 
-  const handleMonthlyReportSelect = async (report: any) => {
-    // content를 포함한 상세 데이터 로딩
-    const detailReport = await loadReportDetail(report.id)
-    if (detailReport) {
-      setMonthlyReportViewer(detailReport)
-    } else {
-      setMonthlyReportViewer(report)
-    }
-  }
+  const handleMonthlyReportSelect = async (report: AppReport) => openModalReportViewer("monthly-reports", report)
 
-  const handleOrganizationReportSelect = async (report: any) => {
-    // content를 포함한 상세 데이터 로딩
-    const detailReport = await loadReportDetail(report.id)
-    if (detailReport) {
-      setOrganizationReportViewer(detailReport)
-    } else {
-      setOrganizationReportViewer(report)
-    }
-  }
+  const handleOrganizationReportSelect = async (report: AppReport) => openModalReportViewer("organization-reports", report)
 
-  const handleCategoryReportSelect = async (report: any) => {
-    // content를 포함한 상세 데이터 로딩
-    const detailReport = await loadReportDetail(report.id)
-    if (detailReport) {
-      setCategoryReportViewer(detailReport)
-    } else {
-      setCategoryReportViewer(report)
-    }
-  }
+  const handleCategoryReportSelect = async (report: AppReport) => openModalReportViewer("category-reports", report)
 
-  const handleCalendarReportSelect = async (report: any) => {
-    // content를 포함한 상세 데이터 로딩
-    const detailReport = await loadReportDetail(report.id)
-    if (detailReport) {
-      setCalendarReportViewer(detailReport)
-    } else {
-      setCalendarReportViewer(report)
-    }
-  }
+  const handleCalendarReportSelect = async (report: AppReport) => openModalReportViewer("calendar", report)
 
   // Handle calendar month change (회의만 월별 로드)
   const handleCalendarMonthChange = (year: number, month: number) => {
@@ -431,23 +470,11 @@ export default function HomePage() {
 
   // 관리자 대시보드 전용 월별 보고서 로딩
   const loadAdminReports = async (year: number, month: number) => {
-    await loadReports(year, month, true) // 월별 필터링하여 로드
-  }
-
-  // 더보기 버튼 핸들러 - DB에서 추가 보고서 로딩 (전체 데이터)
-  const handleLoadMoreReports = async () => {
-    if (isLoadingMore || !hasMoreReports) return
-
-    setIsLoadingMore(true)
-    try {
-      await loadReports(undefined, undefined, false) // 전체 데이터에서 추가 로딩
-    } finally {
-      setIsLoadingMore(false)
-    }
+    await loadReports(year, month) // 월별 필터링하여 로드
   }
 
 
-  const handleSaveConference = async (data: any) => {
+  const handleSaveConference = async (data: ConferenceFormData) => {
     try {
       const isEdit = !!selectedConference;
       const url = isEdit ? `/api/conferences/${selectedConference.id}` : '/api/conferences';
@@ -484,11 +511,12 @@ export default function HomePage() {
     }
   };
 
-  const handleSaveReport = async (data: any) => {
+  const handleSaveReport = async (data: ReportFormData) => {
     try {
-      const isEdit = selectedReport && currentView === "admin-edit-report";
+      const isEdit = currentView === "admin-edit-report" && selectedReport !== null;
       const url = isEdit ? `/api/reports/${selectedReport.id}` : '/api/reports';
       const method = isEdit ? 'PUT' : 'POST';
+      let savedReportId = selectedReport?.id
 
       const response = await fetch(url, {
         method: method,
@@ -505,14 +533,18 @@ export default function HomePage() {
         const targetMonth = reportDate.getMonth() + 1;
 
         if (isEdit) {
-          // 수정의 경우: allReports 배열에서 해당 보고서 업데이트
+          const updatedReport = ensureReportDetail({
+            ...selectedReport,
+            ...data,
+            id: selectedReport.id,
+          })
+
           setAllReports(prev => prev.map(report =>
             report.id === selectedReport.id
-              ? { ...report, ...data, id: selectedReport.id }
+              ? updatedReport
               : report
           ));
         } else {
-          // 새로 등록의 경우: allReports 배열 맨 앞에 새 보고서 추가
           const newReport = {
             id: result.data?.id || Date.now(), // API에서 ID를 반환하지 않는 경우 임시 ID
             title: data.title,
@@ -524,6 +556,7 @@ export default function HomePage() {
             downloadUrl: data.downloadUrl,
             conferenceId: data.conferenceId
           };
+          savedReportId = newReport.id
           setAllReports(prev => [newReport, ...prev]);
         }
 
@@ -541,34 +574,22 @@ export default function HomePage() {
       if (previousView) {
         setCurrentView(previousView);
         setPreviousView(null);
-        // 보고서 뷰어를 다시 열어주기 (수정된 내용으로)
-        const savedReport = { ...data, id: selectedReport?.id || data.id };
-        switch (previousView) {
-          case "admin":
-            setAdminReportViewer(savedReport);
-            break;
-          case "monthly-reports":
-            setMonthlyReportViewer(savedReport);
-            break;
-          case "organization-reports":
-            setOrganizationReportViewer(savedReport);
-            break;
-          case "category-reports":
-            setCategoryReportViewer(savedReport);
-            break;
-          case "calendar":
-            setCalendarReportViewer(savedReport);
-            break;
-          case "report-detail":
-            // report-detail 뷰의 경우 selectedReport를 업데이트
-            setSelectedReport(savedReport);
-            setCurrentView("report-detail");
-            return; // early return to avoid clearing selectedReport
-          default:
-            setCurrentView("admin");
-            setAdminActiveTab("reports");
+
+        const savedReport = ensureReportDetail({
+          ...data,
+          id: savedReportId || Date.now(),
+        })
+
+        if (restorePreviousReportView(previousView, savedReport)) {
+          if (previousView !== "report-detail") {
+            setSelectedReport(null)
+          }
+          return
         }
-        setSelectedReport(null); // 다른 뷰들은 selectedReport를 초기화
+
+        setCurrentView("admin");
+        setAdminActiveTab("reports");
+        setSelectedReport(null);
       } else {
         setCurrentView("admin");
         setAdminActiveTab("reports");
@@ -580,29 +601,38 @@ export default function HomePage() {
   };
 
   // 보고서 수정을 위한 공통 함수
-  const handleEditReportFromViewer = async (report: any) => {
-    // 현재 뷰를 이전 뷰로 저장
+  const handleEditReportFromViewer = async (report: AppReport) => {
     setPreviousView(currentView);
 
-    // content를 포함한 상세 데이터 로딩 (기존 onEditReport와 동일한 방식)
-    const detailReport = await loadReportDetail(report.id);
-    if (detailReport) {
-      setSelectedReport(detailReport);
-    } else {
-      setSelectedReport(report);
+    const detailReport = await loadDetailedReportWithFallback(report.id, report);
+    if (!detailReport) {
+      console.error('Failed to prepare report for editing:', report.id)
+      return
     }
 
-    // 관리자 편집 화면으로 이동
+    setSelectedReport(detailReport);
+
     setCurrentView("admin-edit-report");
     setAdminActiveTab("reports");
-
-    // 현재 열린 모든 뷰어 닫기
-    setAdminReportViewer(null);
-    setMonthlyReportViewer(null);
-    setOrganizationReportViewer(null);
-    setCategoryReportViewer(null);
-    setCalendarReportViewer(null);
+    setModalReportViewer(null);
   };
+
+  const handleCancelReportEdit = () => {
+    if (previousView && selectedReport) {
+      setCurrentView(previousView)
+      setPreviousView(null)
+
+      if (restorePreviousReportView(previousView, selectedReport)) {
+        if (previousView !== "report-detail") {
+          setSelectedReport(null)
+        }
+        return
+      }
+    }
+
+    setCurrentView("admin")
+    setSelectedReport(null)
+  }
 
   const handleDeleteConference = async (id: number) => {
     try {
@@ -713,7 +743,7 @@ export default function HomePage() {
                 setCurrentView("admin")
                 setSelectedConference(null)
               }}
-              initialData={selectedConference}
+              initialData={selectedConference || undefined}
               isEdit={true}
             />
           </div>
@@ -729,11 +759,11 @@ export default function HomePage() {
           <div className="max-h-[80vh] overflow-y-auto pb-8">
             <AdminReportForm
               onSave={handleSaveReport}
-              onCancel={() => {
-                setCurrentView("admin")
-                setSelectedReport(null)
-              }}
-              initialData={selectedReport}
+              onCancel={handleCancelReportEdit}
+              initialData={selectedReport ? {
+                ...selectedReport,
+                downloadUrl: selectedReport.downloadUrl || "",
+              } : undefined}
               isEdit={true}
               conferences={conferences}
             />
@@ -762,70 +792,53 @@ export default function HomePage() {
               allReports={allReports}
               onAddConference={() => setCurrentView("admin-add-conference")}
               onEditConference={(conference) => {
-                // Transform conference data for the form
-                const formData = {
-                  id: conference.id, // Preserve the ID
-                  title: conference.title,
-                  startDate: (conference as any).startDate || (conference as any).date,
-                  endDate: (conference as any).endDate || (conference as any).date,
-                  startTime: (conference as any).startTime || "",
-                  endTime: (conference as any).endTime || "",
-                  location: conference.location,
-                  organization: conference.organization,
-                  hasReport: conference.hasReport,
-                  description: (conference as any).description || ""
-                };
+                const appConference = conference as unknown as AppConference
+                const formData: EditableConference = {
+                  id: appConference.id,
+                  title: appConference.title,
+                  startDate: appConference.startDate || appConference.date,
+                  endDate: appConference.endDate || appConference.date,
+                  startTime: appConference.startTime || "",
+                  endTime: appConference.endTime || "",
+                  location: appConference.location,
+                  organization: appConference.organization,
+                  hasReport: appConference.hasReport,
+                  description: appConference.description || "",
+                }
                 setSelectedConference(formData)
                 setCurrentView("admin-edit-conference")
               }}
               onDeleteConference={handleDeleteConference}
               onAddReport={() => setCurrentView("admin-add-report")}
               onEditReport={async (report) => {
-                // content를 포함한 상세 데이터 로딩 (뷰어와 동일한 방식)
-                const detailReport = await loadReportDetail(report.id)
-                if (detailReport) {
-                  setSelectedReport(detailReport)
-                } else {
-                  // 실패 시 기본 데이터라도 전달 (기존 방식과 동일)
-                  setSelectedReport(report)
+                const fallbackReport = reports.find((item) => item.id === report.id)
+                const detailReport = await loadDetailedReportWithFallback(report.id, fallbackReport)
+                if (!detailReport) {
+                  console.error('Failed to prepare report for editing:', report.id)
+                  return
                 }
+
+                setSelectedReport(detailReport)
                 setCurrentView("admin-edit-report")
               }}
               onDeleteReport={handleDeleteReport}
               onAddBatchReport={() => setCurrentView("admin-batch-report")}
               onViewReport={async (report) => {
-                // content를 포함한 상세 데이터 로딩
-                const detailReport = await loadReportDetail(report.id)
-                if (detailReport) {
-                  setAdminReportViewer(detailReport)
-                } else {
-                  setAdminReportViewer(report)
+                const fallbackReport = reports.find((item) => item.id === report.id)
+                if (fallbackReport) {
+                  await openModalReportViewer("admin", fallbackReport)
                 }
               }}
               onViewConferenceReport={async (conferenceId) => {
-                // 해당 회의와 연관된 보고서 찾기
                 const conferenceReport = reports.find(report => report.conferenceId === conferenceId)
                 if (conferenceReport) {
-                  // content를 포함한 상세 데이터 로딩
-                  const detailReport = await loadReportDetail(conferenceReport.id)
-                  if (detailReport) {
-                    setAdminReportViewer(detailReport)
-                  } else {
-                    setAdminReportViewer(conferenceReport)
-                  }
+                  await openModalReportViewer("admin", conferenceReport)
                 }
               }}
               onViewSpecificReport={async (reportId) => {
-                // content를 포함한 상세 데이터 로딩
-                const detailReport = await loadReportDetail(reportId)
-                if (detailReport) {
-                  setAdminReportViewer(detailReport)
-                } else {
-                  // 실패 시 기본 데이터라도 표시
-                  const report = reports.find(r => r.id === reportId)
-                  if (report) {
-                    setAdminReportViewer(report)
-                  }
+                const report = reports.find(r => r.id === reportId)
+                if (report) {
+                  await openModalReportViewer("admin", report)
                 }
               }}
               onMonthChange={handleAdminMonthChange}
@@ -849,7 +862,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold font-playfair text-primary">메타버스 국제표준화 플랫폼</h1>
-            <p className="text-muted-foreground mt-1 text-sm">메타버스 관련 국제표준화 동향과 표준 검색 서비스</p>
+            <p className="text-muted-foreground mt-1 text-sm">메타버스 관련 국제표준화 동향과 AI 기반 표준 추천 서비스</p>
           </div>
           <ThemeToggle />
         </div>
@@ -1043,51 +1056,10 @@ export default function HomePage() {
 
       <KeyboardGuide />
 
-      {/* 관리자 대시보드에서 보고서 뷰어 모달 */}
-      {adminReportViewer && (
+      {modalReportViewer && (
         <ReportViewer
-          report={adminReportViewer}
-          onBack={() => setAdminReportViewer(null)}
-          isAdmin={!!session}
-          onEdit={handleEditReportFromViewer}
-        />
-      )}
-
-      {/* 월별 동향에서 보고서 뷰어 모달 */}
-      {monthlyReportViewer && (
-        <ReportViewer
-          report={monthlyReportViewer}
-          onBack={() => setMonthlyReportViewer(null)}
-          isAdmin={!!session}
-          onEdit={handleEditReportFromViewer}
-        />
-      )}
-
-      {/* 기구별 동향에서 보고서 뷰어 모달 */}
-      {organizationReportViewer && (
-        <ReportViewer
-          report={organizationReportViewer}
-          onBack={() => setOrganizationReportViewer(null)}
-          isAdmin={!!session}
-          onEdit={handleEditReportFromViewer}
-        />
-      )}
-
-      {/* 분야별 동향에서 보고서 뷰어 모달 */}
-      {categoryReportViewer && (
-        <ReportViewer
-          report={categoryReportViewer}
-          onBack={() => setCategoryReportViewer(null)}
-          isAdmin={!!session}
-          onEdit={handleEditReportFromViewer}
-        />
-      )}
-
-      {/* 캘린더에서 보고서 뷰어 모달 */}
-      {calendarReportViewer && (
-        <ReportViewer
-          report={calendarReportViewer}
-          onBack={() => setCalendarReportViewer(null)}
+          report={modalReportViewer.report}
+          onBack={() => setModalReportViewer(null)}
           isAdmin={!!session}
           onEdit={handleEditReportFromViewer}
         />

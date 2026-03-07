@@ -86,7 +86,7 @@ export function StandardSearch({}: StandardSearchProps) {
     }, 300000) // 5분 타임아웃
   }
 
-  // AI 표준 검색 API 호출
+  // AI 표준 추천 API 호출
   const handleSearch = async () => {
     if (!query.trim()) return
 
@@ -152,11 +152,11 @@ export function StandardSearch({}: StandardSearchProps) {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Sparkles className="w-8 h-8 text-primary" />
-            <h2 className="text-3xl font-bold font-playfair text-primary">AI 표준 검색 & 추천 (베타버전)</h2>
+            <h2 className="text-3xl font-bold font-playfair text-primary">AI 관련 표준 추천 (베타버전)</h2>
           </div>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            개발하고자 하는 기능이나 요구사항을 설명하면, AI가 관련된 메타버스 표준들을 찾아서 추천해드립니다.
-            OpenAI API 호출방식은 답변이 느리다보니 타임아웃에 종종 걸려 안되는 경우가 있습니다. 개선 예정입니다.
+            요구사항을 입력하면 내부 보고서와 회의 데이터를 바탕으로 관련 표준 후보를 추려 추천해드립니다.
+            일반 웹 검색이 아니라 내부 데이터 기반 추천이며, 응답이 길어질 경우 결과가 늦게 도착할 수 있습니다.
           </p>
         </div>
 
@@ -164,15 +164,15 @@ export function StandardSearch({}: StandardSearchProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Search className="w-5 h-5" />
-              기능 요구사항 입력
+              추천 요청 입력
             </CardTitle>
             <CardDescription>
-              예: "사용자가 다른 메타버스 플랫폼으로 아바타를 이동할 수 있는 기능", "VR 콘텐츠의 품질을 측정하는 방법"
+              예: "사용자가 다른 메타버스 플랫폼으로 아바타를 이동할 수 있는 기능", "디지털 휴먼 표정 전송과 관련된 표준"
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea
-              placeholder="개발하고자 하는 기능이나 해결하고자 하는 문제를 자세히 설명해주세요..."
+              placeholder="찾고 싶은 기능, 기술 주제, 표준화 이슈를 자세히 입력해주세요..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="min-h-[120px]"
@@ -181,12 +181,12 @@ export function StandardSearch({}: StandardSearchProps) {
               {isSearching ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  AI가 관련 표준을 검색 중...
+                  AI가 관련 표준을 추천 중...
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  AI 표준 검색 시작
+                  관련 표준 추천 받기
                 </>
               )}
             </Button>
@@ -196,8 +196,8 @@ export function StandardSearch({}: StandardSearchProps) {
         {hasSearched && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold">검색 결과</h3>
-              {results.length > 0 && <Badge variant="secondary">{results.length}개 표준 발견</Badge>}
+              <h3 className="text-xl font-semibold">추천 결과</h3>
+              {results.length > 0 && <Badge variant="secondary">{results.length}개 표준 추천</Badge>}
             </div>
 
             {error ? (
@@ -208,7 +208,7 @@ export function StandardSearch({}: StandardSearchProps) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold mb-2 text-red-700">검색 오류</h3>
+                  <h3 className="text-lg font-semibold mb-2 text-red-700">추천 오류</h3>
                   <p className="text-muted-foreground mb-4">{error}</p>
                   <Button onClick={() => { setError(null); handleSearch(); }} variant="outline">
                     다시 시도
@@ -218,8 +218,8 @@ export function StandardSearch({}: StandardSearchProps) {
             ) : isSearching ? (
               <div className="text-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                <p className="text-muted-foreground">AI가 관련 표준을 분석하고 검색하고 있습니다...</p>
-                <p className="text-sm text-muted-foreground mt-2">GPT-5의 강력한 reasoning을 활용하여 최적의 표준을 찾고 있습니다.</p>
+                <p className="text-muted-foreground">AI가 관련 표준 후보를 분석하고 있습니다...</p>
+                <p className="text-sm text-muted-foreground mt-2">내부 보고서와 회의 문맥을 바탕으로 우선순위를 정리하고 있습니다.</p>
               </div>
             ) : results.length > 0 ? (
               <div className="space-y-4">
@@ -271,7 +271,7 @@ export function StandardSearch({}: StandardSearchProps) {
               <Card>
                 <CardContent className="text-center py-12">
                   <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">검색 결과가 없습니다. 다른 키워드로 다시 시도해보세요.</p>
+                  <p className="text-muted-foreground">추천 결과가 없습니다. 더 구체적인 키워드나 기술 주제로 다시 시도해보세요.</p>
                 </CardContent>
               </Card>
             )}

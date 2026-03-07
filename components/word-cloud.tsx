@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
+import type { WordCloudEntry } from 'wordcloud'
 
 interface WordCloudProps {
   reports: Array<{
@@ -16,12 +17,12 @@ interface WordCloudProps {
 
 function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCloudProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [WordCloud, setWordCloud] = React.useState<any>(null)
+  const [wordCloud, setWordCloud] = React.useState<typeof import('wordcloud').default | null>(null)
   const [dynamicStopWords, setDynamicStopWords] = React.useState<{korean: string[], english: string[]}>({
     korean: ['있다', '하다', '되다', '이다', '않다', '없다', '싶다', '보다', '같다', '많다', '그렇다', '그러나', '하지만', '따라서', '때문에'], // 기본 한글 배제어 복구
     english: ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had'] // 기본 영어 배제어 복구
   })
-  const [stopWordsLoaded, setStopWordsLoaded] = React.useState<boolean>(true)
+  const [stopWordsLoaded, setStopWordsLoaded] = React.useState(false)
 
   // 동적으로 WordCloud 라이브러리 로드
   useEffect(() => {
@@ -46,8 +47,6 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
         }
       } catch (error) {
         console.error('Failed to load dynamic stopwords:', error)
-        // 실패 시 현재 기본 배제어 유지
-        setDynamicStopWords(current => current)
       } finally {
         // 배제어 로딩 완료 표시 (성공/실패 상관없이)
         setStopWordsLoaded(true)
@@ -66,7 +65,7 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
   // 텍스트에서 키워드 추출 및 빈도 계산
   const wordData = useMemo(() => {
     // 배제어가 로드되지 않았으면 빈 배열 반환
-    if (!stopWordsLoaded || !reports || reports.length === 0) return []
+    if (!stopWordsLoaded || reports.length === 0) return [] as WordCloudEntry[]
 
     // 모든 보고서의 summary와 title 텍스트 수집
     const allText = reports
@@ -77,19 +76,9 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
     const cleanedText = allText.replace(/[×·•]/g, ' ').replace(/\s+/g, ' ')
 
     // 한글과 영어 단어 모두 추출
-    const rawKoreanWords = cleanedText.match(/[가-힣]{2,}/g) || [] // 한글 2글자 이상
-    const englishWords = cleanedText
-      .match(/[a-zA-Z]+(?:-[a-zA-Z]+)*(?:-?\d+)?(?:\s+\d+)?/g) || [] // 복합 패턴 지원
-      .filter(word => word.length >= 2) // 2글자 이상 필터링
-    
-    // 디버깅: 원본 텍스트와 추출된 영어 단어 확인
-    console.log('텍스트 디버깅:', {
-      originalText: allText.substring(0, 200) + '...',
-      cleanedText: cleanedText.substring(0, 200) + '...',
-      extractedEnglish: englishWords,
-      englishCount: englishWords.length,
-      englishStopWords: dynamicStopWords.english
-    })
+    const rawKoreanWords = cleanedText.match(/[가-힣]{2,}/g) ?? [] // 한글 2글자 이상
+    const englishWords = (cleanedText.match(/[a-zA-Z]+(?:-[a-zA-Z]+)*(?:-?\d+)?(?:\s+\d+)?/g) ?? [])
+      .filter((word) => word.length >= 2) // 2글자 이상 필터링
 
     // 한글 명사 추출 함수 (배제어 적용 포함)
     const extractKoreanNouns = (words: string[]): string[] => {
@@ -151,13 +140,6 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
 
     // 영어 단어 필터링 (이미 배제어 필터링 적용됨)
     const filteredEnglishWords = filterEnglishWords(englishWords)
-    
-    // 영어 단어 필터링 과정 디버깅
-    console.log('영어 단어 필터링 과정:', {
-      원본영어단어들: englishWords,
-      필터링후: filteredEnglishWords,
-      제거된단어들: englishWords.filter(word => !filteredEnglishWords.includes(word))
-    })
 
     // 빈도수 계산 (배제어 필터링 후)
     const frequency: Record<string, number> = {}
@@ -202,48 +184,22 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
     const frequencies = selectedWords.map(([, freq]) => freq)
     const avgFreq = frequencies.reduce((sum, freq) => sum + freq, 0) / frequencies.length
     
-    const finalWords = selectedWords.map(([word, freq]) => {
+    if (selectedWords.length === 0) {
+      return [] as WordCloudEntry[]
+    }
+
+    const finalWords: WordCloudEntry[] = selectedWords.map(([word, freq]) => {
       // 평균 기준 정규화 후 적절한 범위로 매핑 (20-60)
       const normalizedScore = (freq / avgFreq) * 40 + 20
       return [word, normalizedScore]
     })
 
-    // 실제 선택된 단어들 로그
-    console.log('최종 워드클라우드 단어:', {
-      totalAllWords: allWords.length,
-      koreanAvailable: koreanWordList.length,
-      englishAvailable: englishWordList.length,
-      finalSelected: finalWords,
-      ratio: `영어${selectedEnglish.length}:한글${selectedKorean.length}`
-    })
-
     return finalWords
   }, [reportsKey, dynamicStopWords, stopWordsLoaded])
 
-  // 단어에 기반한 일관된 색상 생성 함수
-  const getConsistentColor = (word: string) => {
-    // 단어의 해시값을 기반으로 일관된 색상 선택
-    let hash = 0
-    for (let i = 0; i < word.length; i++) {
-      hash = word.charCodeAt(i) + ((hash << 5) - hash)
-    }
-
-    const colors = [
-      'hsl(var(--primary))',
-      'hsl(var(--secondary))',
-      'hsl(220, 70%, 50%)',
-      'hsl(280, 70%, 50%)',
-      'hsl(340, 70%, 50%)',
-      'hsl(40, 70%, 50%)',
-      'hsl(160, 70%, 50%)'
-    ]
-
-    return colors[Math.abs(hash) % colors.length]
-  }
-
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || wordData.length === 0 || !WordCloud) return
+    if (!canvas || wordData.length === 0 || !wordCloud) return
 
     // 캔버스 크기 설정
     canvas.width = width
@@ -291,7 +247,7 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
     };
 
     // WordCloud 생성 - 테마별 색상 적용
-    WordCloud(canvas, {
+    wordCloud(canvas, {
       list: wordData,
       fontFamily: '"Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif',
       backgroundColor: 'transparent',
@@ -300,9 +256,9 @@ function ReportWordCloudComponent({ reports, width = 400, height = 300 }: WordCl
       gridSize: 8,
       ellipticity: 0.7
     })
-  }, [wordData, width, height, WordCloud])
+  }, [wordData, width, height, wordCloud])
 
-  if (!WordCloud) {
+  if (!wordCloud || !stopWordsLoaded) {
     return (
       <div 
         className="flex items-center justify-center bg-muted/20 rounded-lg border border-border/50"

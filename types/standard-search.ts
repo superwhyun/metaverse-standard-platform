@@ -11,6 +11,32 @@ export interface StandardResult {
   publishedDate: string;
 }
 
+export interface StandardSearchContextReport {
+  title: string;
+  summary: string | null;
+  category: string | null;
+  organization: string | null;
+  tags: string[];
+}
+
+export interface StandardSearchContextConference {
+  title: string;
+  organization: string | null;
+  description: string | null;
+}
+
+export interface StandardSearchContext {
+  reports: StandardSearchContextReport[];
+  conferences: StandardSearchContextConference[];
+}
+
+export interface StandardSearchJob {
+  searchId: string;
+  query: string;
+  contextData: StandardSearchContext;
+  createdAt: number;
+}
+
 export interface SearchCache {
   searchId: string;
   query: string;

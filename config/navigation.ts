@@ -80,11 +80,11 @@ export const navigationConfig: PageConfig[] = [
   {
     id: "standard-search",
     component: "StandardSearch",
-    title: "AI표준검색",
+    title: "AI 표준 추천",
     icon: Search,
     position: { x: 300, y: 0 },
     navigation: { left: "tech-analysis", right: "standard-tools" },
-    shortcuts: [{ key: "5", description: "AI 표준검색 페이지로 이동" }],
+    shortcuts: [{ key: "5", description: "AI 표준 추천 페이지로 이동" }],
     isTopLevel: true
   },
   {
