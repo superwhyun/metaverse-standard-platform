@@ -66,17 +66,26 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
         }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile && selectedFile.type === 'application/pdf') {
+    const handleFiles = (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+        const selectedFile = files[0];
+
+        // Some systems might not report MIME type for PDFs correctly, so we check extension too
+        const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
+
+        if (isPdf) {
             setFile(selectedFile);
             if (title === '') {
                 setTitle(selectedFile.name.replace(/\.pdf$/i, ''));
             }
             generateThumbnail(selectedFile);
-        } else if (selectedFile) {
+        } else {
             toast.error('PDF 파일만 업로드 가능합니다.');
         }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        handleFiles(e.target.files);
     };
 
     const handleDrag = (e: React.DragEvent) => {
@@ -93,16 +102,7 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(false);
-        const droppedFile = e.dataTransfer.files?.[0];
-        if (droppedFile && droppedFile.type === 'application/pdf') {
-            setFile(droppedFile);
-            if (title === '') {
-                setTitle(droppedFile.name.replace(/\.pdf$/i, ''));
-            }
-            generateThumbnail(droppedFile);
-        } else if (droppedFile) {
-            toast.error('PDF 파일만 업로드 가능합니다.');
-        }
+        handleFiles(e.dataTransfer.files);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -211,9 +211,11 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
                                 )}
                                 onClick={() => document.getElementById('pdf-upload')?.click()}
                             >
-                                <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                                <p className="text-lg font-medium">PDF 파일을 끌어넣거나 클릭해서 선택하세요</p>
-                                <p className="text-sm text-muted-foreground mt-1">발표자료, 기술 보고서 (PDF 전용)</p>
+                                <div className="pointer-events-none">
+                                    <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                                    <p className="text-lg font-medium">PDF 파일을 끌어넣거나 클릭해서 선택하세요</p>
+                                    <p className="text-sm text-muted-foreground mt-1">발표자료, 기술 보고서 (PDF 전용)</p>
+                                </div>
                                 <input
                                     type="file"
                                     id="pdf-upload"
