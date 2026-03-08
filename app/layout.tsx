@@ -4,6 +4,7 @@ import { Source_Sans_3, Noto_Sans_KR, Noto_Serif_KR, Inter } from "next/font/goo
 import "./globals.css"
 import ClientSessionProvider from "@/components/providers/session-provider"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "sonner"
 
 const sourceSans = Source_Sans_3({
   subsets: ["latin"],
@@ -60,6 +61,7 @@ export default function RootLayout({
         >
           <ClientSessionProvider>
             {children}
+            <Toaster position="top-center" richColors />
           </ClientSessionProvider>
         </ThemeProvider>
       </body>
