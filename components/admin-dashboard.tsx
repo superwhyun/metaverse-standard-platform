@@ -474,7 +474,7 @@ export function AdminDashboard({
       )}
 
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 h-auto p-1 gap-1">
           <TabsTrigger value="conferences" className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
             회의 관리

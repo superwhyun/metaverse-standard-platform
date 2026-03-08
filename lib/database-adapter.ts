@@ -83,7 +83,7 @@ export async function createDatabaseAdapter(): Promise<DatabaseAdapter> {
     console.log('Using D1 database (Cloudflare - global)');
     return new D1Adapter((globalThis as any).MSP);
   }
-  
+
   // In wrangler dev, the binding might be available differently
   if (typeof globalThis !== 'undefined' && (globalThis as any).env?.MSP) {
     console.log('Using D1 database (Cloudflare - env)');
@@ -98,7 +98,13 @@ export async function createDatabaseAdapter(): Promise<DatabaseAdapter> {
       return new D1Adapter(runtime.env.MSP);
     }
   }
-  
+
+  // Fallback: Check process.env (for nodejs_compat_populate_process_env)
+  if (typeof process !== 'undefined' && (process.env as any).MSP) {
+    console.log('Using D1 database (process.env)');
+    return new D1Adapter((process.env as any).MSP);
+  }
+
   // For development, we need to use wrangler to provide D1 binding
   console.warn('D1 database binding (MSP) not found. Please use "npm run dev:cloudflare" to run with D1 support.');
   throw new Error('D1 database binding (MSP) not found. Please configure D1 database in wrangler.toml and use "npm run dev:cloudflare" for development.');

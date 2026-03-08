@@ -25,11 +25,24 @@ export async function GET(
         }
 
         const headers = new Headers();
-        object.writeHttpMetadata(headers);
+        // Set metadata manually to avoid proxy serialization issues in dev platform
+        if (object.httpMetadata?.contentType) {
+            headers.set('Content-Type', object.httpMetadata.contentType);
+        }
+        if (object.httpMetadata?.contentLanguage) {
+            headers.set('Content-Language', object.httpMetadata.contentLanguage);
+        }
+        if (object.httpMetadata?.contentDisposition) {
+            headers.set('Content-Disposition', object.httpMetadata.contentDisposition);
+        }
+
         headers.set('etag', object.httpEtag);
         headers.set('Cache-Control', 'public, max-age=31536000');
 
-        return new Response(object.body, {
+        // Read the stream into an array buffer to avoid Miniflare IPC stream proxy serialization errors in local dev
+        const bodyBuffer = await object.arrayBuffer();
+
+        return new Response(bodyBuffer, {
             headers,
         });
     } catch (error: any) {

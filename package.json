@@ -8,7 +8,7 @@
     "start": "next start",
     "cf:build": "npx @cloudflare/next-on-pages@1 --watch",
     "cf:build:once": "npx @cloudflare/next-on-pages@1",
-    "cf:dev": "npm run cf:build:once && concurrently \"npm run cf:build\" \"wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --port=3001 --live-reload --d1 MSP --r2 MSP_TREND_INSIGHTS --kv STANDARD_SEARCH_CACHE\"",
+    "cf:dev": "npm run cf:build:once && concurrently \"npm run cf:build\" \"wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --port=3001 --live-reload --d1 MSP --r2 MSP_TREND_INSIGHTS --kv STANDARD_SEARCH_CACHE --compatibility-flags nodejs_compat\"",
     "db:sync": "./utils/sync-db.sh"
   },
   "dependencies": {

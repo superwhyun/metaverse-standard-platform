@@ -11,14 +11,31 @@ import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-// we use a dynamic loader for pdfjs to avoid global variable issues in Node.js/Edge during build
+// we use a dynamic state for pdfjs to avoid global variable issues
 let pdfjsLib: any = null;
 
 async function loadPdfJs() {
     if (pdfjsLib) return pdfjsLib;
-    pdfjsLib = await import('pdfjs-dist');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-    return pdfjsLib;
+
+    // If it's already attached to window by a script tag
+    if (typeof window !== 'undefined' && (window as any).pdfjsLib) {
+        pdfjsLib = (window as any).pdfjsLib;
+        return pdfjsLib;
+    }
+
+    // Dynamic import of a simpler entry if possible, or wait for script loading
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => {
+            const pdfjs = (window as any).pdfjsLib;
+            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            pdfjsLib = pdfjs;
+            resolve(pdfjs);
+        };
+        script.onerror = () => reject(new Error('Failed to load pdf.js from CDN'));
+        document.head.appendChild(script);
+    });
 }
 
 interface AdminTrendInsightsFormProps {
@@ -36,11 +53,17 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
     const [isUploading, setIsUploading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
+    // Pre-load pdf.js from CDN
+    useEffect(() => {
+        loadPdfJs().catch(err => console.error(err));
+    }, []);
+
     const generateThumbnail = async (pdfFile: File) => {
         try {
             const pdfjs = await loadPdfJs();
             const arrayBuffer = await pdfFile.arrayBuffer();
-            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+            const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+            const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
 
             const viewport = page.getViewport({ scale: 0.5 });
@@ -118,10 +141,7 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
 
             const pdfUploadRes = await fetch('/api/trend-insights/upload', {
                 method: 'POST',
-                body: pdfFormData,
-                headers: {
-                    'Authorization': `Bearer ${session?.user?.id}` // We need a real token here if using Bearer, but getSessionFromRequest handles cookies too.
-                }
+                body: pdfFormData
             });
 
             const pdfData = await pdfUploadRes.json();
