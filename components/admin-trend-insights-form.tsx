@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 // we use a dynamic loader for pdfjs to avoid global variable issues in Node.js/Edge during build
 let pdfjsLib: any = null;
@@ -33,7 +34,7 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
     const [thumbnail, setThumbnail] = useState<Blob | null>(null);
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
 
     const generateThumbnail = async (pdfFile: File) => {
         try {
@@ -78,8 +79,20 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
         }
     };
 
+    const handleDrag = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === 'dragenter' || e.type === 'dragover') {
+            setIsDragging(true);
+        } else if (e.type === 'dragleave') {
+            setIsDragging(false);
+        }
+    };
+
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
         const droppedFile = e.dataTransfer.files?.[0];
         if (droppedFile && droppedFile.type === 'application/pdf') {
             setFile(droppedFile);
@@ -158,7 +171,7 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
     return (
         <Card className="w-full max-w-2xl mx-auto border-border/50 bg-background/50 backdrop-blur-sm">
             <CardHeader>
-                <CardTitle>새 트랜드 인사이트 업로드</CardTitle>
+                <CardTitle>새 트렌드 인사이트 업로드</CardTitle>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -188,9 +201,14 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
                         <Label>PDF 파일 (Drag & Drop)</Label>
                         {!file ? (
                             <div
-                                onDragOver={(e) => e.preventDefault()}
+                                onDragEnter={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDragOver={handleDrag}
                                 onDrop={handleDrop}
-                                className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-12 text-center hover:border-primary/50 transition-colors cursor-pointer bg-muted/5"
+                                className={cn(
+                                    "border-2 border-dashed rounded-lg p-12 text-center transition-all cursor-pointer bg-muted/5",
+                                    isDragging ? "border-primary bg-primary/5 scale-[0.99]" : "border-muted-foreground/25 hover:border-primary/50"
+                                )}
                                 onClick={() => document.getElementById('pdf-upload')?.click()}
                             >
                                 <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

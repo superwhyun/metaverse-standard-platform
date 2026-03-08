@@ -57,7 +57,7 @@ export function TrendInsightsList() {
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-12">
             <div className="flex flex-col gap-2">
-                <h2 className="text-3xl font-bold tracking-tight">트랜드 인사이트</h2>
+                <h2 className="text-3xl font-bold tracking-tight">트렌드 인사이트</h2>
                 <p className="text-muted-foreground">메타버스 표준화 최신 트렌드와 기술 보고서를 확인하세요.</p>
             </div>
 

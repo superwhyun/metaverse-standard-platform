@@ -100,11 +100,11 @@ export const navigationConfig: PageConfig[] = [
   {
     id: "trend-insights",
     component: "TrendInsightsList",
-    title: "트랜드 인사이트",
+    title: "트렌드 인사이트",
     icon: Lightbulb,
     position: { x: 500, y: 0 },
     navigation: { left: "standard-tools" },
-    shortcuts: [{ key: "7", description: "트랜드 인사이트 페이지로 이동" }],
+    shortcuts: [{ key: "7", description: "트렌드 인사이트 페이지로 이동" }],
     isTopLevel: true
   },
 

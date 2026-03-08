@@ -262,7 +262,7 @@ export function AdminDashboard({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">트랜드 인사이트</p>
+                <p className="text-sm font-medium text-muted-foreground">트렌드 인사이트</p>
                 <p className="text-2xl font-bold">{trendInsights.length || '...'}</p>
               </div>
               <Lightbulb className="w-8 h-8 text-yellow-500" />
@@ -501,7 +501,7 @@ export function AdminDashboard({
           </TabsTrigger>
           <TabsTrigger value="trend-insights" className="flex items-center gap-2">
             <Lightbulb className="w-4 h-4" />
-            트랜드 관리
+            트렌드 관리
           </TabsTrigger>
         </TabsList>
         <TabsContent value="conferences">
@@ -759,7 +759,7 @@ export function AdminDashboard({
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>트랜드 인사이트 관리</CardTitle>
+                <CardTitle>트렌드 인사이트 관리</CardTitle>
                 <Button onClick={onAddTrendInsight}>
                   <Plus className="w-4 h-4 mr-2" />새 요약 업로드
                 </Button>
