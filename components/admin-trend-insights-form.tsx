@@ -10,12 +10,15 @@ import { Label } from '@/components/ui/label';
 import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// we need to dynamically import pdfjs to avoid SSR issues if this was SSR, 
-// but since it's 'use client', we still import it carefully.
-import * as pdfjsLib from 'pdfjs-dist';
+// we use a dynamic loader for pdfjs to avoid global variable issues in Node.js/Edge during build
+let pdfjsLib: any = null;
 
-// Point to the worker source from cdn for simplicity if local assets are not set up
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+async function loadPdfJs() {
+    if (pdfjsLib) return pdfjsLib;
+    pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    return pdfjsLib;
+}
 
 interface AdminTrendInsightsFormProps {
     onCancel: () => void;
@@ -34,8 +37,9 @@ export function AdminTrendInsightsForm({ onCancel, onSuccess }: AdminTrendInsigh
 
     const generateThumbnail = async (pdfFile: File) => {
         try {
+            const pdfjs = await loadPdfJs();
             const arrayBuffer = await pdfFile.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
             const page = await pdf.getPage(1);
 
             const viewport = page.getViewport({ scale: 0.5 });

@@ -18,8 +18,10 @@ import { CategoryReports } from "@/components/category-reports"
 import { StandardSearch } from "@/components/standard-search"
 import { TechAnalysis } from "@/components/tech-analysis"
 import { StandardTools } from "@/components/standard-tools"
-import { TrendInsightsList } from "@/components/trend-insights-list"
-import { AdminTrendInsightsForm } from "@/components/admin-trend-insights-form"
+import dynamic from 'next/dynamic'
+
+const TrendInsightsList = dynamic(() => import("@/components/trend-insights-list").then(mod => mod.TrendInsightsList), { ssr: false })
+const AdminTrendInsightsForm = dynamic(() => import("@/components/admin-trend-insights-form").then(mod => mod.AdminTrendInsightsForm), { ssr: false })
 
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 
