@@ -4,8 +4,9 @@ export const runtime = 'edge';
 
 export async function GET(
     request: Request,
-    { params }: { params: { path: string[] } }
+    { params }: { params: Promise<{ path: string[] }> }
 ) {
+    const { path } = await params;
     try {
         const { env } = getRequestContext();
         const bucket = env.MSP_TREND_INSIGHTS as any;
