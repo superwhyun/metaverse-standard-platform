@@ -18,6 +18,8 @@ import { CategoryReports } from "@/components/category-reports"
 import { StandardSearch } from "@/components/standard-search"
 import { TechAnalysis } from "@/components/tech-analysis"
 import { StandardTools } from "@/components/standard-tools"
+import { TrendInsightsList } from "@/components/trend-insights-list"
+import { AdminTrendInsightsForm } from "@/components/admin-trend-insights-form"
 
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 
@@ -782,6 +784,18 @@ export default function HomePage() {
             />
           </div>
         )
+      case "admin-add-trend-insight":
+        return (
+          <div className="max-h-[80vh] overflow-y-auto pb-8">
+            <AdminTrendInsightsForm
+              onCancel={() => setCurrentView("admin")}
+              onSuccess={() => {
+                setCurrentView("admin")
+                setAdminActiveTab("trend-insights")
+              }}
+            />
+          </div>
+        )
       default:
         return (
           <div className="space-y-4">
@@ -848,6 +862,7 @@ export default function HomePage() {
               }}
               activeTab={adminActiveTab}
               onTabChange={setAdminActiveTab}
+              onAddTrendInsight={() => setCurrentView("admin-add-trend-insight")}
             />
           </div>
         )
@@ -1041,6 +1056,13 @@ export default function HomePage() {
         <div className={`${getPageClasses("standard-tools", currentView)} bg-pattern-circuit`}>
           <div className="container mx-auto px-4 py-2 pb-20">
             <StandardTools />
+          </div>
+        </div>
+
+        {/* Trend Insights page */}
+        <div className={`${getPageClasses("trend-insights", currentView)} bg-pattern-hex`}>
+          <div className="container mx-auto px-4 py-2 pb-20">
+            <TrendInsightsList />
           </div>
         </div>
       </div>

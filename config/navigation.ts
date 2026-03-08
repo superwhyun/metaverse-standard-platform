@@ -49,7 +49,7 @@ export const navigationConfig: PageConfig[] = [
   },
   {
     id: "calendar",
-    component: "CalendarComponent", 
+    component: "CalendarComponent",
     title: "회의 일정",
     icon: Calendar,
     position: { x: 0, y: 0 },
@@ -60,7 +60,7 @@ export const navigationConfig: PageConfig[] = [
   {
     id: "reports",
     component: "ReportList",
-    title: "최신 동향 보고서", 
+    title: "최신 동향 보고서",
     icon: FileText,
     position: { x: 100, y: 0 },
     navigation: { left: "calendar", right: "tech-analysis", down: "monthly-reports" },
@@ -93,10 +93,21 @@ export const navigationConfig: PageConfig[] = [
     title: "표준화도구",
     icon: Wrench,
     position: { x: 400, y: 0 },
-    navigation: { left: "standard-search" },
+    navigation: { left: "standard-search", right: "trend-insights" },
     shortcuts: [{ key: "6", description: "표준화도구 페이지로 이동" }],
     isTopLevel: true
   },
+  {
+    id: "trend-insights",
+    component: "TrendInsightsList",
+    title: "트랜드 인사이트",
+    icon: Lightbulb,
+    position: { x: 500, y: 0 },
+    navigation: { left: "standard-tools" },
+    shortcuts: [{ key: "7", description: "트랜드 인사이트 페이지로 이동" }],
+    isTopLevel: true
+  },
+
   {
     id: "monthly-reports",
     component: "MonthlyReports",
@@ -107,7 +118,7 @@ export const navigationConfig: PageConfig[] = [
     isSubPage: true
   },
   {
-    id: "organization-reports", 
+    id: "organization-reports",
     component: "OrganizationReports",
     title: "표준 기구별 동향",
     position: { x: 100, y: 200 },
@@ -117,7 +128,7 @@ export const navigationConfig: PageConfig[] = [
   },
   {
     id: "category-reports",
-    component: "CategoryReports", 
+    component: "CategoryReports",
     title: "분야별 표준 동향",
     position: { x: 100, y: 300 },
     parent: "reports",
@@ -136,7 +147,7 @@ export const navigationConfig: PageConfig[] = [
   },
   {
     id: "admin-edit-conference",
-    component: "AdminConferenceForm", 
+    component: "AdminConferenceForm",
     title: "회의 수정",
     position: { x: -100, y: 0 },
     parent: "admin",
@@ -146,7 +157,7 @@ export const navigationConfig: PageConfig[] = [
   {
     id: "admin-add-report",
     component: "AdminReportForm",
-    title: "보고서 추가", 
+    title: "보고서 추가",
     position: { x: -100, y: 0 },
     parent: "admin",
     navigation: {},
@@ -157,7 +168,7 @@ export const navigationConfig: PageConfig[] = [
     component: "AdminReportForm",
     title: "보고서 수정",
     position: { x: -100, y: 0 },
-    parent: "admin", 
+    parent: "admin",
     navigation: {},
     isSubPage: true
   },

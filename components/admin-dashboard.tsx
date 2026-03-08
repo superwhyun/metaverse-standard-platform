@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from "react"
-import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User, Settings, Server, ChevronLeft, ChevronRight, Upload } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Calendar, FileText, Plus, Edit, Trash2, Eye, List, FolderKanban, LogOut, User, Settings, Server, ChevronLeft, ChevronRight, Upload, Lightbulb } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -64,6 +64,7 @@ interface AdminDashboardProps {
   onLogout?: () => void
   activeTab?: string
   onTabChange?: (tab: string) => void
+  onAddTrendInsight?: () => void
 }
 
 export function AdminDashboard({
@@ -86,6 +87,7 @@ export function AdminDashboard({
   onLogout,
   activeTab = "conferences",
   onTabChange,
+  onAddTrendInsight,
 }: AdminDashboardProps) {
   const [currentDate, setCurrentDate] = useState(() => {
     const now = new Date()
@@ -128,6 +130,39 @@ export function AdminDashboard({
       return new Date(b.date).getTime() - new Date(a.date).getTime()
     })
   }
+
+  const [trendInsights, setTrendInsights] = useState<any[]>([])
+  const [isTrendsLoading, setIsTrendsLoading] = useState(false)
+
+  const loadTrendInsights = async () => {
+    setIsTrendsLoading(true)
+    try {
+      const res = await fetch('/api/trend-insights')
+      const data = await res.json()
+      if (data.success) setTrendInsights(data.data)
+    } catch (error) {
+      console.error('Failed to load trend insights:', error)
+    } finally {
+      setIsTrendsLoading(false)
+    }
+  }
+
+  const handleDeleteTrendInsight = async (id: number) => {
+    try {
+      const res = await fetch(`/api/trend-insights/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setTrendInsights(prev => prev.filter(i => i.id !== id))
+      }
+    } catch (error) {
+      console.error('Failed to delete trend insight:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "trend-insights") {
+      loadTrendInsights()
+    }
+  }, [activeTab])
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
@@ -219,6 +254,18 @@ export function AdminDashboard({
                 }).length}</p>
               </div>
               <Calendar className="w-8 h-8 text-secondary" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">트랜드 인사이트</p>
+                <p className="text-2xl font-bold">{trendInsights.length || '...'}</p>
+              </div>
+              <Lightbulb className="w-8 h-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
@@ -451,6 +498,10 @@ export function AdminDashboard({
           <TabsTrigger value="batch" className="flex items-center gap-2">
             <Upload className="w-4 h-4" />
             배치 등록
+          </TabsTrigger>
+          <TabsTrigger value="trend-insights" className="flex items-center gap-2">
+            <Lightbulb className="w-4 h-4" />
+            트랜드 관리
           </TabsTrigger>
         </TabsList>
         <TabsContent value="conferences">
@@ -701,6 +752,75 @@ export function AdminDashboard({
               <Button onClick={onAddBatchReport} size="lg" className="px-8">
                 배치 등록 시작하기
               </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="trend-insights">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>트랜드 인사이트 관리</CardTitle>
+                <Button onClick={onAddTrendInsight}>
+                  <Plus className="w-4 h-4 mr-2" />새 요약 업로드
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="max-h-[400px] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>썸네일</TableHead>
+                      <TableHead>제목</TableHead>
+                      <TableHead>작성일</TableHead>
+                      <TableHead>작업</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {trendInsights.map((insight) => (
+                      <TableRow key={insight.id}>
+                        <TableCell>
+                          <div className="w-12 h-16 bg-muted rounded overflow-hidden border">
+                            {insight.thumbnail_url ? (
+                              <img src={insight.thumbnail_url} className="w-full h-full object-cover" />
+                            ) : (
+                              <FileText className="w-full h-full p-2 text-muted-foreground/30" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">{insight.title}</TableCell>
+                        <TableCell>{new Date(insight.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => window.open(insight.pdf_url, '_blank')}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>인사이트 삭제</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    이 인사이트 자료를 삭제하시겠습니까?
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>취소</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteTrendInsight(insight.id)}>삭제</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

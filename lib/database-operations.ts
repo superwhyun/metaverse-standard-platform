@@ -42,25 +42,25 @@ export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
     let query = 'SELECT * FROM tech_analysis_reports';
     let params: any[] = [];
     let conditions: string[] = [];
-    
+
     if (search && search.trim()) {
       conditions.push('(title LIKE ? OR summary LIKE ?)');
       const searchPattern = `%${search.trim()}%`;
       params.push(searchPattern, searchPattern);
     }
-    
+
     if (categoryName && categoryName !== 'all') {
       conditions.push('category_name = ?');
       params.push(categoryName);
     }
-    
+
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
-    
+
     query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
-    
+
     const stmt = db.prepare(query);
     return await stmt.all(params);
   },
@@ -70,20 +70,20 @@ export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
   },
   create: async (report: { url: string; title: string; summary?: string | null; image_url?: string | null; category_name?: string | null; status?: string | null }) => {
     console.log('DATABASE CREATE - Raw input:', report);
-    
+
     // Explicitly handle undefined values
     const params = [
-      report.url, 
-      report.title, 
-      report.summary === undefined ? null : report.summary, 
-      report.image_url === undefined ? null : report.image_url, 
+      report.url,
+      report.title,
+      report.summary === undefined ? null : report.summary,
+      report.image_url === undefined ? null : report.image_url,
       report.category_name === undefined ? null : report.category_name,
       report.status === undefined ? 'completed' : report.status
     ];
-    
+
     console.log('DATABASE CREATE - Final params:', params);
     console.log('DATABASE CREATE - Param types:', params.map(p => typeof p));
-    
+
     const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url, category_name, status) VALUES (?, ?, ?, ?, ?, ?)');
     const result = await stmt.run(params);
     return { id: result.lastInsertRowid, ...report };
@@ -92,7 +92,7 @@ export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
     const fields = Object.keys(report).filter(key => report[key as keyof typeof report] !== undefined);
     const setClause = fields.map(field => `${field} = ?`).join(', ');
     const values = fields.map(field => report[field as keyof typeof report]);
-    
+
     const stmt = db.prepare(`UPDATE tech_analysis_reports SET ${setClause} WHERE id = ?`);
     const result = await stmt.run([...values, id]);
     if ((result.changes || 0) === 0) {
@@ -389,5 +389,34 @@ export const createWordcloudStopwordsOperations = (db: DatabaseAdapter) => ({
       return (record.words as string).split(',').map(word => word.trim()).filter(word => word.length > 0);
     }
     return [];
+  }
+});
+
+// Trend Insight operations
+export const createTrendInsightOperations = (db: DatabaseAdapter) => ({
+  getAll: async () => {
+    const stmt = db.prepare('SELECT * FROM trend_insights ORDER BY created_at DESC');
+    return await stmt.all();
+  },
+  getPaginated: async (limit: number, offset: number) => {
+    const stmt = db.prepare('SELECT * FROM trend_insights ORDER BY created_at DESC LIMIT ? OFFSET ?');
+    const items = await stmt.all([limit, offset]);
+    const countStmt = db.prepare('SELECT COUNT(*) as total FROM trend_insights');
+    const { total } = await countStmt.get();
+    return { items, total };
+  },
+  getById: async (id: number) => {
+    const stmt = db.prepare('SELECT * FROM trend_insights WHERE id = ?');
+    return await stmt.get([id]);
+  },
+  create: async (insight: { title: string; summary?: string; pdf_url: string; thumbnail_url?: string }) => {
+    const stmt = db.prepare('INSERT INTO trend_insights (title, summary, pdf_url, thumbnail_url) VALUES (?, ?, ?, ?)');
+    const result = await stmt.run([insight.title, insight.summary || null, insight.pdf_url, insight.thumbnail_url || null]);
+    return { id: result.lastInsertRowid, ...insight };
+  },
+  delete: async (id: number) => {
+    const stmt = db.prepare('DELETE FROM trend_insights WHERE id = ?');
+    const result = await stmt.run([id]);
+    return (result.changes || 0) > 0;
   }
 });

@@ -1,0 +1,101 @@
+name: Deploy Standard Search Consumer
+
+on:
+  push:
+    branches:
+      - main
+      - '**'
+    paths:
+      - 'workers/standard-search-consumer.ts'
+      - 'workers/standard-search-consumer.wrangler.toml'
+      - 'lib/standard-search-ai.ts'
+      - 'types/standard-search.ts'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'Deploy target environment'
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+          - dev
+
+concurrency:
+  group: standard-search-consumer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy preview consumer
+        run: npx wrangler deploy --config workers/standard-search-consumer.wrangler.toml --env preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy production consumer
+        run: npx wrangler deploy --config workers/standard-search-consumer.wrangler.toml --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy selected consumer
+        run: |
+          if [ "${{ inputs.target_env }}" = "dev" ]; then
+            npx wrangler deploy --config workers/standard-search-consumer.wrangler.toml --env=""
+          else
+            npx wrangler deploy --config workers/standard-search-consumer.wrangler.toml --env "${{ inputs.target_env }}"
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

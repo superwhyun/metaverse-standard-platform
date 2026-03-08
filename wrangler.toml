@@ -54,3 +54,8 @@ id = "63990b85156e4e5eac3b2e94c49d6111"
 [[env.production.queues.producers]]
 binding = "STANDARD_SEARCH_QUEUE"
 queue = "msp-standard-search-jobs-production"
+
+[[r2_buckets]]
+binding = "MSP_TREND_INSIGHTS"
+bucket_name = "msp-trend-insights"
+
