@@ -418,7 +418,7 @@ CRITICAL:
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-5',
+          model: 'gpt-5.6-terra',
           reasoning: { effort: 'low' },
           input: [
             { role: 'user', content: fullPrompt }

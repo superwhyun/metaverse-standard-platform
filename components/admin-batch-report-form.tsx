@@ -131,7 +131,7 @@ CRITICAL: Output MUST be valid, parseable JSON. No markdown code blocks.
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'gpt-5',
+                    model: 'gpt-5.6-terra',
                     reasoning: { effort: 'low' },
                     input: [{ role: 'user', content: fullPrompt }],
                     max_output_tokens: 4096
