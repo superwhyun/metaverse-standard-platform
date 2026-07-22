@@ -13,6 +13,55 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { toast } from "./ui/use-toast"
 import { VTT_PROMPT } from "@/config/vtt-prompt"
+import mammoth from "mammoth"
+
+// admin-trend-insights-form.tsx와 동일한 CDN 스크립트 로딩 패턴 재사용 (번들링 이슈 회피, 이미 검증된 방식)
+let pdfjsLib: any = null
+
+async function loadPdfJs() {
+    if (pdfjsLib) return pdfjsLib
+
+    if (typeof window !== 'undefined' && (window as any).pdfjsLib) {
+        pdfjsLib = (window as any).pdfjsLib
+        return pdfjsLib
+    }
+
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+        script.onload = () => {
+            const pdfjs = (window as any).pdfjsLib
+            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+            pdfjsLib = pdfjs
+            resolve(pdfjs)
+        }
+        script.onerror = () => reject(new Error('Failed to load pdf.js from CDN'))
+        document.head.appendChild(script)
+    })
+}
+
+async function extractPdfText(file: File): Promise<string> {
+    const pdfjs = await loadPdfJs()
+    const arrayBuffer = await file.arrayBuffer()
+    const loadingTask = pdfjs.getDocument({ data: arrayBuffer })
+    const pdf = await loadingTask.promise
+
+    const pageTexts: string[] = []
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum)
+        const textContent = await page.getTextContent()
+        const pageText = textContent.items.map((item: any) => item.str).join(' ')
+        pageTexts.push(pageText)
+    }
+
+    return pageTexts.join('\n\n')
+}
+
+async function extractDocxText(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer()
+    const result = await mammoth.extractRawText({ arrayBuffer })
+    return result.value
+}
 
 interface Conference {
   id: number
@@ -305,10 +354,15 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
   }
 
   const processFile = async (file: File) => {
-    if (!file.name.endsWith('.vtt')) {
+    const fileName = file.name.toLowerCase()
+    const isVtt = fileName.endsWith('.vtt')
+    const isPdf = fileName.endsWith('.pdf')
+    const isDocx = fileName.endsWith('.docx')
+
+    if (!isVtt && !isPdf && !isDocx) {
       toast({
         title: "잘못된 파일 형식",
-        description: "VTT 파일만 지원됩니다.",
+        description: "VTT, PDF, DOCX 파일만 지원됩니다.",
         variant: "destructive",
       })
       return
@@ -328,10 +382,18 @@ export function AdminReportForm({ onSave, onCancel, initialData, isEdit = false,
     setIsUploading(true)
 
     try {
-      const text = await file.text();
+      let text: string
+      if (isPdf) {
+        text = await extractPdfText(file)
+      } else if (isDocx) {
+        text = await extractDocxText(file)
+      } else {
+        text = await file.text()
+      }
+
       const usageInstructions = `
 You act as a professional meeting minutes writer.
-Analyze the provided VTT transcript and output a JSON object with the following fields:
+Analyze the provided meeting transcript/minutes text and output a JSON object with the following fields:
 1. "title": A concise title (format: "Group Name - #[Ordinal]").
 2. "date": Meeting date in "YYYY-MM-DD" format. Infer from the filename first if possible, otherwise look in the transcript.
 3. "summary": 1000자 이내의 문장으로 주요 표준화 논의내용을 작성.
@@ -445,7 +507,7 @@ CRITICAL:
 
       toast({
         title: "성공",
-        description: "VTT 파일이 성공적으로 처리되었습니다.",
+        description: "파일이 성공적으로 처리되었습니다.",
       })
 
     } catch (error: any) {
@@ -479,7 +541,7 @@ CRITICAL:
           role="form"
           aria-label={isEdit ? "보고서 수정 폼" : "새 보고서 등록 폼"}
         >
-          {/* VTT File Upload Drop Zone */}
+          {/* 회의록 파일 업로드 (VTT/PDF/DOCX) Drop Zone */}
           <div
             className={`relative border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center transition-colors cursor-pointer ${dragActive ? "border-primary bg-primary/10" : "border-muted-foreground/25 hover:border-primary/50"
               }`}
@@ -492,14 +554,14 @@ CRITICAL:
             {isUploading ? (
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">VTT 파일 분석 및 보고서 생성 중...</p>
+                <p className="text-sm text-muted-foreground">파일 분석 및 보고서 생성 중...</p>
               </div>
             ) : (
               <>
                 <FileText className="w-10 h-10 text-muted-foreground mb-2" />
                 <div className="text-center">
                   <p className="text-sm font-medium">
-                    회의 녹취록(VTT) 파일을 드래그하여 놓으세요
+                    회의록 파일(VTT/PDF/DOCX)을 드래그하여 놓으세요
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     또는 클릭하여 파일을 선택하세요
@@ -508,7 +570,7 @@ CRITICAL:
                 <Input
                   ref={fileInputRef}
                   type="file"
-                  accept=".vtt"
+                  accept=".vtt,.pdf,.docx"
                   className="hidden"
                   onChange={handleFileSelect}
                   disabled={isUploading}
