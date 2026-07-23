@@ -746,7 +746,7 @@ export function AdminDashboard({
             <CardContent className="flex flex-col items-center justify-center py-10">
               <Upload className="w-16 h-16 text-muted-foreground mb-4" />
               <p className="text-muted-foreground mb-6 text-center">
-                여러 개의 VTT 파일을 한꺼번에 분석하여<br />
+                여러 개의 회의록 파일(VTT/PDF/DOCX)을 한꺼번에 분석하여<br />
                 회의 일정과 보고서로 자동 등록할 수 있습니다.
               </p>
               <Button onClick={onAddBatchReport} size="lg" className="px-8">
