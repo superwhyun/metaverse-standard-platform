@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { toast } from "./ui/use-toast"
 import { VTT_PROMPT } from "@/config/vtt-prompt"
+import { extractMeetingText, isSupportedMeetingFile } from "@/lib/meeting-file-text"
 
 interface BatchItem {
     id: string
@@ -65,17 +66,17 @@ export function AdminBatchReportForm({ onCancel, onSuccess }: AdminBatchReportFo
     }
 
     const addFiles = (files: File[]) => {
-        const vttFiles = files.filter(f => f.name.endsWith('.vtt'))
-        if (vttFiles.length === 0) {
+        const supportedFiles = files.filter(f => isSupportedMeetingFile(f.name))
+        if (supportedFiles.length === 0) {
             toast({
                 title: "잘못된 파일",
-                description: "VTT 파일만 업로드 가능합니다.",
+                description: "VTT, PDF, DOCX 파일만 업로드 가능합니다.",
                 variant: "destructive"
             })
             return
         }
 
-        const newItems: BatchItem[] = vttFiles
+        const newItems: BatchItem[] = supportedFiles
             .filter(file => !items.some(item => item.file.name === file.name && item.file.size === file.size))
             .map(file => ({
                 id: Math.random().toString(36).substring(2, 9),
@@ -104,10 +105,10 @@ export function AdminBatchReportForm({ onCancel, onSuccess }: AdminBatchReportFo
         setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'analyzing' } : i))
 
         try {
-            const text = await item.file.text()
+            const text = await extractMeetingText(item.file)
             const usageInstructions = `
 You act as a professional meeting minutes writer.
-Analyze the provided VTT transcript and output a JSON object with the following fields:
+Analyze the provided meeting transcript/minutes text and output a JSON object with the following fields:
 1. "title": A concise title (format: "Group Name - #[Ordinal]").
 2. "date": Meeting date in "YYYY-MM-DD" format.
 3. "organization": Standard organization name (e.g., ISO, IEC, MSF, etc.).
@@ -258,7 +259,7 @@ CRITICAL: Output MUST be valid, parseable JSON. No markdown code blocks.
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Upload className="w-5 h-5" />
-                    VTT 배치 업로드 등록
+                    회의록 배치 업로드 등록 (VTT/PDF/DOCX)
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -272,12 +273,12 @@ CRITICAL: Output MUST be valid, parseable JSON. No markdown code blocks.
                     onClick={() => fileInputRef.current?.click()}
                 >
                     <Upload className="w-12 h-12 text-muted-foreground mb-4" />
-                    <p className="text-lg font-medium">여러 VTT 파일을 드래그하여 놓으세요</p>
+                    <p className="text-lg font-medium">여러 회의록 파일(VTT/PDF/DOCX)을 드래그하여 놓으세요</p>
                     <p className="text-sm text-muted-foreground">또는 클릭하여 파일을 선택하세요</p>
                     <Input
                         ref={fileInputRef}
                         type="file"
-                        accept=".vtt"
+                        accept=".vtt,.pdf,.docx"
                         multiple
                         className="hidden"
                         onChange={handleFileSelect}
