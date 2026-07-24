@@ -392,6 +392,61 @@ export const createWordcloudStopwordsOperations = (db: DatabaseAdapter) => ({
   }
 });
 
+// Standard Recommend Settings operations (singleton row, id = 1)
+export const createStandardRecommendSettingsOperations = (db: DatabaseAdapter) => ({
+  get: async () => {
+    const stmt = db.prepare('SELECT * FROM standard_recommend_settings WHERE id = 1');
+    return await stmt.get();
+  },
+  upsert: async (settings: {
+    sheet_url?: string;
+    vector_store_id?: string;
+    last_synced_at?: string;
+    last_sync_status?: string;
+  }) => {
+    const existing = await db.prepare('SELECT * FROM standard_recommend_settings WHERE id = 1').get();
+    const merged = {
+      sheet_url: settings.sheet_url ?? existing?.sheet_url ?? null,
+      vector_store_id: settings.vector_store_id ?? existing?.vector_store_id ?? null,
+      last_synced_at: settings.last_synced_at ?? existing?.last_synced_at ?? null,
+      last_sync_status: settings.last_sync_status ?? existing?.last_sync_status ?? null,
+    };
+    const stmt = db.prepare(`
+      INSERT INTO standard_recommend_settings (id, sheet_url, vector_store_id, last_synced_at, last_sync_status, updated_at)
+      VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET
+        sheet_url = excluded.sheet_url,
+        vector_store_id = excluded.vector_store_id,
+        last_synced_at = excluded.last_synced_at,
+        last_sync_status = excluded.last_sync_status,
+        updated_at = CURRENT_TIMESTAMP
+    `);
+    await stmt.run([merged.sheet_url, merged.vector_store_id, merged.last_synced_at, merged.last_sync_status]);
+    return merged;
+  }
+});
+
+// Standard Recommend Sync Files operations (per-generation audit log)
+export const createStandardRecommendSyncFilesOperations = (db: DatabaseAdapter) => ({
+  getByVectorStoreId: async (vectorStoreId: string) => {
+    const stmt = db.prepare('SELECT * FROM standard_recommend_sync_files WHERE vector_store_id = ? ORDER BY row_index ASC');
+    return await stmt.all([vectorStoreId]);
+  },
+  insertMany: async (vectorStoreId: string, files: { row_index: number; openai_file_id: string; title?: string }[]) => {
+    const stmt = db.prepare(
+      'INSERT INTO standard_recommend_sync_files (vector_store_id, row_index, openai_file_id, title) VALUES (?, ?, ?, ?)'
+    );
+    for (const file of files) {
+      await stmt.run([vectorStoreId, file.row_index, file.openai_file_id, file.title || null]);
+    }
+  },
+  deleteByVectorStoreId: async (vectorStoreId: string) => {
+    const stmt = db.prepare('DELETE FROM standard_recommend_sync_files WHERE vector_store_id = ?');
+    const result = await stmt.run([vectorStoreId]);
+    return (result.changes || 0) > 0;
+  }
+});
+
 // Trend Insight operations
 export const createTrendInsightOperations = (db: DatabaseAdapter) => ({
   getAll: async () => {
