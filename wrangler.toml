@@ -21,6 +21,10 @@ preview_id = "eb43edd3f880468eb1ea6d6ad3dd78d5"
 binding = "STANDARD_SEARCH_QUEUE"
 queue = "msp-standard-search-jobs-dev"
 
+[[queues.producers]]
+binding = "STANDARD_RECOMMEND_SYNC_QUEUE"
+queue = "msp-standard-recommend-sync-dev"
+
 # Preview environment (for branch deployments)
 [env.preview]
 compatibility_date = "2024-09-23"
@@ -37,6 +41,10 @@ id = "63990b85156e4e5eac3b2e94c49d6111"
 [[env.preview.queues.producers]]
 binding = "STANDARD_SEARCH_QUEUE"
 queue = "msp-standard-search-jobs-preview"
+
+[[env.preview.queues.producers]]
+binding = "STANDARD_RECOMMEND_SYNC_QUEUE"
+queue = "msp-standard-recommend-sync-preview"
 
 [[env.preview.r2_buckets]]
 binding = "MSP_TREND_INSIGHTS"
@@ -58,6 +66,10 @@ id = "63990b85156e4e5eac3b2e94c49d6111"
 [[env.production.queues.producers]]
 binding = "STANDARD_SEARCH_QUEUE"
 queue = "msp-standard-search-jobs-production"
+
+[[env.production.queues.producers]]
+binding = "STANDARD_RECOMMEND_SYNC_QUEUE"
+queue = "msp-standard-recommend-sync-production"
 
 [[env.production.r2_buckets]]
 binding = "MSP_TREND_INSIGHTS"
