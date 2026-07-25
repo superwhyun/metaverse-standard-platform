@@ -85,11 +85,12 @@ export function StandardSearch({}: StandardSearchProps) {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Sparkles className="w-8 h-8 text-primary" />
-            <h2 className="text-3xl font-bold font-playfair text-primary">AI 관련 표준 추천 (베타버전)</h2>
+            <h2 className="text-3xl font-bold font-playfair text-primary">AI 관련 표준 추천</h2>
           </div>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            요구사항을 입력하면 내부 보고서와 회의 데이터를 바탕으로 관련 표준 후보를 추려 추천해드립니다.
-            일반 웹 검색이 아니라 내부 데이터 기반 추천이며, 응답이 길어질 경우 결과가 늦게 도착할 수 있습니다.
+            요구사항을 입력하면 관련 표준 후보를 추려 추천해드립니다. 이 내용은 ITU-T JCA-MV에서
+            파악한 각 SDO(표준화기구)별 표준 정보를 토대로 작성됩니다. 일반 웹 검색이 아니라
+            자체 데이터 기반 추천이며, 응답이 길어질 경우 결과가 늦게 도착할 수 있습니다.
           </p>
         </div>
 
