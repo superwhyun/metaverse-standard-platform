@@ -392,6 +392,29 @@ export const createWordcloudStopwordsOperations = (db: DatabaseAdapter) => ({
   }
 });
 
+// Admin API Settings operations (singleton row, id = 1)
+export const createAdminApiSettingsOperations = (db: DatabaseAdapter) => ({
+  get: async () => {
+    const stmt = db.prepare('SELECT * FROM admin_api_settings WHERE id = 1');
+    return await stmt.get();
+  },
+  upsert: async (settings: { openai_api_key?: string }) => {
+    const existing = await db.prepare('SELECT * FROM admin_api_settings WHERE id = 1').get();
+    const merged = {
+      openai_api_key: settings.openai_api_key ?? existing?.openai_api_key ?? null,
+    };
+    const stmt = db.prepare(`
+      INSERT INTO admin_api_settings (id, openai_api_key, updated_at)
+      VALUES (1, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET
+        openai_api_key = excluded.openai_api_key,
+        updated_at = CURRENT_TIMESTAMP
+    `);
+    await stmt.run([merged.openai_api_key]);
+    return merged;
+  }
+});
+
 // Standard Recommend Settings operations (singleton row, id = 1)
 export const createStandardRecommendSettingsOperations = (db: DatabaseAdapter) => ({
   get: async () => {

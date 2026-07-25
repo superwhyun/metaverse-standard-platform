@@ -16,19 +16,54 @@ import { useEffect } from 'react';
 
 function ApiSettings() {
   const [apiKey, setApiKey] = useState('');
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
-    const key = localStorage.getItem('openai_api_key');
-    if (key) setApiKey(key);
+    const loadKey = async () => {
+      try {
+        const res = await fetch('/api/admin/api-settings');
+        const result = await res.json();
+        if (result.success && result.data.openai_api_key) {
+          setApiKey(result.data.openai_api_key);
+          // 서버 값을 브라우저에도 반영 (보고서 생성 폼은 여전히 localStorage를 직접 읽음)
+          localStorage.setItem('openai_api_key', result.data.openai_api_key);
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to load API key from server:', error);
+      }
+
+      const key = localStorage.getItem('openai_api_key');
+      if (key) setApiKey(key);
+    };
+
+    loadKey();
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('openai_api_key', apiKey);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    if (!apiKey.trim()) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/api-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ openaiApiKey: apiKey.trim() }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error || '저장 실패');
+
+      localStorage.setItem('openai_api_key', apiKey.trim());
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      console.error('Failed to save API key:', error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -36,7 +71,8 @@ function ApiSettings() {
       <CardHeader>
         <CardTitle>API 설정</CardTitle>
         <CardDescription>
-          외부 서비스 연동을 위한 API 키를 설정합니다. 이 키는 브라우저에만 저장됩니다.
+          외부 서비스 연동을 위한 OpenAI API 키를 설정합니다. 서버에 저장되어 AI 표준 추천
+          검색 등 서버 쪽 기능에서도 사용되고, 보고서 자동 생성을 위해 브라우저에도 함께 저장됩니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -57,14 +93,19 @@ function ApiSettings() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              보고서 자동 생성을 위해 필요합니다.
+              보고서 자동 생성, AI 표준 추천 검색에 사용됩니다.
             </p>
           </div>
-          <Button type="submit" disabled={saved}>
+          <Button type="submit" disabled={saving || saved || !apiKey.trim()}>
             {saved ? (
               <>
                 <CheckCircle className="mr-2 h-4 w-4" />
                 저장됨
+              </>
+            ) : saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                저장 중...
               </>
             ) : (
               '저장'
