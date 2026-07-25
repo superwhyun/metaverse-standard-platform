@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: settings || {
-        sheet_url: null,
         vector_store_id: null,
         last_synced_at: null,
         last_sync_status: null,
@@ -42,14 +41,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { sheetUrl, vectorStoreId } = body;
+    const { vectorStoreId } = body;
 
-    const hasSheetUrl = typeof sheetUrl === 'string' && sheetUrl.trim().length > 0;
-    const hasVectorStoreId = typeof vectorStoreId === 'string' && vectorStoreId.trim().length > 0;
-
-    if (!hasSheetUrl && !hasVectorStoreId) {
+    if (typeof vectorStoreId !== 'string' || !vectorStoreId.trim()) {
       return NextResponse.json(
-        { success: false, error: 'sheetUrl 또는 vectorStoreId 중 하나는 필요합니다.' },
+        { success: false, error: 'vectorStoreId is required' },
         { status: 400 }
       );
     }
@@ -57,19 +53,14 @@ export async function POST(request: NextRequest) {
     const db = await createDatabaseAdapter();
     const settingsOperations = createStandardRecommendSettingsOperations(db);
     const updated = await settingsOperations.upsert({
-      ...(hasSheetUrl ? { sheet_url: sheetUrl.trim() } : {}),
-      ...(hasVectorStoreId
-        ? {
-            vector_store_id: vectorStoreId.trim(),
-            last_synced_at: new Date().toISOString(),
-            last_sync_status: 'completed',
-          }
-        : {}),
+      vector_store_id: vectorStoreId.trim(),
+      last_synced_at: new Date().toISOString(),
+      last_sync_status: 'completed',
     });
 
     return NextResponse.json({
       success: true,
-      message: '설정이 저장되었습니다.',
+      message: 'Vector Store ID가 저장되었습니다.',
       data: updated,
     });
   } catch (error) {

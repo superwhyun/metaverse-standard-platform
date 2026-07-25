@@ -399,29 +399,26 @@ export const createStandardRecommendSettingsOperations = (db: DatabaseAdapter) =
     return await stmt.get();
   },
   upsert: async (settings: {
-    sheet_url?: string;
     vector_store_id?: string;
     last_synced_at?: string;
     last_sync_status?: string;
   }) => {
     const existing = await db.prepare('SELECT * FROM standard_recommend_settings WHERE id = 1').get();
     const merged = {
-      sheet_url: settings.sheet_url ?? existing?.sheet_url ?? null,
       vector_store_id: settings.vector_store_id ?? existing?.vector_store_id ?? null,
       last_synced_at: settings.last_synced_at ?? existing?.last_synced_at ?? null,
       last_sync_status: settings.last_sync_status ?? existing?.last_sync_status ?? null,
     };
     const stmt = db.prepare(`
-      INSERT INTO standard_recommend_settings (id, sheet_url, vector_store_id, last_synced_at, last_sync_status, updated_at)
-      VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT INTO standard_recommend_settings (id, vector_store_id, last_synced_at, last_sync_status, updated_at)
+      VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(id) DO UPDATE SET
-        sheet_url = excluded.sheet_url,
         vector_store_id = excluded.vector_store_id,
         last_synced_at = excluded.last_synced_at,
         last_sync_status = excluded.last_sync_status,
         updated_at = CURRENT_TIMESTAMP
     `);
-    await stmt.run([merged.sheet_url, merged.vector_store_id, merged.last_synced_at, merged.last_sync_status]);
+    await stmt.run([merged.vector_store_id, merged.last_synced_at, merged.last_sync_status]);
     return merged;
   }
 });

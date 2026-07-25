@@ -3,16 +3,14 @@
 /**
  * 표준 추천 기능용 일회성 동기화/검색 테스트 CLI
  *
- * 웹 관리자 화면(동기화 버튼)은 Cloudflare Queue consumer 워커가 처리하는데,
- * 로컬 개발 환경에서는 wrangler pages dev/wrangler dev 프로세스 간에 큐 상태가
- * 공유되지 않아 끝까지 테스트할 수 없다. 이 스크립트는 같은 로직을 Node에서
- * 직접(큐 없이) 실행해서 로컬/원격 D1을 갱신하고, 결과를 바로 검색까지
- * 테스트할 수 있게 해준다.
+ * 운영 환경에서는 구글시트에 바인딩된 Google Apps Script(이 저장소 밖)가 동기화를
+ * 수행하고, 관리자가 그 결과 vector_store_id를 어드민 화면에 붙여넣는다. 이 스크립트는
+ * 같은 로직을 Node에서 직접 실행해서 로컬/원격 D1을 갱신하고, 결과를 바로 검색까지
+ * 테스트할 수 있게 해주는 로컬 전용 도구다.
  *
  * 사용법:
- *   OPENAI_API_KEY=sk-... node utils/sync-standard-catalog.js sync
- *   OPENAI_API_KEY=sk-... node utils/sync-standard-catalog.js sync --remote
  *   OPENAI_API_KEY=sk-... node utils/sync-standard-catalog.js sync --sheet-url "https://docs.google.com/..."
+ *   OPENAI_API_KEY=sk-... node utils/sync-standard-catalog.js sync --sheet-url "..." --remote
  *   OPENAI_API_KEY=sk-... node utils/sync-standard-catalog.js search "메타버스 접근성 관련 표준"
  */
 
@@ -39,12 +37,11 @@ function runWranglerD1(sql, { remote }) {
 
 function getSettings({ remote }) {
   const result = runWranglerD1(
-    'SELECT sheet_url, vector_store_id FROM standard_recommend_settings WHERE id = 1',
+    'SELECT vector_store_id FROM standard_recommend_settings WHERE id = 1',
     { remote }
   );
   const row = result?.[0]?.results?.[0] || {};
   return {
-    sheetUrl: row.sheet_url && row.sheet_url !== 'null' ? row.sheet_url : null,
     vectorStoreId: row.vector_store_id && row.vector_store_id !== 'null' ? row.vector_store_id : null,
   };
 }
@@ -123,13 +120,12 @@ function requireApiKey() {
   return apiKey;
 }
 
-async function runSync({ remote, sheetUrl: sheetUrlArg }) {
+async function runSync({ remote, sheetUrl }) {
   const apiKey = requireApiKey();
   const settings = getSettings({ remote });
-  const sheetUrl = sheetUrlArg || settings.sheetUrl;
 
   if (!sheetUrl) {
-    console.error(chalk.red('❌ 시트 링크가 없습니다. --sheet-url 로 직접 넘기거나 관리자 화면에서 먼저 저장하세요.'));
+    console.error(chalk.red('❌ 시트 링크가 없습니다. --sheet-url 로 직접 넘겨주세요 (예: --sheet-url "https://docs.google.com/...").'));
     process.exit(1);
   }
 
@@ -229,7 +225,7 @@ program
   .command('sync')
   .description('구글시트를 읽어 새 Vector Store를 만들고 D1에 반영')
   .option('--remote', '로컬 대신 원격(프로덕션) D1 사용', false)
-  .option('--sheet-url <url>', '시트 링크 직접 지정 (생략 시 D1에 저장된 값 사용)')
+  .option('--sheet-url <url>', '동기화할 구글시트 링크 (필수)')
   .action((opts) => {
     runSync({ remote: opts.remote, sheetUrl: opts.sheetUrl }).catch((err) => {
       console.error(chalk.red(`❌ ${err.message}`));

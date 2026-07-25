@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { toast } from "./ui/use-toast"
 
 interface Settings {
-  sheet_url: string | null
   vector_store_id: string | null
   last_synced_at: string | null
   last_sync_status: string | null
@@ -17,10 +16,8 @@ interface Settings {
 
 export function AdminStandardRecommendSettings() {
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [sheetUrlInput, setSheetUrlInput] = useState('')
   const [vectorStoreIdInput, setVectorStoreIdInput] = useState('')
   const [loading, setLoading] = useState(true)
-  const [savingLink, setSavingLink] = useState(false)
   const [savingVectorStoreId, setSavingVectorStoreId] = useState(false)
 
   const loadSettings = async () => {
@@ -30,7 +27,6 @@ export function AdminStandardRecommendSettings() {
       const result = await res.json()
       if (result.success) {
         setSettings(result.data)
-        setSheetUrlInput(result.data.sheet_url || '')
         setVectorStoreIdInput(result.data.vector_store_id || '')
       }
     } catch (error) {
@@ -48,30 +44,6 @@ export function AdminStandardRecommendSettings() {
   useEffect(() => {
     loadSettings()
   }, [])
-
-  const saveSheetUrl = async () => {
-    if (!sheetUrlInput.trim()) return
-    try {
-      setSavingLink(true)
-      const res = await fetch('/api/admin/standard-recommend/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetUrl: sheetUrlInput.trim() }),
-      })
-      const result = await res.json()
-      if (!result.success) throw new Error(result.error || '저장 실패')
-      toast({ title: "저장 완료", description: "구글 시트 링크가 저장되었습니다." })
-      await loadSettings()
-    } catch (error: any) {
-      toast({
-        title: "저장 실패",
-        description: error.message || "구글 시트 링크 저장에 실패했습니다.",
-        variant: "destructive",
-      })
-    } finally {
-      setSavingLink(false)
-    }
-  }
 
   const saveVectorStoreId = async () => {
     if (!vectorStoreIdInput.trim()) return
@@ -114,30 +86,14 @@ export function AdminStandardRecommendSettings() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>AI 표준 추천 — 구글 시트 연동</CardTitle>
+          <CardTitle>AI 표준 추천 — Vector Store 연동</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            표준 목록을 관리하는 공개 구글 스프레드시트 링크입니다. 이 시트에 연결된 Google Apps
-            Script가 OpenAI Vector Store로 동기화를 수행하고, 그 결과 생성되는 Vector Store ID를
-            아래에 붙여넣으면 AI 표준 추천 검색이 해당 데이터를 사용합니다.
+            표준 목록을 관리하는 구글 스프레드시트에 연결된 Google Apps Script가 OpenAI Vector
+            Store로 동기화를 수행합니다. 그 결과 생성되는 Vector Store ID를 아래에 붙여넣으면
+            AI 표준 추천 검색이 해당 데이터를 사용합니다.
           </p>
-
-          <div className="space-y-2">
-            <Label htmlFor="sheet-url">구글 시트 링크</Label>
-            <div className="flex gap-2">
-              <Input
-                id="sheet-url"
-                value={sheetUrlInput}
-                onChange={(e) => setSheetUrlInput(e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-              />
-              <Button onClick={saveSheetUrl} disabled={savingLink || !sheetUrlInput.trim()}>
-                {savingLink ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                저장
-              </Button>
-            </div>
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="vector-store-id">Vector Store ID</Label>
