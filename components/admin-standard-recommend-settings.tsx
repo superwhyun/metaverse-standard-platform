@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from "react"
-import { Save, RefreshCw, PlayCircle, CheckCircle2, AlertCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Save, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,22 +15,13 @@ interface Settings {
   last_sync_status: string | null
 }
 
-interface SyncStatus {
-  status: 'pending' | 'running' | 'completed' | 'failed'
-  processed: number
-  total: number
-  error?: string
-}
-
-const POLL_INTERVAL_MS = 1500
-
 export function AdminStandardRecommendSettings() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [sheetUrlInput, setSheetUrlInput] = useState('')
+  const [vectorStoreIdInput, setVectorStoreIdInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [savingLink, setSavingLink] = useState(false)
-  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [savingVectorStoreId, setSavingVectorStoreId] = useState(false)
 
   const loadSettings = async () => {
     try {
@@ -40,6 +31,7 @@ export function AdminStandardRecommendSettings() {
       if (result.success) {
         setSettings(result.data)
         setSheetUrlInput(result.data.sheet_url || '')
+        setVectorStoreIdInput(result.data.vector_store_id || '')
       }
     } catch (error) {
       console.error('Failed to load standard-recommend settings:', error)
@@ -55,9 +47,6 @@ export function AdminStandardRecommendSettings() {
 
   useEffect(() => {
     loadSettings()
-    return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current)
-    }
   }, [])
 
   const saveSheetUrl = async () => {
@@ -84,60 +73,29 @@ export function AdminStandardRecommendSettings() {
     }
   }
 
-  const pollSyncStatus = (syncId: string) => {
-    if (pollTimerRef.current) clearInterval(pollTimerRef.current)
-    pollTimerRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/admin/standard-recommend/sync?syncId=${syncId}`)
-        const result = await res.json()
-        if (!result.success) return
-
-        setSyncStatus({
-          status: result.status,
-          processed: result.processed || 0,
-          total: result.total || 0,
-          error: result.error,
-        })
-
-        if (result.status === 'completed' || result.status === 'failed') {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current)
-          if (result.status === 'completed') {
-            toast({ title: "동기화 완료", description: `${result.processed}개 표준이 동기화되었습니다.` })
-          } else {
-            toast({
-              title: "동기화 실패",
-              description: result.error || "알 수 없는 오류가 발생했습니다.",
-              variant: "destructive",
-            })
-          }
-          await loadSettings()
-        }
-      } catch (error) {
-        console.error('Failed to poll sync status:', error)
-      }
-    }, POLL_INTERVAL_MS)
-  }
-
-  const startSync = async () => {
+  const saveVectorStoreId = async () => {
+    if (!vectorStoreIdInput.trim()) return
     try {
-      setSyncStatus({ status: 'pending', processed: 0, total: 0 })
-      const res = await fetch('/api/admin/standard-recommend/sync', { method: 'POST' })
+      setSavingVectorStoreId(true)
+      const res = await fetch('/api/admin/standard-recommend/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vectorStoreId: vectorStoreIdInput.trim() }),
+      })
       const result = await res.json()
-      if (!result.success) throw new Error(result.error || '동기화 시작 실패')
-      pollSyncStatus(result.syncId)
+      if (!result.success) throw new Error(result.error || '저장 실패')
+      toast({ title: "저장 완료", description: "Vector Store ID가 저장되었습니다." })
+      await loadSettings()
     } catch (error: any) {
-      setSyncStatus(null)
       toast({
-        title: "동기화 시작 실패",
-        description: error.message || "동기화를 시작하지 못했습니다.",
+        title: "저장 실패",
+        description: error.message || "Vector Store ID 저장에 실패했습니다.",
         variant: "destructive",
       })
+    } finally {
+      setSavingVectorStoreId(false)
     }
   }
-
-  const isSyncing = syncStatus?.status === 'pending' || syncStatus?.status === 'running'
-  const progressPercent =
-    syncStatus && syncStatus.total > 0 ? Math.round((syncStatus.processed / syncStatus.total) * 100) : 0
 
   if (loading) {
     return (
@@ -160,8 +118,9 @@ export function AdminStandardRecommendSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            표준 목록을 관리하는 공개 구글 스프레드시트 링크를 등록하면, 동기화 시 그 내용을 기반으로
-            AI 표준 추천 검색 데이터가 갱신됩니다.
+            표준 목록을 관리하는 공개 구글 스프레드시트 링크입니다. 이 시트에 연결된 Google Apps
+            Script가 OpenAI Vector Store로 동기화를 수행하고, 그 결과 생성되는 Vector Store ID를
+            아래에 붙여넣으면 AI 표준 추천 검색이 해당 데이터를 사용합니다.
           </p>
 
           <div className="space-y-2">
@@ -180,52 +139,45 @@ export function AdminStandardRecommendSettings() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2">
-            <div className="text-xs text-muted-foreground space-y-1">
-              {settings?.last_synced_at ? (
-                <div>
-                  마지막 동기화: {new Date(settings.last_synced_at).toLocaleString('ko-KR')}
-                  {settings.last_sync_status === 'completed' && (
-                    <span className="inline-flex items-center gap-1 text-green-600 ml-2">
-                      <CheckCircle2 className="w-3 h-3" /> 성공
-                    </span>
-                  )}
-                  {settings.last_sync_status === 'failed' && (
-                    <span className="inline-flex items-center gap-1 text-destructive ml-2">
-                      <AlertCircle className="w-3 h-3" /> 실패
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div>아직 동기화된 적이 없습니다.</div>
-              )}
+          <div className="space-y-2">
+            <Label htmlFor="vector-store-id">Vector Store ID</Label>
+            <div className="flex gap-2">
+              <Input
+                id="vector-store-id"
+                value={vectorStoreIdInput}
+                onChange={(e) => setVectorStoreIdInput(e.target.value)}
+                placeholder="vs_..."
+              />
+              <Button onClick={saveVectorStoreId} disabled={savingVectorStoreId || !vectorStoreIdInput.trim()}>
+                {savingVectorStoreId ? (
+                  <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                저장
+              </Button>
             </div>
-            <Button onClick={startSync} disabled={isSyncing || !settings?.sheet_url}>
-              {isSyncing ? (
-                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <PlayCircle className="w-4 h-4 mr-2" />
-              )}
-              동기화 시작
-            </Button>
           </div>
 
-          {syncStatus && (
-            <div className="space-y-2 pt-2">
-              <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${syncStatus.status === 'completed' ? 100 : progressPercent}%` }}
-                />
+          <div className="text-xs text-muted-foreground pt-2">
+            {settings?.last_synced_at ? (
+              <div>
+                마지막 반영: {new Date(settings.last_synced_at).toLocaleString('ko-KR')}
+                {settings.last_sync_status === 'completed' && (
+                  <span className="inline-flex items-center gap-1 text-green-600 ml-2">
+                    <CheckCircle2 className="w-3 h-3" /> 완료
+                  </span>
+                )}
+                {settings.last_sync_status === 'failed' && (
+                  <span className="inline-flex items-center gap-1 text-destructive ml-2">
+                    <AlertCircle className="w-3 h-3" /> 실패
+                  </span>
+                )}
               </div>
-              <div className="text-xs text-muted-foreground">
-                {syncStatus.status === 'pending' && '동기화 준비 중...'}
-                {syncStatus.status === 'running' && `${syncStatus.processed} / ${syncStatus.total} 처리 중...`}
-                {syncStatus.status === 'completed' && `완료 — ${syncStatus.processed}개 동기화됨`}
-                {syncStatus.status === 'failed' && `실패: ${syncStatus.error || '알 수 없는 오류'}`}
-              </div>
-            </div>
-          )}
+            ) : (
+              <div>아직 Vector Store ID가 등록되지 않았습니다.</div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

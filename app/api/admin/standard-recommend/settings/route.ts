@@ -42,22 +42,34 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { sheetUrl } = body;
+    const { sheetUrl, vectorStoreId } = body;
 
-    if (typeof sheetUrl !== 'string' || !sheetUrl.trim()) {
+    const hasSheetUrl = typeof sheetUrl === 'string' && sheetUrl.trim().length > 0;
+    const hasVectorStoreId = typeof vectorStoreId === 'string' && vectorStoreId.trim().length > 0;
+
+    if (!hasSheetUrl && !hasVectorStoreId) {
       return NextResponse.json(
-        { success: false, error: 'sheetUrl is required' },
+        { success: false, error: 'sheetUrl 또는 vectorStoreId 중 하나는 필요합니다.' },
         { status: 400 }
       );
     }
 
     const db = await createDatabaseAdapter();
     const settingsOperations = createStandardRecommendSettingsOperations(db);
-    const updated = await settingsOperations.upsert({ sheet_url: sheetUrl.trim() });
+    const updated = await settingsOperations.upsert({
+      ...(hasSheetUrl ? { sheet_url: sheetUrl.trim() } : {}),
+      ...(hasVectorStoreId
+        ? {
+            vector_store_id: vectorStoreId.trim(),
+            last_synced_at: new Date().toISOString(),
+            last_sync_status: 'completed',
+          }
+        : {}),
+    });
 
     return NextResponse.json({
       success: true,
-      message: '구글 시트 링크가 저장되었습니다.',
+      message: '설정이 저장되었습니다.',
       data: updated,
     });
   } catch (error) {

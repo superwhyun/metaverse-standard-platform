@@ -426,27 +426,6 @@ export const createStandardRecommendSettingsOperations = (db: DatabaseAdapter) =
   }
 });
 
-// Standard Recommend Sync Files operations (per-generation audit log)
-export const createStandardRecommendSyncFilesOperations = (db: DatabaseAdapter) => ({
-  getByVectorStoreId: async (vectorStoreId: string) => {
-    const stmt = db.prepare('SELECT * FROM standard_recommend_sync_files WHERE vector_store_id = ? ORDER BY row_index ASC');
-    return await stmt.all([vectorStoreId]);
-  },
-  insertMany: async (vectorStoreId: string, files: { row_index: number; openai_file_id: string; title?: string }[]) => {
-    const stmt = db.prepare(
-      'INSERT INTO standard_recommend_sync_files (vector_store_id, row_index, openai_file_id, title) VALUES (?, ?, ?, ?)'
-    );
-    for (const file of files) {
-      await stmt.run([vectorStoreId, file.row_index, file.openai_file_id, file.title || null]);
-    }
-  },
-  deleteByVectorStoreId: async (vectorStoreId: string) => {
-    const stmt = db.prepare('DELETE FROM standard_recommend_sync_files WHERE vector_store_id = ?');
-    const result = await stmt.run([vectorStoreId]);
-    return (result.changes || 0) > 0;
-  }
-});
-
 // Trend Insight operations
 export const createTrendInsightOperations = (db: DatabaseAdapter) => ({
   getAll: async () => {
