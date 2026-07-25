@@ -12,6 +12,7 @@ import { AdminOrganizationForm } from '@/components/admin-organization-form'
 import { AdminCategoryForm } from '@/components/admin-category-form'
 import { AdminEnvSettings } from '@/components/admin-env-settings'
 import { AdminWordcloudStopwords } from '@/components/admin-wordcloud-stopwords'
+import { AdminStandardRecommendSettings } from '@/components/admin-standard-recommend-settings'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -826,15 +827,19 @@ export function AdminDashboard({
         </TabsContent>
         <TabsContent value="system">
           <Tabs defaultValue="env" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="env">환경변수 설정</TabsTrigger>
               <TabsTrigger value="wordcloud">워드클라우드 설정</TabsTrigger>
+              <TabsTrigger value="standard-recommend">표준 추천 설정</TabsTrigger>
             </TabsList>
             <TabsContent value="env">
               <AdminEnvSettings />
             </TabsContent>
             <TabsContent value="wordcloud">
               <AdminWordcloudStopwords />
+            </TabsContent>
+            <TabsContent value="standard-recommend">
+              <AdminStandardRecommendSettings />
             </TabsContent>
           </Tabs>
         </TabsContent>
