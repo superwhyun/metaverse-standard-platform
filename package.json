@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "cf:dev": "npx @cloudflare/next-on-pages@1 && wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --port=3001 --d1=MSP=5bca3ce1-0488-47bb-95ec-3d8cbb347c43 --r2 MSP_TREND_INSIGHTS --kv STANDARD_SEARCH_CACHE --compatibility-flags nodejs_compat",
+    "cf:dev": "npx @cloudflare/next-on-pages@1 && wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --port=3001 --d1=MSP=5bca3ce1-0488-47bb-95ec-3d8cbb347c43 --r2 MSP_TREND_INSIGHTS --compatibility-flags nodejs_compat",
     "db:sync": "./utils/sync-db.sh"
   },
   "dependencies": {

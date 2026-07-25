@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { Search, Sparkles, FileText, Tag, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,71 +26,8 @@ export function StandardSearch({}: StandardSearchProps) {
   const [results, setResults] = useState<StandardResult[]>([])
   const [hasSearched, setHasSearched] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const clearPolling = () => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current)
-      pollingIntervalRef.current = null
-    }
-
-    if (pollingTimeoutRef.current) {
-      clearTimeout(pollingTimeoutRef.current)
-      pollingTimeoutRef.current = null
-    }
-  }
-
-  // 컴포넌트 언마운트 시 폴링 정리
-  useEffect(() => {
-    return clearPolling
-  }, [])
-
-  // 폴링 시작 함수
-  const startPolling = (searchId: string) => {
-    clearPolling()
-
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/standard-search?searchId=${encodeURIComponent(searchId)}`)
-        
-        if (response.ok) {
-          const data = await response.json()
-          
-          if (data.status === 'completed') {
-            // 검색 완료
-            setResults(data.results || [])
-            setIsSearching(false)
-            clearPolling()
-          } else if (data.status === 'failed') {
-            // 검색 실패
-            setError(data.error || '검색 중 오류가 발생했습니다.')
-            setIsSearching(false)
-            clearPolling()
-          }
-          // pending 상태면 계속 폴링
-        } else {
-          console.error('Polling failed:', response.status)
-          // 에러가 발생해도 몇 번은 더 시도
-        }
-      } catch (error) {
-        console.error('Polling error:', error)
-      }
-    }, 3000) // 3초마다 확인
-
-    pollingIntervalRef.current = interval
-
-    // 5분 후 타임아웃 처리
-    pollingTimeoutRef.current = setTimeout(() => {
-      if (pollingIntervalRef.current) {
-        clearPolling()
-        setError('검색이 타임아웃되었습니다. 다시 시도해주세요.')
-        setIsSearching(false)
-      }
-    }, 300000) // 5분 타임아웃
-  }
-
-  // AI 표준 추천 API 호출
+  // AI 표준 추천 API 호출 (동기 처리: 응답이 올 때까지 기다렸다가 결과를 바로 표시)
   const handleSearch = async () => {
     if (!query.trim()) return
 
@@ -98,7 +35,6 @@ export function StandardSearch({}: StandardSearchProps) {
     setHasSearched(true)
     setResults([])
     setError(null)
-    clearPolling()
 
     try {
       const response = await fetch('/api/standard-search', {
@@ -109,30 +45,22 @@ export function StandardSearch({}: StandardSearchProps) {
         body: JSON.stringify({ query: query.trim() }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || '검색 중 오류가 발생했습니다.')
-      }
-
       const data = await response.json()
 
-      if (data.status === 'pending') {
-        // 백그라운드 처리 중인 경우 - 실제 폴링 시작
-        console.log('Search is being processed in background, starting polling...')
-        startPolling(data.searchId)
-      } else if (data.status === 'completed') {
-        // 동기 처리 완료된 경우
-        setResults(data.results || [])
-        setIsSearching(false)
+      if (!response.ok) {
+        throw new Error(data.message || '검색 중 오류가 발생했습니다.')
       }
+
+      setResults(data.results || [])
     } catch (error: any) {
       console.error('Search failed:', error)
       setResults([])
-      setIsSearching(false)
-      
+
       // 에러 상태를 사용자에게 표시
       const errorMessage = error.message || '검색 중 오류가 발생했습니다.'
       setError(errorMessage)
+    } finally {
+      setIsSearching(false)
     }
   }
 

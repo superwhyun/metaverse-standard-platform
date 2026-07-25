@@ -11,22 +11,3 @@ export interface StandardResult {
   publishedDate: string;
 }
 
-export interface StandardSearchJob {
-  searchId: string;
-  query: string;
-  vectorStoreId: string;
-  createdAt: number;
-}
-
-export interface SearchCache {
-  searchId: string;
-  query: string;
-  status: 'pending' | 'completed' | 'failed';
-  results?: StandardResult[];
-  error?: string;
-  createdAt: number;
-  completedAt?: number;
-}
-
-export const SEARCH_CACHE_TTL = 3600; // 1시간 TTL
-export const SEARCH_TIMEOUT = 300000; // 5분 타임아웃

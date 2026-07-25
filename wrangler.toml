@@ -11,16 +11,6 @@ binding = "MSP"
 database_name = "metaverse-standards-dev"
 database_id = "5bca3ce1-0488-47bb-95ec-3d8cbb347c43"
 
-# KV namespace for standard search cache
-[[kv_namespaces]]
-binding = "STANDARD_SEARCH_CACHE"
-id = "63990b85156e4e5eac3b2e94c49d6111"
-preview_id = "eb43edd3f880468eb1ea6d6ad3dd78d5"
-
-[[queues.producers]]
-binding = "STANDARD_SEARCH_QUEUE"
-queue = "msp-standard-search-jobs-dev"
-
 # Preview environment (for branch deployments)
 [env.preview]
 compatibility_date = "2024-09-23"
@@ -29,14 +19,6 @@ compatibility_date = "2024-09-23"
 binding = "MSP"
 database_name = "metaverse-standards-dev"
 database_id = "5bca3ce1-0488-47bb-95ec-3d8cbb347c43"
-
-[[env.preview.kv_namespaces]]
-binding = "STANDARD_SEARCH_CACHE"
-id = "63990b85156e4e5eac3b2e94c49d6111"
-
-[[env.preview.queues.producers]]
-binding = "STANDARD_SEARCH_QUEUE"
-queue = "msp-standard-search-jobs-preview"
 
 [[env.preview.r2_buckets]]
 binding = "MSP_TREND_INSIGHTS"
@@ -51,14 +33,6 @@ binding = "MSP"
 database_name = "metaverse-standards-dev"
 database_id = "5bca3ce1-0488-47bb-95ec-3d8cbb347c43"
 
-[[env.production.kv_namespaces]]
-binding = "STANDARD_SEARCH_CACHE"
-id = "63990b85156e4e5eac3b2e94c49d6111"
-
-[[env.production.queues.producers]]
-binding = "STANDARD_SEARCH_QUEUE"
-queue = "msp-standard-search-jobs-production"
-
 [[env.production.r2_buckets]]
 binding = "MSP_TREND_INSIGHTS"
 bucket_name = "msp-trend-insights"
@@ -66,4 +40,3 @@ bucket_name = "msp-trend-insights"
 [[r2_buckets]]
 binding = "MSP_TREND_INSIGHTS"
 bucket_name = "msp-trend-insights"
-
