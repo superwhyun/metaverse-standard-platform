@@ -80,7 +80,7 @@ function buildSystemPrompt() {
     "id": "표준 고유 식별자 (표준번호 등, 없으면 제목 기반으로 생성)",
     "title": "표준 제목/표준명",
     "organization": "표준화 기구명",
-    "description": "표준에 대한 상세 설명 (해당 파일의 설명 필드를 기반으로, 없으면 다른 필드를 조합)",
+    "description": "표준 문서에 실제로 명시된 내용에만 근거해 사용자 요구사항과 구체적으로 어떻게 연결되는지 서술 (해당 파일의 설명 필드를 기반으로, 없으면 다른 필드를 조합). 일부만 관련되거나 간접적으로만 연관된 경우 그 한계를 명확히 밝히고, 억지로 관련 있는 것처럼 포장하지 마세요.",
     "relevanceScore": 관련도 점수 (0-100),
     "tags": ["관련", "키워드", "목록"],
     "status": "파일에 상태 관련 필드가 있으면 그 값, 없으면 \"정보 없음\"",
@@ -90,10 +90,15 @@ function buildSystemPrompt() {
 
 주의사항:
 1. file_search로 실제 검색된 표준만 추천하세요. 검색 결과가 없으면 빈 배열을 반환하세요.
-2. relevanceScore는 사용자 요구사항과의 관련도를 정확히 평가하세요.
-3. 최대 8개의 표준만 추천하세요 (8개를 넘기지 마세요).
-4. 각 표준의 설명은 2-3문장, 400자 이내로 간결하게 작성하세요.
-5. 반드시 JSON 배열만 출력하세요. 설명 문구, 해설, 마크다운 코드펜스 금지`;
+2. relevanceScore는 중립적이고 보수적으로 평가하세요. 표준 문서에 실제로 명시된 내용과
+   사용자 요구사항이 얼마나 정확히 일치하는지만 기준으로 삼고, 후하게 주거나 유사성을
+   과장하지 마세요. 키워드만 겹치고 실질적 내용이 다르면 낮은 점수(30~50)를, 요구사항을
+   직접적으로 다루는 경우에만 높은 점수(80 이상)를 주세요.
+3. 관련성을 부풀리거나 억지로 끼워맞추지 마세요. 진짜로 관련 있는 표준이 몇 개 없다면
+   그만큼만 반환하세요 — 개수를 채우기 위해 관련 없는 표준을 포함하지 마세요.
+4. 최대 8개의 표준만 추천하세요 (8개를 넘기지 마세요).
+5. 각 표준의 설명은 2-3문장, 400자 이내로 간결하게 작성하세요.
+6. 반드시 JSON 배열만 출력하세요. 설명 문구, 해설, 마크다운 코드펜스 금지`;
 }
 
 async function callOpenAI(apiKey: string, prompt: string, vectorStoreId: string, maxOutputTokens: number) {
@@ -133,9 +138,11 @@ export async function performAISearch(
 
     let results = tryParseArray(extractResponseText(data)) || [];
 
-    if (wasIncomplete || results.length < 8) {
+    // 개수가 8개 미만인 것 자체는 이어쓰기 사유가 아님(관련성을 부풀려 억지로 채우는 것을 방지) —
+    // 출력이 실제로 잘렸을 때(max_output_tokens)만 이어서 요청한다.
+    if (wasIncomplete) {
       const existingIds = results.map((result) => result?.id).filter(Boolean);
-      const continuationPrompt = `${systemPrompt}\n\n사용자 요구사항: ${query}\n\n이미 확보한 표준 ID: ${existingIds.join(', ') || '(없음)'}\n남은 항목만 작성하세요. 전체 개수는 최대 8개를 넘지 마세요. 반드시 JSON 배열만 출력하세요.`;
+      const continuationPrompt = `${systemPrompt}\n\n사용자 요구사항: ${query}\n\n이미 확보한 표준 ID: ${existingIds.join(', ') || '(없음)'}\n출력이 잘렸습니다. 이미 나열한 항목과 겹치지 않는 나머지 항목만 이어서 작성하세요. 전체 개수는 최대 8개를 넘지 마세요. 개수를 채우기 위해 관련성이 낮은 표준을 억지로 포함하지 마세요. 반드시 JSON 배열만 출력하세요.`;
 
       try {
         const continuationData = await callOpenAI(apiKey, continuationPrompt, vectorStoreId, 2048);

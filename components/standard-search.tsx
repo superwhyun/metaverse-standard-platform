@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Search, Sparkles, FileText, Tag, Loader2 } from "lucide-react"
+import { Search, Sparkles, Tag, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -187,15 +187,11 @@ export function StandardSearch({}: StandardSearchProps) {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        {result.publishedDate && (
                           <span className="text-sm text-muted-foreground">
                             {new Date(result.publishedDate).toLocaleDateString("ko-KR")}
                           </span>
-                          <Button variant="outline" size="sm">
-                            <FileText className="w-4 h-4 mr-2" />
-                            상세 보기
-                          </Button>
-                        </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
