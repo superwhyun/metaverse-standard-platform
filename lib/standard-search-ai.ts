@@ -1,4 +1,4 @@
-import type { StandardResult, StandardSearchContext } from '@/types/standard-search';
+import type { StandardResult } from '@/types/standard-search';
 
 const STANDARD_SEARCH_MODEL = 'gpt-5-nano';
 
@@ -63,38 +63,40 @@ function tryParseArray(text: string): StandardResult[] | null {
   }
 }
 
-function buildSystemPrompt(contextData: StandardSearchContext) {
-  return `당신은 메타버스와 관련 기술 표준 전문가입니다. 
+function buildSystemPrompt() {
+  return `당신은 메타버스와 관련 기술 표준 전문가입니다.
 
-사용자의 요구사항을 분석하여 관련된 국제 표준들을 찾아 추천해주세요.
+연결된 파일 검색 도구(file_search)를 사용해서, 사용자의 요구사항과 관련된 실제 표준을
+찾아 추천해주세요. 파일 검색으로 찾은 실제 데이터에 근거해서만 답변하고, 검색 결과에 없는
+표준을 지어내지 마세요.
 
-다음 정보를 참고하세요:
-- 최근 보고서: ${JSON.stringify(contextData.reports.slice(0, 10))}
-- 최근 회의: ${JSON.stringify(contextData.conferences.slice(0, 10))}
+각 파일은 표준 1개에 대한 "필드명: 값" 형식의 레코드입니다. 파일마다 필드 구성이 다를 수
+있으니(표준번호, 표준명, 표준기구, 설명 등 시트에 따라 컬럼이 다름), 실제로 존재하는 필드를
+보고 아래 JSON 형식에 최대한 맞게 매핑하세요.
 
 응답은 반드시 다음 JSON 형식으로 해주세요:
 [
   {
-    "id": "표준 고유 식별자 (예: iso-iec-23005)",
-    "title": "표준 제목",
-    "organization": "표준화 기구명 (ISO/IEC, IEEE, W3C, ITU-T 등)",
-    "description": "표준에 대한 상세 설명 (200자 이상)",
+    "id": "표준 고유 식별자 (표준번호 등, 없으면 제목 기반으로 생성)",
+    "title": "표준 제목/표준명",
+    "organization": "표준화 기구명",
+    "description": "표준에 대한 상세 설명 (해당 파일의 설명 필드를 기반으로, 없으면 다른 필드를 조합)",
     "relevanceScore": 관련도 점수 (0-100),
-    "tags": ["관련", "태그", "목록"],
-    "status": "발표됨|권고안|개발중|초안",
-    "publishedDate": "2024-MM-DD"
+    "tags": ["관련", "키워드", "목록"],
+    "status": "파일에 상태 관련 필드가 있으면 그 값, 없으면 \"정보 없음\"",
+    "publishedDate": "파일에 날짜 필드가 있으면 그 값, 없으면 빈 문자열"
   }
 ]
 
 주의사항:
-1. 실제 존재하는 표준들만 추천하세요
-2. relevanceScore는 사용자 요구사항과의 관련도를 정확히 평가하세요
-3. 최대 3개의 표준만 추천하세요 (3개를 넘기지 마세요)
-4. 각 표준의 설명은 2-3문장, 400자 이내로 간결하게 작성하세요
+1. file_search로 실제 검색된 표준만 추천하세요. 검색 결과가 없으면 빈 배열을 반환하세요.
+2. relevanceScore는 사용자 요구사항과의 관련도를 정확히 평가하세요.
+3. 최대 3개의 표준만 추천하세요 (3개를 넘기지 마세요).
+4. 각 표준의 설명은 2-3문장, 400자 이내로 간결하게 작성하세요.
 5. 반드시 JSON 배열만 출력하세요. 설명 문구, 해설, 마크다운 코드펜스 금지`;
 }
 
-async function callOpenAI(apiKey: string, prompt: string, maxOutputTokens: number) {
+async function callOpenAI(apiKey: string, prompt: string, vectorStoreId: string, maxOutputTokens: number) {
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
@@ -105,6 +107,7 @@ async function callOpenAI(apiKey: string, prompt: string, maxOutputTokens: numbe
       model: STANDARD_SEARCH_MODEL,
       reasoning: { effort: 'low' },
       input: [{ role: 'user', content: prompt }],
+      tools: [{ type: 'file_search', vector_store_ids: [vectorStoreId] }],
       max_output_tokens: maxOutputTokens,
     }),
   });
@@ -119,13 +122,13 @@ async function callOpenAI(apiKey: string, prompt: string, maxOutputTokens: numbe
 
 export async function performAISearch(
   query: string,
-  contextData: StandardSearchContext,
+  vectorStoreId: string,
   apiKey: string
 ): Promise<StandardResult[]> {
   try {
-    const systemPrompt = buildSystemPrompt(contextData);
+    const systemPrompt = buildSystemPrompt();
     const initialPrompt = `${systemPrompt}\n\n사용자 요구사항: ${query}`;
-    const data = await callOpenAI(apiKey, initialPrompt, 2048);
+    const data = await callOpenAI(apiKey, initialPrompt, vectorStoreId, 2048);
     const wasIncomplete = data?.status === 'incomplete' && data?.incomplete_details?.reason === 'max_output_tokens';
 
     let results = tryParseArray(extractResponseText(data)) || [];
@@ -135,7 +138,7 @@ export async function performAISearch(
       const continuationPrompt = `${systemPrompt}\n\n사용자 요구사항: ${query}\n\n이미 확보한 표준 ID: ${existingIds.join(', ') || '(없음)'}\n남은 항목만 작성하세요. 전체 개수는 최대 3개를 넘지 마세요. 반드시 JSON 배열만 출력하세요.`;
 
       try {
-        const continuationData = await callOpenAI(apiKey, continuationPrompt, 1024);
+        const continuationData = await callOpenAI(apiKey, continuationPrompt, vectorStoreId, 1024);
         const moreResults = tryParseArray(extractResponseText(continuationData)) || [];
         const deduped = new Map<string, StandardResult>();
 

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
-import { createReportOperations, createConferenceOperations } from '@/lib/database-operations';
+import { createStandardRecommendSettingsOperations } from '@/lib/database-operations';
 import { performAISearch } from '@/lib/standard-search-ai';
 import { getRequestContext } from '@cloudflare/next-on-pages';
-import type { SearchCache, StandardSearchContext, StandardSearchJob } from '@/types/standard-search';
+import type { SearchCache, StandardSearchJob } from '@/types/standard-search';
 import { SEARCH_CACHE_TTL } from '@/types/standard-search';
 
 // Cloudflare KV 타입 임포트
@@ -54,6 +54,19 @@ function getEnv(name: string): string | undefined {
     || (globalThis as any)?.__env__?.[name];
 }
 
+// 표준 카탈로그 벡터스토어 ID 조회 (구글시트 동기화 결과)
+async function getVectorStoreId(): Promise<string | null> {
+  try {
+    const db = await createDatabaseAdapter();
+    const settingsOperations = createStandardRecommendSettingsOperations(db);
+    const settings = await settingsOperations.get();
+    return (settings?.vector_store_id as string | null) || null;
+  } catch (error) {
+    console.error('Failed to load standard-recommend vector store id:', error);
+    return null;
+  }
+}
+
 // POST AI 표준 검색
 export async function POST(request: NextRequest) {
   try {
@@ -63,12 +76,19 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedQuery = query.trim();
+
+    const vectorStoreId = await getVectorStoreId();
+    if (!vectorStoreId) {
+      return NextResponse.json({
+        message: '먼저 관리자가 표준 목록을 동기화해야 합니다. (관리자 > 시스템 > 표준 추천 설정)'
+      }, { status: 400 });
+    }
+
     const kv = getKVNamespace();
     const queue = getQueueBinding();
 
     if (kv && queue) {
       const searchId = generateSearchId();
-      const contextData = await collectRelevantData(normalizedQuery);
       const initialCache: SearchCache = {
         searchId,
         query: normalizedQuery,
@@ -82,7 +102,7 @@ export async function POST(request: NextRequest) {
         await queue.send({
           searchId,
           query: normalizedQuery,
-          contextData,
+          vectorStoreId,
           createdAt: Date.now()
         });
 
@@ -94,7 +114,7 @@ export async function POST(request: NextRequest) {
         }, { status: 202 });
       } catch (error) {
         console.warn('Queue send failed, falling back to waitUntil/sync:', error);
-        await processStandardSearchInBackground(searchId, normalizedQuery, contextData);
+        await processStandardSearchInBackground(searchId, normalizedQuery, vectorStoreId);
 
         const cacheData = await kv.get(`search:${searchId}`);
         if (cacheData) {
@@ -128,13 +148,13 @@ export async function POST(request: NextRequest) {
     if (!supportsWaitUntil) {
       // 미지원: 동기 처리로 즉시 완료까지 수행
       console.log('No requestContext.waitUntil: processing search synchronously');
-      return await processStandardSearchSynchronously(normalizedQuery);
+      return await processStandardSearchSynchronously(normalizedQuery, vectorStoreId);
     }
 
     // 지원: 임시 검색 ID 생성 후 백그라운드 처리
     console.log('requestContext.waitUntil detected: scheduling background search');
     const searchId = generateSearchId();
-    
+
     // KV에 초기 상태 저장
     if (kv) {
       const initialCache: SearchCache = {
@@ -146,7 +166,7 @@ export async function POST(request: NextRequest) {
 
       await saveSearchCache(kv, initialCache);
     }
-    
+
     // 임시 결과로 즉시 응답 (pending 상태)
     const pendingResult = {
       searchId,
@@ -157,10 +177,10 @@ export async function POST(request: NextRequest) {
 
     if (waitUntilFn) {
         try {
-        waitUntilFn(processStandardSearchInBackground(searchId, normalizedQuery));
+        waitUntilFn(processStandardSearchInBackground(searchId, normalizedQuery, vectorStoreId));
       } catch (e) {
         console.warn('waitUntil enqueue failed, falling back to direct Promise:', e);
-        processStandardSearchInBackground(searchId, normalizedQuery).catch(err => {
+        processStandardSearchInBackground(searchId, normalizedQuery, vectorStoreId).catch(err => {
           console.error('Background search failed:', err);
         });
       }
@@ -170,8 +190,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Unexpected error in standard-search POST:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown server error';
-    return NextResponse.json({ 
-      message: `예상치 못한 서버 오류: ${errorMessage}` 
+    return NextResponse.json({
+      message: `예상치 못한 서버 오류: ${errorMessage}`
     }, { status: 500 });
   }
 }
@@ -181,7 +201,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const searchId = searchParams.get('searchId');
-    
+
     if (!searchId) {
       return NextResponse.json({ message: 'searchId is required' }, { status: 400 });
     }
@@ -208,7 +228,7 @@ export async function GET(request: NextRequest) {
     }
 
     const searchCache: SearchCache = JSON.parse(cacheData);
-    
+
     // 응답 형식 통일
     return NextResponse.json({
       searchId: searchCache.searchId,
@@ -224,26 +244,23 @@ export async function GET(request: NextRequest) {
 }
 
 // 동기 처리 함수
-async function processStandardSearchSynchronously(query: string, contextData?: StandardSearchContext) {
+async function processStandardSearchSynchronously(query: string, vectorStoreId: string) {
   try {
     const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not available');
-      return NextResponse.json({ 
-        message: 'OpenAI API 키가 설정되지 않았습니다. 관리자에게 문의해주세요.' 
+      return NextResponse.json({
+        message: 'OpenAI API 키가 설정되지 않았습니다. 관리자에게 문의해주세요.'
       }, { status: 500 });
     }
 
     console.log(`Synchronous standard search for query: ${query}`);
 
-    // 기존 데이터베이스에서 관련 정보 수집
-    const searchContext = contextData || await collectRelevantData(query);
-
-    // GPT-5로 표준 검색 수행
-    const searchResults = await performAISearch(query, searchContext, OPENAI_API_KEY);
+    // 구글시트 동기화 벡터스토어를 대상으로 file_search 검색 수행
+    const searchResults = await performAISearch(query, vectorStoreId, OPENAI_API_KEY);
 
     console.log(`Synchronous search completed with ${searchResults.length} results`);
-    
+
     return NextResponse.json({
       status: 'completed',
       results: searchResults,
@@ -253,16 +270,16 @@ async function processStandardSearchSynchronously(query: string, contextData?: S
   } catch (error) {
     console.error('Synchronous search error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ 
-      message: `처리 중 오류 발생: ${errorMessage}` 
+    return NextResponse.json({
+      message: `처리 중 오류 발생: ${errorMessage}`
     }, { status: 500 });
   }
 }
 
 // 백그라운드 처리 함수
-async function processStandardSearchInBackground(searchId: string, query: string, contextData?: StandardSearchContext) {
+async function processStandardSearchInBackground(searchId: string, query: string, vectorStoreId: string) {
   const kv = getKVNamespace();
-  
+
   try {
     const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
@@ -284,11 +301,8 @@ async function processStandardSearchInBackground(searchId: string, query: string
 
     console.log(`Background standard search for ID: ${searchId}, query: ${query}`);
 
-    // 기존 데이터베이스에서 관련 정보 수집
-    const searchContext = contextData || await collectRelevantData(query);
-
-    // GPT-5로 표준 검색 수행
-    const searchResults = await performAISearch(query, searchContext, OPENAI_API_KEY);
+    // 구글시트 동기화 벡터스토어를 대상으로 file_search 검색 수행
+    const searchResults = await performAISearch(query, vectorStoreId, OPENAI_API_KEY);
 
     console.log(`Background search completed for ${searchId} with ${searchResults.length} results`);
 
@@ -307,7 +321,7 @@ async function processStandardSearchInBackground(searchId: string, query: string
 
   } catch (error) {
     console.error(`Background search error for ${searchId}:`, error);
-    
+
     // KV에 에러 상태 저장
     if (kv) {
       const errorCache: SearchCache = {
@@ -320,149 +334,6 @@ async function processStandardSearchInBackground(searchId: string, query: string
       };
       await saveSearchCache(kv, errorCache);
     }
-  }
-}
-
-// 데이터베이스에서 관련 정보 수집
-function normalizeText(value: string | null | undefined): string {
-  return (value || '').toLowerCase();
-}
-
-function parseReportTags(tags: unknown): string[] {
-  if (Array.isArray(tags)) {
-    return tags.filter((tag): tag is string => typeof tag === 'string');
-  }
-
-  if (typeof tags !== 'string' || !tags.trim()) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(tags);
-    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === 'string') : [];
-  } catch (_) {
-    return tags
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-  }
-}
-
-function buildSearchTerms(query: string): string[] {
-  const normalized = query.trim().toLowerCase();
-  const words = normalized.split(/\s+/).filter(Boolean);
-  return Array.from(new Set([normalized, ...words])).filter((term) => term.length > 1);
-}
-
-function scoreText(value: string, term: string, weight: number): number {
-  if (!value.includes(term)) {
-    return 0;
-  }
-
-  if (value === term) {
-    return weight + 3;
-  }
-
-  if (value.startsWith(term)) {
-    return weight + 2;
-  }
-
-  return weight;
-}
-
-async function collectRelevantData(query: string): Promise<StandardSearchContext> {
-  try {
-    const db = await createDatabaseAdapter();
-    const reportOperations = createReportOperations(db);
-    const conferenceOperations = createConferenceOperations(db);
-    const searchTerms = buildSearchTerms(query);
-
-    const reports = await reportOperations.getAll();
-    const matchedReports = reports
-      .map((report: any) => {
-        const tags = parseReportTags(report.tags);
-        const title = normalizeText(report.title);
-        const summary = normalizeText(report.summary);
-        const category = normalizeText(report.category);
-        const organization = normalizeText(report.organization);
-        const tagText = normalizeText(tags.join(' '));
-
-        const score = searchTerms.reduce((total, term) => {
-          return total
-            + scoreText(title, term, 8)
-            + scoreText(summary, term, 4)
-            + scoreText(tagText, term, 4)
-            + scoreText(category, term, 3)
-            + scoreText(organization, term, 2);
-        }, 0);
-
-        return {
-          score,
-          createdAt: new Date(report.created_at || report.date || 0).getTime(),
-          context: {
-            title: report.title,
-            summary: report.summary ?? null,
-            category: report.category ?? null,
-            organization: report.organization ?? null,
-            tags
-          }
-        };
-      })
-      .filter((report) => report.score > 0)
-      .sort((a, b) => b.score - a.score || b.createdAt - a.createdAt)
-      .slice(0, 12)
-      .map((report) => report.context);
-
-    const conferences = await conferenceOperations.getAll();
-    const matchedConferences = conferences
-      .map((conference: any) => {
-        const title = normalizeText(conference.title);
-        const organization = normalizeText(conference.organization);
-        const description = normalizeText(conference.description);
-
-        const score = searchTerms.reduce((total, term) => {
-          return total
-            + scoreText(title, term, 8)
-            + scoreText(description, term, 4)
-            + scoreText(organization, term, 2);
-        }, 0);
-
-        return {
-          score,
-          startDate: new Date(conference.start_date || conference.startDate || 0).getTime(),
-          context: {
-            title: conference.title,
-            organization: conference.organization ?? null,
-            description: conference.description ?? null
-          }
-        };
-      })
-      .filter((conference) => conference.score > 0)
-      .sort((a, b) => b.score - a.score || b.startDate - a.startDate)
-      .slice(0, 8)
-      .map((conference) => conference.context);
-
-    const fallbackReports = reports.slice(0, 5).map((report: any) => ({
-      title: report.title,
-      summary: report.summary ?? null,
-      category: report.category ?? null,
-      organization: report.organization ?? null,
-      tags: parseReportTags(report.tags)
-    }));
-
-    const fallbackConferences = conferences.slice(0, 5).map((conference: any) => ({
-      title: conference.title,
-      organization: conference.organization ?? null,
-      description: conference.description ?? null
-    }));
-
-    return {
-      reports: matchedReports.length > 0 ? matchedReports : fallbackReports,
-      conferences: matchedConferences.length > 0 ? matchedConferences : fallbackConferences
-    };
-  } catch (error) {
-    console.error('Failed to collect relevant data:', error);
-    return { reports: [], conferences: [] };
   }
 }
 

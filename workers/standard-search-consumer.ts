@@ -29,14 +29,14 @@ async function saveSearchCache(kv: SearchCacheStore, cache: SearchCache) {
 export default {
   async queue(batch: QueueBatch<StandardSearchJob>, env: ConsumerEnv) {
     for (const message of batch.messages) {
-      const { searchId, query, contextData, createdAt } = message.body;
+      const { searchId, query, vectorStoreId, createdAt } = message.body;
 
       try {
         if (!env.OPENAI_API_KEY) {
           throw new Error('OpenAI API key not available');
         }
 
-        const results = await performAISearch(query, contextData, env.OPENAI_API_KEY);
+        const results = await performAISearch(query, vectorStoreId, env.OPENAI_API_KEY);
 
         await saveSearchCache(env.STANDARD_SEARCH_CACHE, {
           searchId,
