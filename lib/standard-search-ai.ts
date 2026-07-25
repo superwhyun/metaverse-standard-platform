@@ -91,7 +91,7 @@ function buildSystemPrompt() {
 주의사항:
 1. file_search로 실제 검색된 표준만 추천하세요. 검색 결과가 없으면 빈 배열을 반환하세요.
 2. relevanceScore는 사용자 요구사항과의 관련도를 정확히 평가하세요.
-3. 최대 3개의 표준만 추천하세요 (3개를 넘기지 마세요).
+3. 최대 8개의 표준만 추천하세요 (8개를 넘기지 마세요).
 4. 각 표준의 설명은 2-3문장, 400자 이내로 간결하게 작성하세요.
 5. 반드시 JSON 배열만 출력하세요. 설명 문구, 해설, 마크다운 코드펜스 금지`;
 }
@@ -128,17 +128,17 @@ export async function performAISearch(
   try {
     const systemPrompt = buildSystemPrompt();
     const initialPrompt = `${systemPrompt}\n\n사용자 요구사항: ${query}`;
-    const data = await callOpenAI(apiKey, initialPrompt, vectorStoreId, 2048);
+    const data = await callOpenAI(apiKey, initialPrompt, vectorStoreId, 4096);
     const wasIncomplete = data?.status === 'incomplete' && data?.incomplete_details?.reason === 'max_output_tokens';
 
     let results = tryParseArray(extractResponseText(data)) || [];
 
-    if (wasIncomplete || results.length < 3) {
+    if (wasIncomplete || results.length < 8) {
       const existingIds = results.map((result) => result?.id).filter(Boolean);
-      const continuationPrompt = `${systemPrompt}\n\n사용자 요구사항: ${query}\n\n이미 확보한 표준 ID: ${existingIds.join(', ') || '(없음)'}\n남은 항목만 작성하세요. 전체 개수는 최대 3개를 넘지 마세요. 반드시 JSON 배열만 출력하세요.`;
+      const continuationPrompt = `${systemPrompt}\n\n사용자 요구사항: ${query}\n\n이미 확보한 표준 ID: ${existingIds.join(', ') || '(없음)'}\n남은 항목만 작성하세요. 전체 개수는 최대 8개를 넘지 마세요. 반드시 JSON 배열만 출력하세요.`;
 
       try {
-        const continuationData = await callOpenAI(apiKey, continuationPrompt, vectorStoreId, 1024);
+        const continuationData = await callOpenAI(apiKey, continuationPrompt, vectorStoreId, 2048);
         const moreResults = tryParseArray(extractResponseText(continuationData)) || [];
         const deduped = new Map<string, StandardResult>();
 
@@ -149,7 +149,7 @@ export async function performAISearch(
           }
         }
 
-        results = Array.from(deduped.values()).slice(0, 3);
+        results = Array.from(deduped.values()).slice(0, 8);
       } catch (error) {
         console.warn('Standard search continuation failed:', error);
       }
