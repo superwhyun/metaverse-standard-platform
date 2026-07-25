@@ -5,7 +5,9 @@
   "main": "md-to-report.js",
   "scripts": {
     "import": "node md-to-report.js",
-    "example": "node md-to-report.js --file example-report.md --dry-run"
+    "example": "node md-to-report.js --file example-report.md --dry-run",
+    "sync-standards": "node sync-standard-catalog.js sync",
+    "search-standards": "node sync-standard-catalog.js search"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
@@ -13,7 +15,8 @@
     "commander": "^12.0.0",
     "cli-progress": "^3.12.0",
     "chalk": "^4.1.2",
-    "glob": "^11.0.0"
+    "glob": "^11.0.0",
+    "papaparse": "^5.4.1"
   },
   "keywords": [
     "metaverse",
