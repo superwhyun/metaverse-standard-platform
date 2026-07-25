@@ -162,7 +162,11 @@ export async function performAISearch(
       }
     }
 
-    return Array.isArray(results) ? results : [];
+    if (!Array.isArray(results)) {
+      return [];
+    }
+
+    return [...results].sort((a, b) => (b?.relevanceScore ?? 0) - (a?.relevanceScore ?? 0));
   } catch (error) {
     console.error('AI search failed:', error);
     return [];
