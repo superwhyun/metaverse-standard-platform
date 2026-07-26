@@ -116,6 +116,9 @@ CREATE TABLE IF NOT EXISTS admin_api_settings (
 
 -- Default admin login (username: admin / password: admin123) so a fresh
 -- environment can be accessed immediately. Change this password after
--- first login.
+-- first login. Hash is SHA-256(password + SALT) per lib/crypto-utils.ts,
+-- NOT bcrypt (the old migration this baseline replaces stored a stale
+-- bcrypt hash left over from an abandoned better-auth integration, which
+-- does not match this app's actual verifyPassword() implementation).
 INSERT OR IGNORE INTO users (username, name, email, password_hash, role) VALUES
-('admin', 'Admin', 'admin@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+('admin', 'Admin', 'admin@example.com', '630e465d031ac6b68a8d0a2a0e4d99f1574bc52d368fd0396d01f239570d5911', 'admin');
