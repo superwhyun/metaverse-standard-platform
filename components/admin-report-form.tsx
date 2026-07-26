@@ -350,7 +350,6 @@ CRITICAL:
       const fullPrompt = `${usageInstructions}\n\nFilename: ${file.name}\n\nTranscript:\n${text}`;
 
       // Use Responses API for GPT-5 models
-      // console.log('Sending request to generic Responses API with gpt-5-mini');
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
@@ -374,7 +373,6 @@ CRITICAL:
       }
 
       const data = await response.json();
-      // console.log('Full OpenAI Response Data:', JSON.stringify(data, null, 2));
 
       // Responses API output handling - Aligned with standard-search/route.ts logic
       let content = '';
@@ -423,7 +421,6 @@ CRITICAL:
         result = JSON.parse(cleanJson);
       } catch (e) {
         console.error('Failed to parse JSON:', e);
-        // console.log('Raw content for debugging:', content);
         // Fallback: If parsing fails, use the raw text as content
         result.content = content;
 

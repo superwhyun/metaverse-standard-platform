@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user) {
-      console.log('User not found in database');
       return NextResponse.json(
         { success: false, error: 'Invalid credentials' },
         { status: 401 }

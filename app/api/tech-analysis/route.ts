@@ -4,21 +4,9 @@ import { createTechAnalysisReportOperations } from '@/lib/database-operations';
 import { getSessionFromRequest } from '@/lib/edge-auth';
 import { categorizeContent } from '@/lib/openai-categorizer';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { getEnv } from '@/lib/env';
 
 export const runtime = 'edge';
-
-// Cloudflare Pages/Workers 환경 호환을 위한 환경변수 접근 헬퍼
-function getEnv(name: string): string | undefined {
-  // Next.js Edge 런타임에서는 process.env가 없을 수 있음
-  // 일부 배포 환경에서는 globalThis 혹은 __env__에 바인딩됨
-  // 가능한 모든 위치를 점검
-  // @ts-ignore
-  return (typeof process !== 'undefined' && process?.env?.[name])
-    // @ts-ignore
-    || (globalThis as any)?.[name]
-    // @ts-ignore
-    || (globalThis as any)?.__env__?.[name];
-}
 
 // GET tech analysis reports with pagination and search
 export async function GET(request: NextRequest) {
@@ -72,12 +60,10 @@ export async function POST(request: NextRequest) {
 
     if (!supportsWaitUntil) {
       // 미지원: 동기 처리로 즉시 완료까지 수행
-      console.log('No requestContext.waitUntil: processing synchronously');
       return await processUrlSynchronously(url, techAnalysisReportOperations);
     }
 
     // 지원: pending 레코드 생성 후 즉시 응답 반환, 백그라운드 처리는 비동기로 실행
-    console.log('requestContext.waitUntil detected: creating pending record');
     const pendingReport = await techAnalysisReportOperations.create({
       url,
       title: url,
@@ -92,7 +78,6 @@ export async function POST(request: NextRequest) {
     
     // 백그라운드 처리 스케줄링 (응답과 독립적으로 실행)
     if (pendingReport.id && waitUntilFn) {
-      console.log('Scheduling background processing for report ID:', pendingReport.id);
       try {
         waitUntilFn(processMetadataInBackground(Number(pendingReport.id), url));
       } catch (e) {
@@ -125,40 +110,31 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
       }, { status: 500 });
     }
 
-    console.log(`Synchronous processing for URL: ${url}`);
-
     // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
     let title, description, image;
     try {
       const requestUrl = `http://xtandards.is-an.ai:3100/api/metadata?url=${encodeURIComponent(url)}`;
-      console.log('Synchronous requesting URL:', requestUrl);
       const microlinkResponse = await fetch(requestUrl);
-      console.log('Custom metadata service response status:', microlinkResponse.status);
-      
+
       if (!microlinkResponse.ok) {
-        console.log('Custom metadata service HTTP error, using fallback values');
         title = url;
         description = null;
         image = null;
       } else {
         const metadata = await microlinkResponse.json();
-        console.log('Custom metadata service status:', metadata.status);
 
         if (!metadata.status) {
-          console.log('Custom metadata service parsing failed, using fallback values');
           title = url;
           description = null;
           image = null;
         } else {
-          console.log('Metadata data keys:', Object.keys(metadata.data || {}));
           title = metadata.data.title;
           description = metadata.data.description;
           image = metadata.data.image; // 직접 URL 문자열
         }
       }
     } catch (microlinkError) {
-      console.log('Custom metadata service network error, using fallback values');
-      console.log('Error details:', microlinkError instanceof Error ? microlinkError.message : 'Unknown error');
+      console.warn('Custom metadata service network error, using fallback values:', microlinkError instanceof Error ? microlinkError.message : microlinkError);
       title = url;
       description = null;
       image = null;
@@ -170,12 +146,11 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
     }
 
     const summary = description || '설명이 없습니다.';
-    
+
     // AI 카테고리 분류
     let categoryName: string | null = null;
     try {
       categoryName = await categorizeContent(title, summary);
-      console.log(`Auto-categorized: "${title}" -> category: ${categoryName}`);
     } catch (categorizerError) {
       console.error('Categorization failed:', categorizerError);
     }
@@ -190,7 +165,6 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
       status: 'completed'
     });
 
-    console.log(`Synchronous processing completed for report ${report.id}`);
     return NextResponse.json(report, { status: 201 });
 
   } catch (error) {
@@ -204,12 +178,6 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
 
 // 백그라운드 메타데이터 처리 함수
 async function processMetadataInBackground(reportId: number, url: string) {
-  const startTime = Date.now();
-  console.log(`=== 백그라운드 처리 시작 ===`);
-  console.log(`Report ID: ${reportId}`);
-  console.log(`URL: ${url}`);
-  console.log(`시작 시간: ${new Date().toISOString()}`);
-  
   try {
     const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
@@ -225,36 +193,27 @@ async function processMetadataInBackground(reportId: number, url: string) {
     let title, description, image;
     try {
       const requestUrl = `http://xtandards.is-an.ai:3100/api/metadata?url=${encodeURIComponent(url)}`;
-      // const requestUrl = `http://localhost:3100/api/metadata?url=${encodeURIComponent(url)}`;
-
-      console.log('Background requesting URL:', requestUrl);
       const microlinkResponse = await fetch(requestUrl);
-      console.log('Background custom metadata service response status:', microlinkResponse.status);
-      
+
       if (!microlinkResponse.ok) {
-        console.log('Background custom metadata service HTTP error, using fallback values');
         title = url;
         description = null;
         image = null;
       } else {
         const metadata = await microlinkResponse.json();
-        console.log('Background custom metadata service status:', metadata.status);
 
         if (!metadata.status) {
-          console.log('Background custom metadata service parsing failed, using fallback values');
           title = url;
           description = null;
           image = null;
         } else {
-          console.log('Background metadata data keys:', Object.keys(metadata.data || {}));
           title = metadata.data.title;
           description = metadata.data.description;
           image = metadata.data.image; // 직접 URL 문자열
         }
       }
     } catch (microlinkError) {
-      console.log('Background custom metadata service network error, using fallback values');
-      console.log('Error details:', microlinkError instanceof Error ? microlinkError.message : 'Unknown error');
+      console.warn('Background custom metadata service network error, using fallback values:', microlinkError instanceof Error ? microlinkError.message : microlinkError);
       title = url;
       description = null;
       image = null;
@@ -266,12 +225,11 @@ async function processMetadataInBackground(reportId: number, url: string) {
     }
 
     const summary = description || '설명이 없습니다.';
-    
+
     // AI 카테고리 분류
     let categoryName: string | null = null;
     try {
       categoryName = await categorizeContent(title, summary);
-      console.log(`Background auto-categorized: "${title}" -> category: ${categoryName}`);
     } catch (categorizerError) {
       console.error('Background categorization failed:', categorizerError);
     }
@@ -285,16 +243,6 @@ async function processMetadataInBackground(reportId: number, url: string) {
         category_name: categoryName || undefined,
         status: 'completed'
       });
-      
-      const endTime = Date.now();
-      const processingTime = endTime - startTime;
-      console.log(`=== 백그라운드 처리 완료 ===`);
-      console.log(`Report ID: ${reportId}`);
-      console.log(`처리 시간: ${processingTime}ms`);
-      console.log(`완료 시간: ${new Date().toISOString()}`);
-      console.log(`최종 제목: ${title}`);
-      console.log(`최종 카테고리: ${categoryName || '기타'}`);
-      
     } catch (updateError) {
       console.error(`Background DB update failed for report ${reportId}:`, updateError);
       await updateReportToFailed(reportId, 'Database update failed');
@@ -313,10 +261,7 @@ async function updateReportToFailed(reportId: number, errorMessage: string) {
     await techAnalysisReportOperations.update(reportId, {
       status: 'failed'
     });
-    console.log(`=== 백그라운드 처리 실패 ===`);
-    console.log(`Report ID: ${reportId}`);
-    console.log(`실패 사유: ${errorMessage}`);
-    console.log(`실패 시간: ${new Date().toISOString()}`);
+    console.error(`Background processing failed for report ${reportId}: ${errorMessage}`);
   } catch (statusUpdateError) {
     console.error(`Failed to update status to failed for report ${reportId}:`, statusUpdateError);
   }

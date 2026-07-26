@@ -1,13 +1,34 @@
 import mammoth from 'mammoth'
 
-// admin-trend-insights-form.tsx와 동일한 CDN 스크립트 로딩 패턴 재사용 (번들링 이슈 회피, 이미 검증된 방식)
-let pdfjsLib: any = null
+// pdf.js is loaded from a CDN <script> tag at runtime (see admin-trend-insights-form.tsx
+// for the same pattern) rather than the npm package, to avoid edge-bundling issues.
+// These interfaces describe only the subset of the pdf.js API actually used here.
+interface PdfTextItem {
+  str: string
+}
 
-async function loadPdfJs() {
+interface PdfPage {
+  getTextContent(): Promise<{ items: PdfTextItem[] }>
+}
+
+interface PdfDocument {
+  numPages: number
+  getPage(pageNumber: number): Promise<PdfPage>
+}
+
+interface PdfJsLib {
+  getDocument(source: { data: ArrayBuffer }): { promise: Promise<PdfDocument> }
+  GlobalWorkerOptions: { workerSrc: string }
+}
+
+let pdfjsLib: PdfJsLib | null = null
+
+async function loadPdfJs(): Promise<PdfJsLib> {
   if (pdfjsLib) return pdfjsLib
 
-  if (typeof window !== 'undefined' && (window as any).pdfjsLib) {
-    pdfjsLib = (window as any).pdfjsLib
+  const win = window as unknown as { pdfjsLib?: PdfJsLib }
+  if (typeof window !== 'undefined' && win.pdfjsLib) {
+    pdfjsLib = win.pdfjsLib
     return pdfjsLib
   }
 
@@ -15,7 +36,7 @@ async function loadPdfJs() {
     const script = document.createElement('script')
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
     script.onload = () => {
-      const pdfjs = (window as any).pdfjsLib
+      const pdfjs = (window as unknown as { pdfjsLib: PdfJsLib }).pdfjsLib
       pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
       pdfjsLib = pdfjs
       resolve(pdfjs)
@@ -35,7 +56,7 @@ async function extractPdfText(file: File): Promise<string> {
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum)
     const textContent = await page.getTextContent()
-    const pageText = textContent.items.map((item: any) => item.str).join(' ')
+    const pageText = textContent.items.map((item) => item.str).join(' ')
     pageTexts.push(pageText)
   }
 

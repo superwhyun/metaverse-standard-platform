@@ -2,18 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createDatabaseAdapter } from '@/lib/database-adapter';
 import { createStandardRecommendSettingsOperations, createAdminApiSettingsOperations } from '@/lib/database-operations';
 import { performAISearch } from '@/lib/standard-search-ai';
+import { getEnv } from '@/lib/env';
 
 export const runtime = 'edge';
-
-// Cloudflare Pages/Workers 환경 호환을 위한 환경변수 접근 헬퍼
-function getEnv(name: string): string | undefined {
-  // @ts-ignore
-  return (typeof process !== 'undefined' && process?.env?.[name])
-    // @ts-ignore
-    || (globalThis as any)?.[name]
-    // @ts-ignore
-    || (globalThis as any)?.__env__?.[name];
-}
 
 // 표준 카탈로그 벡터스토어 ID 조회 (구글시트 동기화 결과)
 async function getVectorStoreId(): Promise<string | null> {

@@ -1,6 +1,27 @@
 // Database operations using the adapter pattern
 
-import { DatabaseAdapter } from './database-adapter';
+import { DatabaseAdapter, SqlValue } from './database-adapter';
+
+interface ConferenceRow {
+  id: number;
+  title: string;
+  organization: string;
+  location: string | null;
+  description: string | null;
+  start_date: string;
+  end_date: string;
+  is_multi_day: number;
+  start_time: string | null;
+  end_time: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ConferenceReportRow {
+  id: number;
+  title: string;
+  conference_id: number;
+}
 
 // Category operations
 export const createCategoryOperations = (db: DatabaseAdapter) => ({
@@ -34,13 +55,9 @@ export const createCategoryOperations = (db: DatabaseAdapter) => ({
 
 // Tech Analysis Report operations
 export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
-  getAll: async () => {
-    const stmt = db.prepare('SELECT * FROM tech_analysis_reports ORDER BY created_at DESC');
-    return await stmt.all();
-  },
   getPaginated: async (limit: number, offset: number, search?: string, categoryName?: string) => {
     let query = 'SELECT * FROM tech_analysis_reports';
-    let params: any[] = [];
+    let params: SqlValue[] = [];
     let conditions: string[] = [];
 
     if (search && search.trim()) {
@@ -69,8 +86,6 @@ export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
     return await stmt.get([id]);
   },
   create: async (report: { url: string; title: string; summary?: string | null; image_url?: string | null; category_name?: string | null; status?: string | null }) => {
-    console.log('DATABASE CREATE - Raw input:', report);
-
     // Explicitly handle undefined values
     const params = [
       report.url,
@@ -80,9 +95,6 @@ export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
       report.category_name === undefined ? null : report.category_name,
       report.status === undefined ? 'completed' : report.status
     ];
-
-    console.log('DATABASE CREATE - Final params:', params);
-    console.log('DATABASE CREATE - Param types:', params.map(p => typeof p));
 
     const stmt = db.prepare('INSERT INTO tech_analysis_reports (url, title, summary, image_url, category_name, status) VALUES (?, ?, ?, ?, ?, ?)');
     const result = await stmt.run(params);
@@ -126,18 +138,28 @@ export const createOrganizationOperations = (db: DatabaseAdapter) => ({
 });
 
 // Conference operations
-export const createConferenceOperations = (db: DatabaseAdapter) => ({
-  getAll: async () => {
-    const stmt = db.prepare(`
-      SELECT * FROM conferences 
-      ORDER BY start_date DESC
-    `);
-    const conferences = await stmt.all();
+export const createConferenceOperations = (db: DatabaseAdapter) => {
+  // Batches the per-conference report lookup into a single query instead of
+  // issuing one query per conference (N+1).
+  const attachReports = async (conferences: ConferenceRow[]) => {
+    if (conferences.length === 0) return [];
+
+    const ids = conferences.map((conference) => conference.id);
+    const placeholders = ids.map(() => '?').join(',');
     const reportStmt = db.prepare(`
-      SELECT id, title FROM reports WHERE conference_id = ?
+      SELECT id, title, conference_id FROM reports WHERE conference_id IN (${placeholders})
     `);
-    return Promise.all(conferences.map(async (conference: any) => {
-      const reports = await reportStmt.all([conference.id]);
+    const allReports = await reportStmt.all(ids) as ConferenceReportRow[];
+
+    const reportsByConferenceId = new Map<number, { id: number; title: string }[]>();
+    for (const report of allReports) {
+      const list = reportsByConferenceId.get(report.conference_id) ?? [];
+      list.push({ id: report.id, title: report.title });
+      reportsByConferenceId.set(report.conference_id, list);
+    }
+
+    return conferences.map((conference) => {
+      const reports = reportsByConferenceId.get(conference.id) ?? [];
       return {
         ...conference,
         startDate: conference.start_date,
@@ -146,61 +168,41 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
         hasReport: reports.length > 0,
         startTime: conference.start_time,
         endTime: conference.end_time,
-        reports: reports
+        reports
       };
-    }));
+    });
+  };
+
+  return {
+  getAll: async () => {
+    const stmt = db.prepare(`
+      SELECT * FROM conferences
+      ORDER BY start_date DESC
+    `);
+    const conferences = await stmt.all();
+    return attachReports(conferences);
   },
   getByDateRange: async (startDate: string, endDate: string) => {
     const stmt = db.prepare(`
-      SELECT * FROM conferences 
-      WHERE (start_date <= ? AND end_date >= ?) 
+      SELECT * FROM conferences
+      WHERE (start_date <= ? AND end_date >= ?)
          OR (start_date >= ? AND start_date <= ?)
       ORDER BY start_date ASC
     `);
     const conferences = await stmt.all([endDate, startDate, startDate, endDate]);
-    const reportStmt = db.prepare(`
-      SELECT id, title FROM reports WHERE conference_id = ?
-    `);
-    return Promise.all(conferences.map(async (conference: any) => {
-      const reports = await reportStmt.all([conference.id]);
-      return {
-        ...conference,
-        startDate: conference.start_date,
-        endDate: conference.end_date,
-        isMultiDay: Boolean(conference.is_multi_day),
-        hasReport: reports.length > 0,
-        startTime: conference.start_time,
-        endTime: conference.end_time,
-        reports: reports
-      };
-    }));
+    return attachReports(conferences);
   },
   getByMonth: async (year: number, month: number) => {
     const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
     const monthEnd = `${year}-${String(month).padStart(2, '0')}-31`;
     const stmt = db.prepare(`
-      SELECT * FROM conferences 
-      WHERE (start_date <= ? AND end_date >= ?) 
+      SELECT * FROM conferences
+      WHERE (start_date <= ? AND end_date >= ?)
          OR (start_date >= ? AND start_date <= ?)
       ORDER BY start_date ASC
     `);
     const conferences = await stmt.all([monthEnd, monthStart, monthStart, monthEnd]);
-    const reportStmt = db.prepare(`
-      SELECT id, title FROM reports WHERE conference_id = ?
-    `);
-    return Promise.all(conferences.map(async (conference: any) => {
-      const reports = await reportStmt.all([conference.id]);
-      return {
-        ...conference,
-        startDate: conference.start_date,
-        endDate: conference.end_date,
-        isMultiDay: Boolean(conference.is_multi_day),
-        hasReport: reports.length > 0,
-        startTime: conference.start_time,
-        endTime: conference.end_time,
-        reports: reports
-      };
-    }));
+    return attachReports(conferences);
   },
   getById: async (id: number) => {
     const stmt = db.prepare(`
@@ -289,7 +291,8 @@ export const createConferenceOperations = (db: DatabaseAdapter) => ({
     const result = await stmt.run([id]);
     return (result.changes || 0) > 0;
   }
-});
+  };
+};
 
 // Report operations
 export const createReportOperations = (db: DatabaseAdapter) => ({

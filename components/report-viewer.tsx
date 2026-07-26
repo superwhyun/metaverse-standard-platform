@@ -45,7 +45,6 @@ export function ReportViewer({ report, onBack, isAdmin = false, onEdit }: Report
 
   // 공유 버튼 (URL 복사) 함수
   const handleShare = async () => {
-    console.log('Share button clicked for report:', report.id)
     const url = new URL(window.location.href)
     url.searchParams.set('reportId', report.id.toString())
     const shareUrl = url.toString()
@@ -53,7 +52,6 @@ export function ReportViewer({ report, onBack, isAdmin = false, onEdit }: Report
     try {
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareUrl)
-        console.log('Copied to clipboard via navigator.clipboard')
         setShareSuccess(true)
         setTimeout(() => setShareSuccess(false), 2000)
         return
@@ -63,14 +61,12 @@ export function ReportViewer({ report, onBack, isAdmin = false, onEdit }: Report
     }
 
     // Fallback for older browsers or restricted environments
-    console.log('Attempting fallback clipboard copy...')
     const textArea = document.createElement('textarea')
     textArea.value = shareUrl
     document.body.appendChild(textArea)
     textArea.select()
     try {
       document.execCommand('copy')
-      console.log('Copied to clipboard via document.execCommand fallback')
       setShareSuccess(true)
       setTimeout(() => setShareSuccess(false), 2000)
     } catch (fallbackErr) {
