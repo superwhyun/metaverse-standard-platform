@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useGroupedReports, Report } from "@/hooks/useGroupedReports"
 import { ReportWordCloud } from "@/components/word-cloud"
+import { formatDate } from "@/lib/utils"
 
 type ReactNode = React.ReactNode
 
@@ -139,7 +140,7 @@ export function GroupedReports<S extends BaseStat>(props: GroupedReportsProps<S>
         </CardTitle>
         <div className="text-sm text-card-foreground opacity-60 flex items-center gap-1">
           <Calendar className="w-3 h-3" />
-          {new Date(report.date).toLocaleDateString("ko-KR")}
+          {formatDate(report.date)}
         </div>
       </CardHeader>
       <CardContent className="pt-0">

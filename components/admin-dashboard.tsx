@@ -13,6 +13,7 @@ import { AdminCategoryForm } from '@/components/admin-category-form'
 import { AdminEnvSettings } from '@/components/admin-env-settings'
 import { AdminWordcloudStopwords } from '@/components/admin-wordcloud-stopwords'
 import { AdminStandardRecommendSettings } from '@/components/admin-standard-recommend-settings'
+import { formatDate } from '@/lib/utils'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -790,7 +791,7 @@ export function AdminDashboard({
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">{insight.title}</TableCell>
-                        <TableCell>{new Date(insight.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(insight.created_at)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm" onClick={() => window.open(insight.pdf_url, '_blank')}>

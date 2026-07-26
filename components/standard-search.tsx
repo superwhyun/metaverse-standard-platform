@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { formatDate } from "@/lib/utils"
 
 interface StandardResult {
   id: string
@@ -189,7 +190,7 @@ export function StandardSearch({}: StandardSearchProps) {
 
                         {result.publishedDate && (
                           <span className="text-sm text-muted-foreground">
-                            {new Date(result.publishedDate).toLocaleDateString("ko-KR")}
+                            {formatDate(result.publishedDate)}
                           </span>
                         )}
                       </div>

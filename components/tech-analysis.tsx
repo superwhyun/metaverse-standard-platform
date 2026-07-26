@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { formatDate } from '@/lib/utils'
 
 interface TechReport {
   id: number
@@ -489,7 +490,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                 </CardHeader>
                 <CardFooter className="p-3 pt-0 mt-auto flex items-center justify-between flex-shrink-0">
                   <p className="text-xs text-muted-foreground">
-                    {new Date(report.created_at).toLocaleDateString()}
+                    {formatDate(report.created_at)}
                   </p>
                   {session && (
                     <div className="flex gap-1">

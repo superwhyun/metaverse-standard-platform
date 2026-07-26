@@ -5,6 +5,7 @@ import { Building, FileText, Tag as TagIcon, Edit } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { GroupedReports } from "@/components/grouped-reports"
+import { formatDate } from "@/lib/utils"
 
 interface OrganizationStats {
   name: string
@@ -65,7 +66,7 @@ export function OrganizationReports({ onReportClick, isAdmin = false, onEdit }: 
               )}
             </div>
             <Badge variant="outline" className="ml-2 shrink-0">
-              {new Date(report.date).toLocaleDateString("ko-KR")}
+              {formatDate(report.date)}
             </Badge>
           </div>
           <p className="text-card-foreground opacity-70 text-sm mb-3 line-clamp-2">{report.summary}</p>
