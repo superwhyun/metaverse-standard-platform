@@ -38,6 +38,10 @@ pids
 .env.test.local
 .env.production.local
 
+# Sensitive local artifacts
+cookies.txt
+data_export.sql
+
 # Testing
 coverage
 *.lcov
