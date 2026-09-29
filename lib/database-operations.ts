@@ -57,8 +57,8 @@ export const createCategoryOperations = (db: DatabaseAdapter) => ({
 export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
   getPaginated: async (limit: number, offset: number, search?: string, categoryName?: string) => {
     let query = 'SELECT * FROM tech_analysis_reports';
-    let params: SqlValue[] = [];
-    let conditions: string[] = [];
+    const params: SqlValue[] = [];
+    const conditions: string[] = [];
 
     if (search && search.trim()) {
       conditions.push('(title LIKE ? OR summary LIKE ?)');
@@ -84,6 +84,11 @@ export const createTechAnalysisReportOperations = (db: DatabaseAdapter) => ({
   getById: async (id: number) => {
     const stmt = db.prepare('SELECT * FROM tech_analysis_reports WHERE id = ?');
     return await stmt.get([id]);
+  },
+  getByIds: async (ids: number[]) => {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => '?').join(',');
+    return await db.prepare(`SELECT * FROM tech_analysis_reports WHERE id IN (${placeholders})`).all(ids);
   },
   create: async (report: { url: string; title: string; summary?: string | null; image_url?: string | null; category_name?: string | null; status?: string | null }) => {
     // Explicitly handle undefined values
@@ -296,6 +301,36 @@ export const createConferenceOperations = (db: DatabaseAdapter) => {
 
 // Report operations
 export const createReportOperations = (db: DatabaseAdapter) => ({
+  // List endpoints must never pull the potentially large report body from D1.
+  getSummaries: async (options: { year?: number; month?: number; limit?: number; offset?: number } = {}) => {
+    const conditions: string[] = [];
+    const params: SqlValue[] = [];
+    if (options.year !== undefined && options.month !== undefined) {
+      const start = `${options.year}-${String(options.month).padStart(2, '0')}-01`;
+      const endMonth = new Date(Date.UTC(options.year, options.month, 1));
+      const end = `${endMonth.getUTCFullYear()}-${String(endMonth.getUTCMonth() + 1).padStart(2, '0')}-01`;
+      conditions.push('date >= ? AND date < ?');
+      params.push(start, end);
+    }
+    const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
+    let query = `SELECT id, title, date, summary, category, organization, tags, download_url, conference_id FROM reports${where} ORDER BY date DESC, id DESC`;
+    if (options.limit !== undefined) {
+      query += ' LIMIT ? OFFSET ?';
+      params.push(options.limit, options.offset ?? 0);
+    }
+    return await db.prepare(query).all(params);
+  },
+  countSummaries: async (options: { year?: number; month?: number } = {}) => {
+    if (options.year !== undefined && options.month !== undefined) {
+      const start = `${options.year}-${String(options.month).padStart(2, '0')}-01`;
+      const endMonth = new Date(Date.UTC(options.year, options.month, 1));
+      const end = `${endMonth.getUTCFullYear()}-${String(endMonth.getUTCMonth() + 1).padStart(2, '0')}-01`;
+      const row = await db.prepare('SELECT COUNT(*) AS total FROM reports WHERE date >= ? AND date < ?').get([start, end]);
+      return row?.total ?? 0;
+    }
+    const row = await db.prepare('SELECT COUNT(*) AS total FROM reports').get();
+    return row?.total ?? 0;
+  },
   getAll: async () => {
     const stmt = db.prepare('SELECT * FROM reports ORDER BY created_at DESC');
     return await stmt.all();

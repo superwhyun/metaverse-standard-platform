@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -228,6 +228,8 @@ export default function HomePage() {
   const [selectedConference, setSelectedConference] = useState<EditableConference | null>(null)
   const [conferences, setConferences] = useState<AppConference[]>([])
   const [reports, setReports] = useState<AppReport[]>([])
+  const [calendarReports, setCalendarReports] = useState<AppReport[]>([])
+  const calendarPeriod = useRef({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 })
   const [allConferences, setAllConferences] = useState<AppConference[]>([])
   const [allReports, setAllReports] = useState<AppReport[]>([])
   const [isTransitioning, setIsTransitioning] = useState(false)
@@ -315,6 +317,21 @@ export default function HomePage() {
     }
   };
 
+  const loadCalendarReports = async (year: number, month: number) => {
+    try {
+      const response = await fetch(buildReportsApiUrl(year, month));
+      if (response.ok) {
+        const result = await response.json();
+        setCalendarReports((result.data || []).map(toAppReport));
+      } else {
+        setCalendarReports([]);
+      }
+    } catch (error) {
+      console.error('Failed to load calendar reports:', error);
+      setCalendarReports([]);
+    }
+  };
+
   // 개별 보고서 상세 내용 로딩 (content 포함)
   const loadReportDetail = async (reportId: number) => {
     try {
@@ -336,8 +353,7 @@ export default function HomePage() {
     const currentMonth = now.getMonth() + 1;
     // 회의는 캘린더를 위해 월별 로드
     loadConferences(currentYear, currentMonth);
-    // 보고서는 전체 로드 (일반 사용자 페이지들이 전체 데이터를 사용)
-    loadReports();
+    loadCalendarReports(currentYear, currentMonth);
 
     // 세션 스토리지에서 returnView 확인
     if (typeof window !== 'undefined') {
@@ -345,6 +361,11 @@ export default function HomePage() {
       if (returnView) {
         setCurrentView(returnView);
         sessionStorage.removeItem('returnView'); // 한 번만 사용하고 제거
+        if (returnView.startsWith('admin')) {
+          loadAllConferences();
+          loadAllReports();
+          loadAdminReports(currentYear, currentMonth);
+        }
       }
     }
   }, []);
@@ -460,10 +481,11 @@ export default function HomePage() {
 
   const handleCalendarReportSelect = async (report: AppReport) => openModalReportViewer("calendar", report)
 
-  // Handle calendar month change (회의만 월별 로드)
+  // Load only the calendar's visible month.
   const handleCalendarMonthChange = (year: number, month: number) => {
+    calendarPeriod.current = { year, month };
     loadConferences(year, month);
-    // 보고서는 전체 데이터를 유지 (캘린더에서는 전체 보고서 표시)
+    loadCalendarReports(year, month);
   }
 
   // 관리자 대시보드 전용 월 변경 핸들러
@@ -567,6 +589,7 @@ export default function HomePage() {
         // 월별 데이터만 재조회 (기존 방식 유지)
         await loadAdminReports(targetYear, targetMonth);
         await loadConferences(targetYear, targetMonth);
+        await loadCalendarReports(calendarPeriod.current.year, calendarPeriod.current.month);
 
       } else {
         const errorData = await response.json();
@@ -679,6 +702,7 @@ export default function HomePage() {
         const targetMonth = reportDate.getMonth() + 1;
         await loadAdminReports(targetYear, targetMonth);
         await loadConferences(targetYear, targetMonth);
+        await loadCalendarReports(calendarPeriod.current.year, calendarPeriod.current.month);
       } else {
         console.error('Failed to delete report');
       }
@@ -966,7 +990,7 @@ export default function HomePage() {
           <div className="container mx-auto px-4 py-2 pb-20">
             <CalendarComponent
               conferences={conferences}
-              reports={reports}
+              reports={calendarReports}
               onViewReport={handleCalendarReportSelect}
               onMonthChange={handleCalendarMonthChange}
               isLoading={isLoadingConferences}
@@ -977,11 +1001,13 @@ export default function HomePage() {
         {/* Report list page */}
         <div className={`${getPageClasses("reports", currentView)} bg-pattern-circuit`}>
           <div className="container mx-auto px-4 py-2 pb-20">
-            <ReportList
-              onReportClick={handleReportSelect}
-              isAdmin={!!session}
-              onEdit={handleEditReportFromViewer}
-            />
+            {currentView === "reports" && (
+              <ReportList
+                onReportClick={handleReportSelect}
+                isAdmin={!!session}
+                onEdit={handleEditReportFromViewer}
+              />
+            )}
           </div>
         </div>
 
@@ -1004,46 +1030,46 @@ export default function HomePage() {
 
         {/* Admin page */}
         <div className={`${getPageClasses("admin", currentView)} bg-admin-custom`}>
-          <div className="container mx-auto px-4 py-2 pb-20">{renderAdmin()}</div>
+          <div className="container mx-auto px-4 py-2 pb-20">{currentView.startsWith("admin") && renderAdmin()}</div>
         </div>
 
         {/* Monthly reports page */}
         <div className={`${getPageClasses("monthly-reports", currentView)} bg-pattern-grid`}>
           <div className="container mx-auto px-4 py-2 pb-20">
-            <MonthlyReports
+            {currentView === "monthly-reports" && <MonthlyReports
               onReportClick={handleMonthlyReportSelect}
               isAdmin={!!session}
               onEdit={handleEditReportFromViewer}
-            />
+            />}
           </div>
         </div>
 
         {/* Organization reports page */}
         <div className={`${getPageClasses("organization-reports", currentView)} bg-pattern-circuit`}>
           <div className="container mx-auto px-4 py-2 pb-20">
-            <OrganizationReports
+            {currentView === "organization-reports" && <OrganizationReports
               onReportClick={handleOrganizationReportSelect}
               isAdmin={!!session}
               onEdit={handleEditReportFromViewer}
-            />
+            />}
           </div>
         </div>
 
         {/* Category reports page */}
         <div className={`${getPageClasses("category-reports", currentView)} bg-pattern-constellation`}>
           <div className="container mx-auto px-4 py-2 pb-20">
-            <CategoryReports
+            {currentView === "category-reports" && <CategoryReports
               onReportClick={handleCategoryReportSelect}
               isAdmin={!!session}
               onEdit={handleEditReportFromViewer}
-            />
+            />}
           </div>
         </div>
 
         {/* Tech analysis page */}
         <div className={`${getPageClasses("tech-analysis", currentView)} bg-pattern-hex`}>
           <div className="container mx-auto px-4 py-2 pb-20">
-            <TechAnalysis session={session} />
+            {currentView === "tech-analysis" && <TechAnalysis session={session} />}
           </div>
         </div>
 
@@ -1064,7 +1090,7 @@ export default function HomePage() {
         {/* Trend Insights page */}
         <div className={`${getPageClasses("trend-insights", currentView)} bg-pattern-hex`}>
           <div className="container mx-auto px-4 py-2 pb-20">
-            <TrendInsightsList />
+            {currentView === "trend-insights" && <TrendInsightsList />}
           </div>
         </div>
       </div>

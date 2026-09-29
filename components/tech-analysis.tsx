@@ -7,12 +7,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/components/ui/use-toast'
-import { Link, PlusCircle, ImageOff, Trash2, Edit3, Search } from 'lucide-react'
+import { Link, PlusCircle, ImageOff, Trash2, Edit3, Search, RefreshCw } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatDate } from '@/lib/utils'
+import type { Session } from '@/hooks/use-auth'
 
 interface TechReport {
   id: number
@@ -26,7 +27,7 @@ interface TechReport {
 }
 
 interface TechAnalysisProps {
-  session?: any
+  session?: Session | null
 }
 
 export function TechAnalysis({ session }: TechAnalysisProps) {
@@ -62,6 +63,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
   
   // 삭제 확인 상태
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null)
+  const [reclassifyingIds, setReclassifyingIds] = useState<number[]>([])
 
   const fetchReports = async (reset = true, search = '', categoryName = '') => {
     if (reset) {
@@ -124,44 +126,44 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
     fetchCategories()
   }, [])
 
-  // 폴링: pending 상태의 보고서가 있으면 3초마다 업데이트 확인
-  useEffect(() => {
-    const pendingReports = reports.filter(report => report.status === 'pending')
-    if (pendingReports.length === 0) return
+  const pendingReportIds = reports.filter(report => report.status === 'pending').map(report => report.id).join(',')
 
+  // Only poll while this view is mounted. Bound retries so an abandoned
+  // pending record cannot keep a browser tab reading D1 indefinitely.
+  useEffect(() => {
+    if (!pendingReportIds) return
+    const pendingIds = new Set(pendingReportIds.split(',').map(Number))
+
+    let attempts = 0
+    let inFlight = false
     const interval = setInterval(async () => {
+      if (document.visibilityState !== 'visible' || inFlight) return
+      if (attempts >= 12) {
+        clearInterval(interval)
+        return
+      }
+      attempts += 1
+      inFlight = true
       try {
-        // 최근 보고서들만 가져와서 pending 보고서 상태 확인 (limit=20으로 제한)
-        const response = await fetch(`/api/tech-analysis?limit=20&offset=0`)
+        const response = await fetch(`/api/tech-analysis?ids=${pendingReportIds}`)
         if (response.ok) {
           const recentReports = await response.json()
           
-          // pending 보고서들의 업데이트된 상태만 찾기
-          const updatedReports = pendingReports.map(pendingReport => {
-            return recentReports.find((r: TechReport) => r.id === pendingReport.id) || pendingReport
-          })
-          
-          // 업데이트된 보고서들로 상태 갱신
-          setReports(prevReports => {
-            const newReports = [...prevReports]
-            updatedReports.forEach((updatedReport) => {
-              if (updatedReport) {
-                const index = newReports.findIndex(r => r.id === updatedReport.id)
-                if (index !== -1) {
-                  newReports[index] = updatedReport
-                }
-              }
-            })
-            return newReports
-          })
+          setReports(prevReports => prevReports.map(report =>
+            pendingIds.has(report.id)
+              ? recentReports.find((recent: TechReport) => recent.id === report.id) || report
+              : report
+          ))
         }
       } catch (error) {
         console.error('Polling error:', error)
+      } finally {
+        inFlight = false
       }
-    }, 3000) // 3초마다 확인
+    }, 10000)
 
     return () => clearInterval(interval)
-  }, [reports])
+  }, [pendingReportIds])
 
   const fetchCategories = async () => {
     if (categoriesLoaded) return
@@ -237,10 +239,10 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         description: '새로운 기술 소식을 추가했습니다.',
       })
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: '오류',
-        description: err.message || '소식 추가에 실패했습니다.',
+        description: err instanceof Error ? err.message : '소식 추가에 실패했습니다.',
         variant: 'destructive',
       })
     } finally {
@@ -258,6 +260,32 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
       return
     }
     setDeletingReportId(id)
+  }
+
+  const handleReclassify = async (id: number) => {
+    setReclassifyingIds(prev => [...prev, id])
+    try {
+      const response = await fetch('/api/tech-analysis/reclassify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.message || '자동 분류에 실패했습니다.')
+      setReports(prev => prev.map(report => report.id === id
+        ? { ...report, category_name: result.category_name }
+        : report
+      ))
+      toast({ title: '분류 완료', description: result.category_name })
+    } catch (error) {
+      toast({
+        title: '분류 실패',
+        description: error instanceof Error ? error.message : '자동 분류에 실패했습니다.',
+        variant: 'destructive',
+      })
+    } finally {
+      setReclassifyingIds(prev => prev.filter(item => item !== id))
+    }
   }
 
   const handleDeleteConfirm = async () => {
@@ -278,10 +306,10 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         description: '기술 소식을 삭제했습니다.',
       })
       await fetchReports(true, searchTerm, selectedCategoryName) // Refresh the list
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: '오류',
-        description: err.message || '삭제에 실패했습니다.',
+        description: err instanceof Error ? err.message : '삭제에 실패했습니다.',
         variant: 'destructive',
       })
     } finally {
@@ -454,10 +482,10 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {reports.map((report) => (
               <div key={report.id} className="relative">
-                {report.category_name && (
+                {(report.category_name || report.status !== 'pending') && (
                   <div className="absolute top-5 -left-1 z-10">
                     <span className="inline-block px-3 py-1 text-xs bg-primary text-primary-foreground rounded-md shadow-md transform -rotate-12 origin-bottom-left border-2 border-white/20">
-                      {report.category_name}
+                      {report.category_name || '미분류'}
                     </span>
                   </div>
                 )}
@@ -494,6 +522,19 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                   </p>
                   {session && (
                     <div className="flex gap-1">
+                      {report.status !== 'pending' && (report.category_name === '기타' || !report.category_name) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          disabled={reclassifyingIds.includes(report.id)}
+                          onClick={() => handleReclassify(report.id)}
+                          title="다시 분류"
+                          aria-label="다시 분류"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${reclassifyingIds.includes(report.id) ? 'animate-spin' : ''}`} />
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"

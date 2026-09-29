@@ -14,8 +14,26 @@ export async function GET(request: NextRequest) {
     const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '8');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const idsParam = searchParams.get('ids');
+    if (idsParam !== null) {
+      const parts = idsParam.split(',');
+      if (parts.length === 0 || parts.length > 20 || parts.some(part => !/^[1-9]\d*$/.test(part))) {
+        return NextResponse.json({ message: 'Invalid ids parameter' }, { status: 400 });
+      }
+      const ids = parts.map(Number);
+      if (ids.some(id => !Number.isSafeInteger(id))) {
+        return NextResponse.json({ message: 'Invalid ids parameter' }, { status: 400 });
+      }
+      const reports = await techAnalysisReportOperations.getByIds(ids);
+      return NextResponse.json(reports);
+    }
+    const requestedLimit = Number(searchParams.get('limit') ?? '8');
+    const requestedOffset = Number(searchParams.get('offset') ?? '0');
+    if (!Number.isSafeInteger(requestedLimit) || !Number.isSafeInteger(requestedOffset) || requestedLimit < 1 || requestedOffset < 0) {
+      return NextResponse.json({ message: 'Invalid pagination parameters' }, { status: 400 });
+    }
+    const limit = Math.min(requestedLimit, 50);
+    const offset = requestedOffset;
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
 
@@ -39,22 +57,22 @@ export async function POST(request: NextRequest) {
 
     try {
       new URL(url);
-    } catch (_) {
+    } catch {
       return NextResponse.json({ message: 'Invalid URL format' }, { status: 400 });
     }
 
     // Cloudflare next-on-pages의 request context에서 waitUntil 지원 여부 판단
     let supportsWaitUntil = false;
-    let waitUntilFn: undefined | ((p: Promise<any>) => void);
+    let waitUntilFn: undefined | ((p: Promise<unknown>) => void);
     try {
       // next-on-pages의 타입 정의에서는 waitUntil이 RequestContext의 최상위가 아니라 ctx(ExecutionContext)에 존재함
-      const rc: any = getRequestContext();
+      const rc = getRequestContext();
       const ctx = rc?.ctx;
       if (ctx && typeof ctx.waitUntil === 'function') {
         supportsWaitUntil = true;
         waitUntilFn = ctx.waitUntil.bind(ctx);
       }
-    } catch (_) {
+    } catch {
       supportsWaitUntil = false;
     }
 
@@ -100,7 +118,7 @@ export async function POST(request: NextRequest) {
 }
 
 // 로컬 환경용 동기 처리 함수
-async function processUrlSynchronously(url: string, techAnalysisReportOperations: any) {
+async function processUrlSynchronously(url: string, techAnalysisReportOperations: ReturnType<typeof createTechAnalysisReportOperations>) {
   try {
     const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
