@@ -144,23 +144,25 @@ export const createOrganizationOperations = (db: DatabaseAdapter) => ({
 
 // Conference operations
 export const createConferenceOperations = (db: DatabaseAdapter) => {
-  // Batches the per-conference report lookup into a single query instead of
-  // issuing one query per conference (N+1).
+  // Batch report lookups by conference ID instead of issuing N+1 queries.
   const attachReports = async (conferences: ConferenceRow[]) => {
     if (conferences.length === 0) return [];
 
-    const ids = conferences.map((conference) => conference.id);
-    const placeholders = ids.map(() => '?').join(',');
-    const reportStmt = db.prepare(`
-      SELECT id, title, conference_id FROM reports WHERE conference_id IN (${placeholders})
-    `);
-    const allReports = await reportStmt.all(ids) as ConferenceReportRow[];
-
     const reportsByConferenceId = new Map<number, { id: number; title: string }[]>();
-    for (const report of allReports) {
-      const list = reportsByConferenceId.get(report.conference_id) ?? [];
-      list.push({ id: report.id, title: report.title });
-      reportsByConferenceId.set(report.conference_id, list);
+    // D1 permits at most 100 bound parameters in one query.
+    for (let offset = 0; offset < conferences.length; offset += 100) {
+      const ids = conferences.slice(offset, offset + 100).map((conference) => conference.id);
+      const placeholders = ids.map(() => '?').join(',');
+      const reportStmt = db.prepare(`
+        SELECT id, title, conference_id FROM reports WHERE conference_id IN (${placeholders})
+      `);
+      const reports = await reportStmt.all(ids) as ConferenceReportRow[];
+
+      for (const report of reports) {
+        const list = reportsByConferenceId.get(report.conference_id) ?? [];
+        list.push({ id: report.id, title: report.title });
+        reportsByConferenceId.set(report.conference_id, list);
+      }
     }
 
     return conferences.map((conference) => {

@@ -46,6 +46,22 @@ interface Report {
   tags: string[]
 }
 
+interface DashboardStats {
+  totalConferences: number
+  conferencesWithReports: number
+  totalReports: number
+  monthlyConferences: number
+  totalTrendInsights: number
+}
+
+interface TrendInsight {
+  id: number
+  title: string
+  thumbnail_url?: string | null
+  pdf_url: string
+  created_at: string
+}
+
 interface AdminDashboardProps {
   conferences: Conference[]
   reports: Report[]
@@ -62,11 +78,12 @@ interface AdminDashboardProps {
   onViewSpecificReport: (reportId: number) => void
   onAddBatchReport?: () => void
   onMonthChange?: (year: number, month: number) => void
-  session?: any
+  session?: { user: { name?: string | null } }
   onLogout?: () => void
   activeTab?: string
   onTabChange?: (tab: string) => void
   onAddTrendInsight?: () => void
+  statsRefreshKey?: number
 }
 
 export function AdminDashboard({
@@ -90,6 +107,7 @@ export function AdminDashboard({
   activeTab = "conferences",
   onTabChange,
   onAddTrendInsight,
+  statsRefreshKey = 0,
 }: AdminDashboardProps) {
   const [currentDate, setCurrentDate] = useState(() => {
     const now = new Date()
@@ -98,6 +116,34 @@ export function AdminDashboard({
 
   const [showAllConferences, setShowAllConferences] = useState(false)
   const [showAllReports, setShowAllReports] = useState(false)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [statsError, setStatsError] = useState(false)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const loadStats = async () => {
+      setStats(null)
+      setStatsError(false)
+      try {
+        const response = await fetch(`/api/admin/stats?year=${currentDate.year}&month=${currentDate.month}`, {
+          signal: controller.signal,
+        })
+        if (!response.ok) throw new Error(`Admin stats request failed: ${response.status}`)
+        const result = await response.json()
+        if (!result.success) throw new Error(result.error || 'Admin stats request failed')
+        setStats(result.data)
+      } catch (error) {
+        if (controller.signal.aborted) return
+        console.error('Failed to load admin dashboard stats:', error)
+        setStatsError(true)
+      }
+    }
+
+    loadStats()
+    return () => controller.abort()
+  }, [currentDate.year, currentDate.month, statsRefreshKey])
+
+  const statValue = (key: keyof DashboardStats) => stats?.[key] ?? (statsError ? '오류' : '…')
 
   const handlePrevMonth = () => {
     const newDate = currentDate.month === 1
@@ -133,19 +179,15 @@ export function AdminDashboard({
     })
   }
 
-  const [trendInsights, setTrendInsights] = useState<any[]>([])
-  const [isTrendsLoading, setIsTrendsLoading] = useState(false)
+  const [trendInsights, setTrendInsights] = useState<TrendInsight[]>([])
 
   const loadTrendInsights = async () => {
-    setIsTrendsLoading(true)
     try {
       const res = await fetch('/api/trend-insights')
       const data = await res.json()
       if (data.success) setTrendInsights(data.data)
     } catch (error) {
       console.error('Failed to load trend insights:', error)
-    } finally {
-      setIsTrendsLoading(false)
     }
   }
 
@@ -154,6 +196,7 @@ export function AdminDashboard({
       const res = await fetch(`/api/trend-insights/${id}`, { method: 'DELETE' })
       if (res.ok) {
         setTrendInsights(prev => prev.filter(i => i.id !== id))
+        setStats(prev => prev ? { ...prev, totalTrendInsights: Math.max(0, prev.totalTrendInsights - 1) } : prev)
       }
     } catch (error) {
       console.error('Failed to delete trend insight:', error)
@@ -211,7 +254,7 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">총 회의</p>
-                <p className="text-2xl font-bold">{(allConferences || conferences).length}</p>
+                <p className="text-2xl font-bold">{statValue('totalConferences')}</p>
               </div>
               <Calendar className="w-8 h-8 text-primary" />
             </div>
@@ -223,7 +266,7 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">보고서 있는 회의</p>
-                <p className="text-2xl font-bold">{(allConferences || conferences).filter((c) => c.reports && c.reports.length > 0).length}</p>
+                <p className="text-2xl font-bold">{statValue('conferencesWithReports')}</p>
               </div>
               <FileText className="w-8 h-8 text-secondary" />
             </div>
@@ -238,7 +281,7 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">총 보고서</p>
-                <p className="text-2xl font-bold">{(allReports || reports).length}</p>
+                <p className="text-2xl font-bold">{statValue('totalReports')}</p>
               </div>
               <FileText className="w-8 h-8 text-primary" />
             </div>
@@ -250,10 +293,7 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">{formatCurrentMonth()} 회의</p>
-                <p className="text-2xl font-bold">{conferences.filter((c) => {
-                  const selectedMonth = `${currentDate.year}-${String(currentDate.month).padStart(2, '0')}`;
-                  return c.date.startsWith(selectedMonth);
-                }).length}</p>
+                <p className="text-2xl font-bold">{statValue('monthlyConferences')}</p>
               </div>
               <Calendar className="w-8 h-8 text-secondary" />
             </div>
@@ -265,7 +305,7 @@ export function AdminDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">트렌드 인사이트</p>
-                <p className="text-2xl font-bold">{trendInsights.length || '...'}</p>
+                <p className="text-2xl font-bold">{statValue('totalTrendInsights')}</p>
               </div>
               <Lightbulb className="w-8 h-8 text-yellow-500" />
             </div>
@@ -453,7 +493,7 @@ export function AdminDashboard({
                               <AlertDialogHeader>
                                 <AlertDialogTitle>보고서 삭제</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  "{report.title}" 보고서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                                  &quot;{report.title}&quot; 보고서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -784,7 +824,7 @@ export function AdminDashboard({
                         <TableCell>
                           <div className="w-12 h-16 bg-muted rounded overflow-hidden border">
                             {insight.thumbnail_url ? (
-                              <img src={insight.thumbnail_url} className="w-full h-full object-cover" />
+                              <img src={insight.thumbnail_url} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <FileText className="w-full h-full p-2 text-muted-foreground/30" />
                             )}

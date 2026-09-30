@@ -237,6 +237,7 @@ export default function HomePage() {
   const [isLoadingConferences, setIsLoadingConferences] = useState(false)
   const [modalReportViewer, setModalReportViewer] = useState<ModalReportViewer | null>(null)
   const [adminActiveTab, setAdminActiveTab] = useState("conferences") // 관리자 탭 상태 관리
+  const [adminStatsRefreshKey, setAdminStatsRefreshKey] = useState(0)
   const [previousView, setPreviousView] = useState<ViewType | null>(null) // 수정 전 이전 페이지 저장
 
   // Load all conferences from database (for admin dashboard statistics)
@@ -523,6 +524,8 @@ export default function HomePage() {
 
         // Also refresh the main calendar if the view is different
         await handleAdminMonthChange(targetYear, targetMonth);
+        await loadAllConferences();
+        setAdminStatsRefreshKey(key => key + 1);
 
       } else {
         const errorData = await response.json();
@@ -590,6 +593,8 @@ export default function HomePage() {
         await loadAdminReports(targetYear, targetMonth);
         await loadConferences(targetYear, targetMonth);
         await loadCalendarReports(calendarPeriod.current.year, calendarPeriod.current.month);
+        await loadAllReports();
+        setAdminStatsRefreshKey(key => key + 1);
 
       } else {
         const errorData = await response.json();
@@ -676,6 +681,8 @@ export default function HomePage() {
         const targetMonth = conferenceDate.getMonth() + 1;
         await loadConferences(targetYear, targetMonth);
         await handleAdminMonthChange(targetYear, targetMonth);
+        await loadAllConferences();
+        setAdminStatsRefreshKey(key => key + 1);
       } else {
         console.error('Failed to delete conference');
       }
@@ -703,6 +710,7 @@ export default function HomePage() {
         await loadAdminReports(targetYear, targetMonth);
         await loadConferences(targetYear, targetMonth);
         await loadCalendarReports(calendarPeriod.current.year, calendarPeriod.current.month);
+        setAdminStatsRefreshKey(key => key + 1);
       } else {
         console.error('Failed to delete report');
       }
@@ -806,6 +814,9 @@ export default function HomePage() {
                 const now = new Date();
                 loadAdminReports(now.getFullYear(), now.getMonth() + 1);
                 loadConferences(now.getFullYear(), now.getMonth() + 1);
+                loadAllConferences();
+                loadAllReports();
+                setAdminStatsRefreshKey(key => key + 1);
               }}
             />
           </div>
@@ -830,6 +841,7 @@ export default function HomePage() {
               reports={reports}
               allConferences={allConferences}
               allReports={allReports}
+              statsRefreshKey={adminStatsRefreshKey}
               onAddConference={() => setCurrentView("admin-add-conference")}
               onEditConference={(conference) => {
                 const appConference = conference as unknown as AppConference
