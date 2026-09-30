@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createDatabaseAdapter } from '@/lib/database-adapter';
+import { createDatabaseAdapter, DatabaseAdapter } from '@/lib/database-adapter';
 import { createTechAnalysisReportOperations } from '@/lib/database-operations';
 import { getSessionFromRequest } from '@/lib/edge-auth';
-import { categorizeContent } from '@/lib/openai-categorizer';
+import { categorizeContent, classificationErrorDetails, ClassificationApiKey, resolveClassificationApiKey } from '@/lib/openai-categorizer';
 import { getRequestContext } from '@cloudflare/next-on-pages';
-import { getEnv } from '@/lib/env';
 
 export const runtime = 'edge';
 
@@ -61,6 +60,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid URL format' }, { status: 400 });
     }
 
+    const apiKey = await resolveClassificationApiKey(db);
+    if (!apiKey) {
+      console.error('[tech-analysis] classification unavailable: no OpenAI API key in admin settings or Cloudflare environment');
+      return NextResponse.json({ message: 'OpenAI API 키가 설정되지 않았습니다.' }, { status: 503 });
+    }
+
     // Cloudflare next-on-pages의 request context에서 waitUntil 지원 여부 판단
     let supportsWaitUntil = false;
     let waitUntilFn: undefined | ((p: Promise<unknown>) => void);
@@ -78,7 +83,8 @@ export async function POST(request: NextRequest) {
 
     if (!supportsWaitUntil) {
       // 미지원: 동기 처리로 즉시 완료까지 수행
-      return await processUrlSynchronously(url, techAnalysisReportOperations);
+      console.info('[tech-analysis] processing synchronously', { keySource: apiKey.source });
+      return await processUrlSynchronously(url, techAnalysisReportOperations, db, apiKey);
     }
 
     // 지원: pending 레코드 생성 후 즉시 응답 반환, 백그라운드 처리는 비동기로 실행
@@ -93,23 +99,23 @@ export async function POST(request: NextRequest) {
 
     // pending 레코드 생성 후 즉시 응답 반환
     const response = NextResponse.json(pendingReport, { status: 201 });
+    console.info('[tech-analysis] pending report created', { reportId: pendingReport.id, keySource: apiKey.source });
     
     // 백그라운드 처리 스케줄링 (응답과 독립적으로 실행)
     if (pendingReport.id && waitUntilFn) {
+      const processing = processMetadataInBackground(Number(pendingReport.id), url, db, apiKey);
       try {
-        waitUntilFn(processMetadataInBackground(Number(pendingReport.id), url));
+        waitUntilFn(processing);
       } catch (e) {
-        console.warn('waitUntil enqueue failed, falling back to direct Promise:', e);
-        // 백그라운드 처리 실패 시에도 응답은 이미 반환됨
-        processMetadataInBackground(Number(pendingReport.id), url).catch(err => {
-          console.error('Background processing failed:', err);
-        });
+        console.warn('[tech-analysis] waitUntil enqueue failed', classificationErrorDetails(e));
+        // Keep the same task alive; starting a second task would duplicate API calls.
+        await processing;
       }
     }
 
     return response;
   } catch (error) {
-    console.error('Unexpected error in tech-analysis POST:', error);
+    console.error('[tech-analysis] POST failed', classificationErrorDetails(error));
     const errorMessage = error instanceof Error ? error.message : 'Unknown server error';
     return NextResponse.json({ 
       message: `예상치 못한 서버 오류: ${errorMessage}` 
@@ -118,16 +124,13 @@ export async function POST(request: NextRequest) {
 }
 
 // 로컬 환경용 동기 처리 함수
-async function processUrlSynchronously(url: string, techAnalysisReportOperations: ReturnType<typeof createTechAnalysisReportOperations>) {
+async function processUrlSynchronously(
+  url: string,
+  techAnalysisReportOperations: ReturnType<typeof createTechAnalysisReportOperations>,
+  db: DatabaseAdapter,
+  apiKey: ClassificationApiKey,
+) {
   try {
-    const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY not available');
-      return NextResponse.json({ 
-        message: 'OpenAI API 키가 설정되지 않았습니다. 관리자에게 문의해주세요.' 
-      }, { status: 500 });
-    }
-
     // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
     let title, description, image;
     try {
@@ -135,6 +138,7 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
       const microlinkResponse = await fetch(requestUrl);
 
       if (!microlinkResponse.ok) {
+        console.warn('[tech-analysis] synchronous metadata HTTP fallback', { httpStatus: microlinkResponse.status });
         title = url;
         description = null;
         image = null;
@@ -142,6 +146,7 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
         const metadata = await microlinkResponse.json();
 
         if (!metadata.status) {
+          console.warn('[tech-analysis] synchronous metadata response had no result');
           title = url;
           description = null;
           image = null;
@@ -152,7 +157,7 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
         }
       }
     } catch (microlinkError) {
-      console.warn('Custom metadata service network error, using fallback values:', microlinkError instanceof Error ? microlinkError.message : microlinkError);
+      console.warn('[tech-analysis] synchronous metadata network fallback', classificationErrorDetails(microlinkError));
       title = url;
       description = null;
       image = null;
@@ -164,13 +169,18 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
     }
 
     const summary = description || '설명이 없습니다.';
+    console.info('[tech-analysis] synchronous metadata ready', {
+      metadataFound: title !== url,
+      titleLength: title.length,
+      summaryLength: summary.length,
+    });
 
     // AI 카테고리 분류
     let categoryName: string | null = null;
     try {
-      categoryName = await categorizeContent(title, summary);
+      categoryName = await categorizeContent(title, summary, { db, apiKey });
     } catch (categorizerError) {
-      console.error('Categorization failed:', categorizerError);
+      console.error('[tech-analysis] synchronous categorization failed', classificationErrorDetails(categorizerError));
     }
 
     // DB에 완료된 보고서 저장
@@ -180,13 +190,19 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
       summary,
       image_url: image || undefined,
       category_name: categoryName || undefined,
-      status: 'completed'
+      status: categoryName ? 'completed' : 'failed'
+    });
+
+    console.info('[tech-analysis] synchronous report saved', {
+      reportId: report.id,
+      status: categoryName ? 'completed' : 'failed',
+      category: categoryName,
     });
 
     return NextResponse.json(report, { status: 201 });
 
   } catch (error) {
-    console.error('Synchronous processing error:', error);
+    console.error('[tech-analysis] synchronous processing error', classificationErrorDetails(error));
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ 
       message: `처리 중 오류 발생: ${errorMessage}` 
@@ -195,17 +211,10 @@ async function processUrlSynchronously(url: string, techAnalysisReportOperations
 }
 
 // 백그라운드 메타데이터 처리 함수
-async function processMetadataInBackground(reportId: number, url: string) {
+async function processMetadataInBackground(reportId: number, url: string, db: DatabaseAdapter, apiKey: ClassificationApiKey) {
   try {
-    const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY not available for background processing');
-      await updateReportToFailed(reportId, 'OpenAI API key not available');
-      return;
-    }
-
-    const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
+    console.info('[tech-analysis] background processing started', { reportId, keySource: apiKey.source });
 
     // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
     let title, description, image;
@@ -214,6 +223,7 @@ async function processMetadataInBackground(reportId: number, url: string) {
       const microlinkResponse = await fetch(requestUrl);
 
       if (!microlinkResponse.ok) {
+        console.warn('[tech-analysis] background metadata HTTP fallback', { reportId, httpStatus: microlinkResponse.status });
         title = url;
         description = null;
         image = null;
@@ -221,6 +231,7 @@ async function processMetadataInBackground(reportId: number, url: string) {
         const metadata = await microlinkResponse.json();
 
         if (!metadata.status) {
+          console.warn('[tech-analysis] background metadata response had no result', { reportId });
           title = url;
           description = null;
           image = null;
@@ -231,7 +242,7 @@ async function processMetadataInBackground(reportId: number, url: string) {
         }
       }
     } catch (microlinkError) {
-      console.warn('Background custom metadata service network error, using fallback values:', microlinkError instanceof Error ? microlinkError.message : microlinkError);
+      console.warn('[tech-analysis] background metadata network fallback', { reportId, ...classificationErrorDetails(microlinkError) });
       title = url;
       description = null;
       image = null;
@@ -243,13 +254,22 @@ async function processMetadataInBackground(reportId: number, url: string) {
     }
 
     const summary = description || '설명이 없습니다.';
+    console.info('[tech-analysis] background metadata ready', {
+      reportId,
+      metadataFound: title !== url,
+      titleLength: title.length,
+      summaryLength: summary.length,
+    });
 
     // AI 카테고리 분류
     let categoryName: string | null = null;
     try {
-      categoryName = await categorizeContent(title, summary);
+      categoryName = await categorizeContent(title, summary, { db, apiKey, reportId });
     } catch (categorizerError) {
-      console.error('Background categorization failed:', categorizerError);
+      console.error('[tech-analysis] background categorization failed', {
+        reportId,
+        ...classificationErrorDetails(categorizerError),
+      });
     }
 
     // DB 업데이트
@@ -259,29 +279,33 @@ async function processMetadataInBackground(reportId: number, url: string) {
         summary,
         image_url: image || undefined,
         category_name: categoryName || undefined,
-        status: 'completed'
+        status: categoryName ? 'completed' : 'failed'
+      });
+      console.info('[tech-analysis] background report updated', {
+        reportId,
+        status: categoryName ? 'completed' : 'failed',
+        category: categoryName,
       });
     } catch (updateError) {
-      console.error(`Background DB update failed for report ${reportId}:`, updateError);
-      await updateReportToFailed(reportId, 'Database update failed');
+      console.error('[tech-analysis] background DB update failed', { reportId, ...classificationErrorDetails(updateError) });
+      await updateReportToFailed(reportId, 'Database update failed', db);
     }
   } catch (error) {
-    console.error(`Background processing error for report ${reportId}:`, error);
-    await updateReportToFailed(reportId, `Processing error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('[tech-analysis] background processing error', { reportId, ...classificationErrorDetails(error) });
+    await updateReportToFailed(reportId, 'Processing error', db);
   }
 }
 
 // 실패 상태 업데이트 헬퍼 함수
-async function updateReportToFailed(reportId: number, errorMessage: string) {
+async function updateReportToFailed(reportId: number, errorMessage: string, db: DatabaseAdapter) {
   try {
-    const db = await createDatabaseAdapter();
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     await techAnalysisReportOperations.update(reportId, {
       status: 'failed'
     });
-    console.error(`Background processing failed for report ${reportId}: ${errorMessage}`);
+    console.error('[tech-analysis] report marked failed', { reportId, reason: errorMessage });
   } catch (statusUpdateError) {
-    console.error(`Failed to update status to failed for report ${reportId}:`, statusUpdateError);
+    console.error('[tech-analysis] failed to mark report failed', { reportId, ...classificationErrorDetails(statusUpdateError) });
   }
 }
 

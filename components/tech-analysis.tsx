@@ -148,6 +148,11 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         const response = await fetch(`/api/tech-analysis?ids=${pendingReportIds}`)
         if (response.ok) {
           const recentReports = await response.json()
+          console.debug('[tech-analysis] polling result', recentReports.map((report: TechReport) => ({
+            id: report.id,
+            status: report.status,
+            category: report.category_name || null,
+          })))
           
           setReports(prevReports => prevReports.map(report =>
             pendingIds.has(report.id)
@@ -230,13 +235,23 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
 
       const newReport = await response.json()
       setNewUrl('')
+      console.debug('[tech-analysis] registration result', {
+        id: newReport.id,
+        status: newReport.status,
+        category: newReport.category_name || null,
+      })
       
       // 즉시 새 리포트를 목록 맨 앞에 추가
       setReports(prev => [newReport, ...prev])
       
       toast({
-        title: '성공',
-        description: '새로운 기술 소식을 추가했습니다.',
+        title: newReport.status === 'failed' ? '분류 실패' : '성공',
+        description: newReport.status === 'failed'
+          ? '기술 소식은 등록됐지만 자동 분류에 실패했습니다. 서버 로그를 확인해 주세요.'
+          : newReport.status === 'pending'
+            ? '기술 소식을 등록했습니다. 자동 분류 중입니다.'
+            : '새로운 기술 소식을 추가했습니다.',
+        variant: newReport.status === 'failed' ? 'destructive' : 'default',
       })
       
     } catch (err: unknown) {
@@ -271,6 +286,12 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
         body: JSON.stringify({ id }),
       })
       const result = await response.json()
+      console.debug('[tech-analysis] reclassification result', {
+        id,
+        httpStatus: response.status,
+        category: result.category_name || null,
+        message: result.message || null,
+      })
       if (!response.ok) throw new Error(result.message || '자동 분류에 실패했습니다.')
       setReports(prev => prev.map(report => report.id === id
         ? { ...report, category_name: result.category_name }
@@ -485,7 +506,7 @@ export function TechAnalysis({ session }: TechAnalysisProps) {
                 {(report.category_name || report.status !== 'pending') && (
                   <div className="absolute top-5 -left-1 z-10">
                     <span className="inline-block px-3 py-1 text-xs bg-primary text-primary-foreground rounded-md shadow-md transform -rotate-12 origin-bottom-left border-2 border-white/20">
-                      {report.category_name || '미분류'}
+                      {report.category_name || (report.status === 'failed' ? '분류 실패' : '미분류')}
                     </span>
                   </div>
                 )}
