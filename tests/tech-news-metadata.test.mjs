@@ -78,6 +78,37 @@ test('ignores the YouTube homepage description returned for a video', async () =
   }
 });
 
+test('uses the real video description from YouTube Data API when a key is configured', async () => {
+  const originalFetch = globalThis.fetch;
+  const called = [];
+  globalThis.fetch = async (input) => {
+    called.push(String(input));
+    return Response.json({
+      items: [{
+        snippet: {
+          title: 'Crazy AI Animation Workflow',
+          description: 'This video walks through the animation workflow step by step.',
+          channelTitle: 'Can It Code?',
+          thumbnails: { high: { url: 'https://i.ytimg.com/vi/evK-Y83Qlco/hqdefault.jpg' } },
+        },
+      }],
+    });
+  };
+
+  try {
+    const metadata = await getTechNewsMetadata('https://youtu.be/evK-Y83Qlco?si=De4atd7sAvV8s4CI', { youtubeApiKey: 'test-api-key' });
+    assert.equal(metadata.title, 'Crazy AI Animation Workflow');
+    assert.equal(metadata.description, 'This video walks through the animation workflow step by step.');
+    assert.equal(metadata.image, 'https://i.ytimg.com/vi/evK-Y83Qlco/hqdefault.jpg');
+    assert.equal(metadata.source, 'youtube-data-api');
+    assert.equal(called.length, 1);
+    assert.ok(called[0].startsWith('https://www.googleapis.com/youtube/v3/videos?'));
+    assert.equal(new URL(called[0]).searchParams.get('id'), 'evK-Y83Qlco');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('recognizes only individual X posts and normalizes their URL for oEmbed', () => {
   assert.equal(getXPostUrl('https://x.com/StandardsLab/status/1234567890123456789?s=20'), 'https://twitter.com/StandardsLab/status/1234567890123456789');
   assert.equal(getXPostUrl('https://mobile.twitter.com/i/web/status/1234567890123456789'), 'https://twitter.com/i/status/1234567890123456789');

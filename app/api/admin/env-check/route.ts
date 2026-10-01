@@ -22,6 +22,12 @@ export async function GET(request: NextRequest) {
         required: true,
         description: 'OpenAI API 키 - 기술 소식 자동 카테고리화에 필요'
       },
+      YOUTUBE_API_KEY: {
+        exists: !!env.YOUTUBE_API_KEY,
+        masked: env.YOUTUBE_API_KEY ? '(설정됨)' : null,
+        required: false,
+        description: 'YouTube Data API 키 - 영상의 실제 설명을 가져올 때 사용 (선택)'
+      },
       MSP: {
         exists: !!env.MSP,
         masked: '(D1 Database)',

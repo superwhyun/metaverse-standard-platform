@@ -5,8 +5,19 @@ import { getSessionFromRequest } from '@/lib/edge-auth';
 import { categorizeContent, classificationErrorDetails, ClassificationApiKey, resolveClassificationApiKey } from '@/lib/openai-categorizer';
 import { getRequestContext } from '@cloudflare/next-on-pages';
 import { getTechNewsMetadata } from '@/lib/tech-news-metadata';
+import { getEnv } from '@/lib/env';
 
 export const runtime = 'edge';
+
+function resolveYouTubeApiKey(): string | undefined {
+  try {
+    const key = getRequestContext().env.YOUTUBE_API_KEY?.trim();
+    if (key) return key;
+  } catch {
+    // Local development may not have a Cloudflare request context.
+  }
+  return getEnv('YOUTUBE_API_KEY')?.trim() || undefined;
+}
 
 // GET tech analysis reports with pagination and search
 export async function GET(request: NextRequest) {
@@ -66,6 +77,7 @@ export async function POST(request: NextRequest) {
       console.error('[tech-analysis] classification unavailable: no OpenAI API key in admin settings or Cloudflare environment');
       return NextResponse.json({ message: 'OpenAI API 키가 설정되지 않았습니다.' }, { status: 503 });
     }
+    const youtubeApiKey = resolveYouTubeApiKey();
 
     // Cloudflare next-on-pages의 request context에서 waitUntil 지원 여부 판단
     let supportsWaitUntil = false;
@@ -85,7 +97,7 @@ export async function POST(request: NextRequest) {
     if (!supportsWaitUntil) {
       // 미지원: 동기 처리로 즉시 완료까지 수행
       console.info('[tech-analysis] processing synchronously', { keySource: apiKey.source });
-      return await processUrlSynchronously(url, techAnalysisReportOperations, db, apiKey);
+      return await processUrlSynchronously(url, techAnalysisReportOperations, db, apiKey, youtubeApiKey);
     }
 
     // 지원: pending 레코드 생성 후 즉시 응답 반환, 백그라운드 처리는 비동기로 실행
@@ -104,7 +116,7 @@ export async function POST(request: NextRequest) {
     
     // 백그라운드 처리 스케줄링 (응답과 독립적으로 실행)
     if (pendingReport.id && waitUntilFn) {
-      const processing = processMetadataInBackground(Number(pendingReport.id), url, db, apiKey);
+      const processing = processMetadataInBackground(Number(pendingReport.id), url, db, apiKey, youtubeApiKey);
       try {
         waitUntilFn(processing);
       } catch (e) {
@@ -130,9 +142,10 @@ async function processUrlSynchronously(
   techAnalysisReportOperations: ReturnType<typeof createTechAnalysisReportOperations>,
   db: DatabaseAdapter,
   apiKey: ClassificationApiKey,
+  youtubeApiKey?: string,
 ) {
   try {
-    const { title, description, image, source } = await getTechNewsMetadata(url);
+    const { title, description, image, source } = await getTechNewsMetadata(url, { youtubeApiKey });
     const summary = description || '설명이 없습니다.';
     console.info('[tech-analysis] synchronous metadata ready', {
       metadataSource: source,
@@ -176,12 +189,12 @@ async function processUrlSynchronously(
 }
 
 // 백그라운드 메타데이터 처리 함수
-async function processMetadataInBackground(reportId: number, url: string, db: DatabaseAdapter, apiKey: ClassificationApiKey) {
+async function processMetadataInBackground(reportId: number, url: string, db: DatabaseAdapter, apiKey: ClassificationApiKey, youtubeApiKey?: string) {
   try {
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     console.info('[tech-analysis] background processing started', { reportId, keySource: apiKey.source });
 
-    const { title, description, image, source } = await getTechNewsMetadata(url);
+    const { title, description, image, source } = await getTechNewsMetadata(url, { youtubeApiKey });
     const summary = description || '설명이 없습니다.';
     console.info('[tech-analysis] background metadata ready', {
       reportId,

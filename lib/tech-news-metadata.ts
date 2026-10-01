@@ -2,7 +2,7 @@ type Metadata = {
   title: string;
   description: string | null;
   image: string | null;
-  source: 'metadata-service' | 'youtube-oembed' | 'x-oembed' | 'url';
+  source: 'metadata-service' | 'youtube-data-api' | 'youtube-oembed' | 'x-oembed' | 'url';
 };
 
 type MetadataServiceResponse = {
@@ -14,6 +14,17 @@ type YouTubeOEmbedResponse = {
   title?: unknown;
   author_name?: unknown;
   thumbnail_url?: unknown;
+};
+
+type YouTubeDataApiResponse = {
+  items?: Array<{
+    snippet?: {
+      title?: unknown;
+      description?: unknown;
+      channelTitle?: unknown;
+      thumbnails?: Record<string, { url?: unknown }>;
+    };
+  }>;
 };
 
 type XOEmbedResponse = {
@@ -163,6 +174,41 @@ async function fetchYouTubeMetadata(videoId: string): Promise<Omit<Metadata, 'so
   }
 }
 
+async function fetchYouTubeDataApi(videoId: string, apiKey: string): Promise<Omit<Metadata, 'source'> | null> {
+  const params = new URLSearchParams({ part: 'snippet', id: videoId, key: apiKey });
+  try {
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) {
+      console.warn('[tech-analysis] YouTube Data API HTTP error', { httpStatus: response.status });
+      return null;
+    }
+
+    const body = await response.json() as YouTubeDataApiResponse;
+    const snippet = body.items?.[0]?.snippet;
+    const title = nonEmptyString(snippet?.title);
+    if (!title) {
+      console.warn('[tech-analysis] YouTube Data API returned no video');
+      return null;
+    }
+
+    const channel = nonEmptyString(snippet?.channelTitle);
+    const description = nonEmptyString(snippet?.description);
+    return {
+      title,
+      description: description || (channel ? `YouTube 영상 · 채널: ${channel}` : 'YouTube 영상'),
+      image: nonEmptyString(snippet?.thumbnails?.high?.url)
+        || nonEmptyString(snippet?.thumbnails?.medium?.url)
+        || nonEmptyString(snippet?.thumbnails?.default?.url),
+    };
+  } catch (error) {
+    // Do not print the request URL: it contains the API key.
+    console.warn('[tech-analysis] YouTube Data API request failed', error instanceof Error ? error.name : 'UnknownError');
+    return null;
+  }
+}
+
 async function fetchXMetadata(postUrl: string): Promise<Omit<Metadata, 'source'> | null> {
   const endpoint = `https://publish.twitter.com/oembed?url=${encodeURIComponent(postUrl)}&omit_script=1&dnt=1`;
   try {
@@ -191,9 +237,13 @@ async function fetchXMetadata(postUrl: string): Promise<Omit<Metadata, 'source'>
   }
 }
 
-export async function getTechNewsMetadata(url: string): Promise<Metadata> {
+export async function getTechNewsMetadata(url: string, options: { youtubeApiKey?: string } = {}): Promise<Metadata> {
   const videoId = getYouTubeVideoId(url);
   if (videoId) {
+    if (options.youtubeApiKey) {
+      const video = await fetchYouTubeDataApi(videoId, options.youtubeApiKey);
+      if (video) return { ...video, source: 'youtube-data-api' };
+    }
     const [youtube, service] = await Promise.all([
       fetchYouTubeMetadata(videoId),
       fetchMetadataService(url),

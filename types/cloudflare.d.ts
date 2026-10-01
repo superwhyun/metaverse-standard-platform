@@ -5,6 +5,7 @@ declare global {
     MSP: D1Database;
     MSP_TREND_INSIGHTS: R2Bucket;
     OPENAI_API_KEY: string;
+    YOUTUBE_API_KEY?: string;
     JWT_SECRET: string;
   }
 

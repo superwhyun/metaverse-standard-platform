@@ -143,6 +143,9 @@ npm run preview
 | 변수명 | 설명 | 용도 |
 |--------|------|------|
 | `OPENAI_API_KEY` | OpenAI API 키 | 기술 소식 자동 카테고리화 및 표준 검색 AI 분석 |
+| `YOUTUBE_API_KEY` (선택) | YouTube Data API v3 키 | 유튜브 기술 소식의 실제 영상 설명 가져오기 |
+
+유튜브 영상 설명이 필요한 경우 Google Cloud 프로젝트에서 YouTube Data API v3를 활성화하고 API 키를 발급하세요. Cloudflare Pages 프로젝트의 **Settings > Variables and Secrets**에 `YOUTUBE_API_KEY`를 암호화된 Secret으로 등록한 뒤 다시 배포해야 합니다. 키가 없거나 API 조회가 실패하면 영상 제목과 썸네일은 oEmbed에서 가져오고, 설명은 기존 메타데이터 서비스 또는 채널명으로 대체합니다. API 키를 저장소에 커밋하지 마세요.
 
 ### Cloudflare 바인딩 (wrangler.toml에서 설정)
 | 바인딩명 | 타입 | 용도 |

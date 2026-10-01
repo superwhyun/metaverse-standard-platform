@@ -164,11 +164,14 @@ export function AdminEnvSettings() {
                     <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
                       {name}
                     </code>
-                    <Badge variant={config.exists ? "default" : "destructive"}>
-                      {config.exists ? "설정됨" : "누락"}
+                    <Badge variant={config.exists ? "default" : config.required ? "destructive" : "secondary"}>
+                      {config.exists ? "설정됨" : config.required ? "누락" : "미설정"}
                     </Badge>
                     {config.required && (
                       <Badge variant="outline">필수</Badge>
+                    )}
+                    {!config.required && (
+                      <Badge variant="outline">선택</Badge>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">
@@ -246,7 +249,7 @@ export function AdminEnvSettings() {
                   <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                     <li>OpenAI Platform 웹사이트 방문</li>
                     <li>계정 로그인 후 API Keys 페이지로 이동</li>
-                    <li>"Create new secret key" 클릭</li>
+                    <li>&quot;Create new secret key&quot; 클릭</li>
                     <li>생성된 키를 복사하여 Cloudflare Pages에 설정</li>
                   </ol>
                   <Button
