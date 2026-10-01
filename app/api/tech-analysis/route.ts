@@ -4,6 +4,7 @@ import { createTechAnalysisReportOperations } from '@/lib/database-operations';
 import { getSessionFromRequest } from '@/lib/edge-auth';
 import { categorizeContent, classificationErrorDetails, ClassificationApiKey, resolveClassificationApiKey } from '@/lib/openai-categorizer';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { getTechNewsMetadata } from '@/lib/tech-news-metadata';
 
 export const runtime = 'edge';
 
@@ -131,46 +132,10 @@ async function processUrlSynchronously(
   apiKey: ClassificationApiKey,
 ) {
   try {
-    // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
-    let title, description, image;
-    try {
-      const requestUrl = `http://xtandards.is-an.ai:3100/api/metadata?url=${encodeURIComponent(url)}`;
-      const microlinkResponse = await fetch(requestUrl);
-
-      if (!microlinkResponse.ok) {
-        console.warn('[tech-analysis] synchronous metadata HTTP fallback', { httpStatus: microlinkResponse.status });
-        title = url;
-        description = null;
-        image = null;
-      } else {
-        const metadata = await microlinkResponse.json();
-
-        if (!metadata.status) {
-          console.warn('[tech-analysis] synchronous metadata response had no result');
-          title = url;
-          description = null;
-          image = null;
-        } else {
-          title = metadata.data.title;
-          description = metadata.data.description;
-          image = metadata.data.image; // 직접 URL 문자열
-        }
-      }
-    } catch (microlinkError) {
-      console.warn('[tech-analysis] synchronous metadata network fallback', classificationErrorDetails(microlinkError));
-      title = url;
-      description = null;
-      image = null;
-    }
-
-    // 제목 확보
-    if (!title) {
-      title = url;
-    }
-
+    const { title, description, image, source } = await getTechNewsMetadata(url);
     const summary = description || '설명이 없습니다.';
     console.info('[tech-analysis] synchronous metadata ready', {
-      metadataFound: title !== url,
+      metadataSource: source,
       titleLength: title.length,
       summaryLength: summary.length,
     });
@@ -216,47 +181,11 @@ async function processMetadataInBackground(reportId: number, url: string, db: Da
     const techAnalysisReportOperations = createTechAnalysisReportOperations(db);
     console.info('[tech-analysis] background processing started', { reportId, keySource: apiKey.source });
 
-    // 커스텀 메타데이터 서비스에서 메타데이터 가져오기
-    let title, description, image;
-    try {
-      const requestUrl = `http://xtandards.is-an.ai:3100/api/metadata?url=${encodeURIComponent(url)}`;
-      const microlinkResponse = await fetch(requestUrl);
-
-      if (!microlinkResponse.ok) {
-        console.warn('[tech-analysis] background metadata HTTP fallback', { reportId, httpStatus: microlinkResponse.status });
-        title = url;
-        description = null;
-        image = null;
-      } else {
-        const metadata = await microlinkResponse.json();
-
-        if (!metadata.status) {
-          console.warn('[tech-analysis] background metadata response had no result', { reportId });
-          title = url;
-          description = null;
-          image = null;
-        } else {
-          title = metadata.data.title;
-          description = metadata.data.description;
-          image = metadata.data.image; // 직접 URL 문자열
-        }
-      }
-    } catch (microlinkError) {
-      console.warn('[tech-analysis] background metadata network fallback', { reportId, ...classificationErrorDetails(microlinkError) });
-      title = url;
-      description = null;
-      image = null;
-    }
-
-    // 제목 확보
-    if (!title) {
-      title = url;
-    }
-
+    const { title, description, image, source } = await getTechNewsMetadata(url);
     const summary = description || '설명이 없습니다.';
     console.info('[tech-analysis] background metadata ready', {
       reportId,
-      metadataFound: title !== url,
+      metadataSource: source,
       titleLength: title.length,
       summaryLength: summary.length,
     });
